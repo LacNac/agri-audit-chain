@@ -1,122 +1,96 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState } from "react";
+import "./App.css";
+import agritrace from "./assets/Agritrace.svg";
+import name from "./assets/name.svg";
+import fruit from "./assets/fruit.svg";
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+      <nav className="navbar">
+        <div className="logo-group">
+          <img src={name} alt="Logo AgriTrace" className="logo" />
+          <img src={agritrace} alt="..." className="logo2" />
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
+        <ul className="nav-menu">
+          <li>
+            <a>Trang chủ</a>
+          </li>
+          <li>
+            <a>Sản phẩm</a>
+          </li>
+          <li>
+            <a>Về chúng tôi </a>
+          </li>
+        </ul>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+        <div className="nav-login">
+          <a>Đăng nhập</a>
+          <button>Tạo tài khoản miễn phí →</button>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
+      </nav>
       <div className="ticks"></div>
       <section id="spacer"></section>
+      <main className="introduce">
+        <section className="hero">
+          <div className="trace">
+            <p className="up">NỀN TẢNG HỒ SƠ SỐ NÔNG SẢN</p>
+            <h1 className="hero-title">
+              MỖI NÔNG SẢN. <br />
+              <span className="purple-text">MỘT DANH TÍNH SỐ.</span>
+            </h1>
+            <p className="down">
+              Số hóa quy trình canh tác, chuỗi cung ứng và kiểm định chất lượng
+              thành hồ sơ số minh bạch, giúp nông sản Việt tự tin vươn xa.
+            </p>
+            <div className="check">
+              <button>Quét mã truy xuất</button>
+              <button>Tìm kiếm mã nông sản</button>
+            </div>
+            <p className="trust-text">
+              Chuỗi khối an toàn • Mã QR định danh • Dữ liệu bất biến
+            </p>
+          </div>
+          <div className="hero-image">
+            <img src={fruit} alt="" className="fruit"></img>
+          </div>
+        </section>
+        <div className="floating-actions">
+          <button className="fab-btn qr-btn">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </svg>
+          </button>
+
+          <button className="fab-btn bot-btn">
+            <img
+              src="https://api.dicebear.com/7.x/bottts/svg?seed=AgriBotPurple"
+              alt="Bot Support"
+            />
+          </button>
+
+          <button className="fab-btn call-btn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.24 1.01l-2.21 2.2z" />
+            </svg>
+          </button>
+        </div>
+      </main>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
