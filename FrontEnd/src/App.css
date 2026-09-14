@@ -212,7 +212,7 @@
 .nav-menu {
   display: flex;
   list-style: none;
-  gap: 100px;
+  gap: 70px;
   padding: 0px;
   margin: 8px;
 }
