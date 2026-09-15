@@ -207,12 +207,13 @@
   font-weight: 600;
   background-color: rgb(246, 244, 246);
   color: rgb(53, 39, 84);
+  white-space: nowrap;
 }
 
 .nav-menu {
   display: flex;
   list-style: none;
-  gap: 70px;
+  gap: 50px;
   padding: 0px;
   margin: 8px;
 }
@@ -245,6 +246,16 @@
   display: flex;
   align-items: center;
   gap: 45px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.nav-login a {
+  display: flex;
+  align-items: center;
+  gap: 45px;
+  text-decoration: none;
+  color: inherit;
 }
 
 .nav-login a:hover {
