@@ -122,13 +122,13 @@
           <div class="field">
             <label for="r1-pass">Mật khẩu <span class="req">*</span></label>
             <div class="input-wrap">
-              <input type="password" id="r1-pass" placeholder="Tối thiểu 6 ký tự" required>
+              <input type="password" id="r1-pass" placeholder="Tối thiểu 6 ký tự" required minlength="6">
               <button type="button" class="inline-toggle" data-toggle="r1-pass">Hiện</button>
             </div>
           </div>
           <div class="field">
             <label for="r1-pass2">Xác nhận mật khẩu <span class="req">*</span></label>
-            <input type="password" id="r1-pass2" placeholder="Nhập lại mật khẩu" required>
+            <input type="password" id="r1-pass2" placeholder="Nhập lại mật khẩu" required minlength="6">
           </div>
         </div>
 
@@ -145,7 +145,7 @@
 
     <!-- 3. Đăng ký — Bước 2/2: Thông tin doanh nghiệp -->
     <section class="card card--lg" id="card-register-2" hidden>
-      <h2 class="card-title" text-center>Đăng ký Hồ sơ</h2>
+      <h2 class="card-title text-center">Đăng ký Hồ sơ</h2>
 
       <div class="steps">
         <div class="step completed">
@@ -164,45 +164,57 @@
       <p class="step-kicker">Bước 2/2</p>
       <h3 class="step-heading">Thông tin doanh nghiệp</h3>
 
-      <form id="form-register-2">
-        <div class="form-row">
-          <div class="field">
-            <label for="r2-type">Loại hình hoạt động <span class="req">*</span></label>
-            <select id="r2-type" required>
-              <option value="" selected disabled>Chọn loại hình</option>
-              <option>Hộ kinh doanh cá thể</option>
-              <option>Doanh nghiệp tư nhân</option>
-              <option>Công ty TNHH</option>
-              <option>Công ty Cổ phần</option>
-              <option>Hợp tác xã</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="r2-category">Chủng loại sản phẩm <span class="req">*</span></label>
-            <input type="text" id="r2-category" placeholder="Nhập chủng loại" required>
-          </div>
-        </div>
+    <form id="form-register-2">
+  <div class="form-row">
+    <div class="field">
+      <label for="r2-type">Loại hình hoạt động <span class="req">*</span></label>
+      <select id="r2-type" required>
+        <option value="" selected disabled>Chọn loại hình</option>
+        <option>Hộ kinh doanh cá thể</option>
+        <option>Doanh nghiệp tư nhân</option>
+        <option>Công ty TNHH</option>
+        <option>Công ty Cổ phần</option>
+        <option>Hợp tác xã</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="r2-category">Chủng loại sản phẩm <span class="req">*</span></label>
+      <!-- Chuyển input thành select -->
+      <select id="r2-category" required>
+        <option value="" selected disabled>Chọn chủng loại sản phẩm</option>
+        <option value="thit">Thịt và sản phẩm từ thịt</option>
+        <option value="thuy-san">Thủy sản và sản phẩm từ thủy sản</option>
+        <option value="nong-san">Gạo, ngũ cốc và các loại hạt</option>
+        <option value= "rau">Rau củ quả</option>
+      </select>
+    </div>
+  </div>
 
-        <div class="field">
-          <label for="r2-company">Tên doanh nghiệp/ Hộ kinh doanh <span class="req">*</span></label>
-          <input type="text" id="r2-company" placeholder="Nhập tên doanh nghiệp" required>
-        </div>
+  <!-- Bọc Tên doanh nghiệp và Mã số thuế vào 1 form-row để chia 2 cột -->
+  <div class="form-row">
+    <div class="field">
+      <label for="r2-company">Tên doanh nghiệp/ Hộ kinh doanh <span class="req">*</span></label>
+      <input type="text" id="r2-company" placeholder="Nhập tên doanh nghiệp" required>
+    </div>
+    <div class="field">
+      <label for="r2-tax">Mã số thuế <span class="req">*</span></label>
+      <input type="text" id="r2-tax" placeholder="Nhập 10 hoặc 13 chữ số" required>
+    </div>
+  </div>
 
-        <div class="field">
-          <label for="r2-tax">Mã số thuế <span class="req">*</span></label>
-          <input type="text" id="r2-tax" placeholder="Nhập 10 hoặc 13 chữ số" required>
-        </div>
+  <!-- Bọc checkbox và cụm nút vào bottom-row để căn cùng 1 hàng -->
+  <div class="bottom-row">
+    <div class="checkbox-row">
+      <input type="checkbox" id="r2-agree" required>
+      <label for="r2-agree">Tôi đồng ý với <a href="#">Điều khoản sử dụng</a> và <a href="#">Chính sách bảo mật</a> của AgriTrace</label>
+    </div>
 
-        <div class="checkbox-row">
-          <input type="checkbox" id="r2-agree" required>
-          <label for="r2-agree">Tôi đồng ý với <a href="#">Điều khoản sử dụng</a> và <a href="#">Chính sách bảo mật</a> của AgriTrace</label>
-        </div>
-
-        <div class="btn-row">
-          <button type="button" class="btn btn-outline" data-goto="register-1">Quay lại</button>
-          <button type="submit" class="btn btn-primary">Đăng ký</button>
-        </div>
-      </form>
+    <div class="btn-row">
+      <button type="button" class="btn btn-outline" data-goto="register-1">Quay lại</button>
+      <button type="submit" class="btn btn-primary" disabled>Đăng ký</button>
+    </div>
+  </div>
+</form>
     </section>
 
     <!-- 4. Đăng nhập — Tài khoản Kiểm định -->
@@ -228,7 +240,7 @@
           <input type="password" id="kd-pass" required>
         </div>
 
-        <p class="helper-text" text-align:center;>
+        <p class="helper-text" style="text-align:center;">
           <a href="#" class="link-strong">Quên mật khẩu?</a>
         </p>
 
