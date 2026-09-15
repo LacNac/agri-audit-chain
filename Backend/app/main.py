@@ -1,20 +1,6 @@
 from fastapi import FastAPI
+from routers import auth, admin, auditor, batches, public, users
 
-app = FastAPI(
-    title="Agricultural Traceability API",
-    version="1.0.0"
-)
+app = FastAPI()
 
-
-@app.get("/")
-def root():
-    return {
-        "message": "Agricultural Traceability API is running"
-    }
-
-
-@app.get("/api/v1/health")
-def health():
-    return {
-        "status": "OK"
-    }
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
