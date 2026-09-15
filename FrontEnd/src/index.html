@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgriTrace — Đăng nhập / Đăng ký</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ================= SIDEBAR (trái, cố định trên mọi màn hình) ================= -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="logo" data-goto="landing">
+        <img class="logo__icon" src="assets/logo-icon.svg" alt="Biểu tượng AgriTrace">
+        <img class="logo__text" src="assets/logo-text.svg" alt="AgriTrace">
+      </div>
+
+      <p class="eyebrow">NỀN TẢNG HỒ SƠ SỐ SẢN PHẨM</p>
+
+      <h1 class="headline">Mỗi sản phẩm<br>đều có một <span class="accent">Hồ sơ số</span></h1>
+
+      <p class="tagline">Truy xuất rõ ràng, an tâm lựa chọn.</p>
+    </div>
+
+    <ul class="nav-list">
+      <li>
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 4H5a1 1 0 0 0-1 1v4"/>
+            <path d="M15 4h4a1 1 0 0 1 1 1v4"/>
+            <path d="M9 20H5a1 1 0 0 1-1-1v-4"/>
+            <path d="M15 20h4a1 1 0 0 0 1-1v-4"/>
+          </svg>
+        </span>
+        <span class="nav-label">Cấp mã QR truy xuất</span>
+      </li>
+      <li>
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4 3.5-6.5 8-6.5s8 2.5 8 6.5"/>
+          </svg>
+        </span>
+        <span class="nav-label">Tạo Hồ sơ sản phẩm</span>
+      </li>
+      <li>
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/>
+            <path d="M14 3v4h4"/>
+            <path d="M9 13h6"/>
+            <path d="M9 17h6"/>
+          </svg>
+        </span>
+        <span class="nav-label">Quản lý báo cáo kiểm nghiệm</span>
+      </li>
+      <li>
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="m21 21-4.3-4.3"/>
+          </svg>
+        </span>
+        <span class="nav-label">Tra cứu nguồn gốc công khai</span>
+      </li>
+    </ul>
+
+    <p class="sidebar-footer">© 2026 AgriTrace . Hồ sơ số sản phẩm</p>
+  </aside>
+
+  <!-- ================= PANEL (phải, tím, nội dung thay đổi theo màn hình) ================= -->
+  <main class="panel">
+
+    <!-- 1. Chọn phương thức đăng nhập -->
+    <section class="card card--sm" id="card-landing">
+      <button type="button" class="btn btn-yellow" data-goto="login-kd">Đăng nhập với tài khoản Kiểm định</button>
+      <p class="divider-word">Hoặc</p>
+      <button type="button" class="btn btn-lavender" data-goto="login-dn">Đăng nhập với tài khoản Doanh nghiệp</button>
+      <p class="helper-text">Doanh nghiệp chưa có tài khoản? <a href="#" data-goto="register-1" class="link-strong">Đăng ký</a></p>
+    </section>
+
+    <!-- 2. Đăng ký — Bước 1/2: Thông tin tài khoản -->
+    <section class="card card--lg" id="card-register-1" hidden>
+      <h2 class="card-title text-center">Đăng ký Hồ sơ</h2>
+
+      <div class="steps">
+        <div class="step active">
+          <span class="step-circle">1</span>
+          <span class="step-label">Thông tin tài khoản</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step">
+          <span class="step-circle">2</span>
+          <span class="step-label">Thông tin doanh nghiệp</span>
+        </div>
+      </div>
+
+      <p class="step-kicker">Bước 1/2</p>
+      <h3 class="step-heading">Thông tin tài khoản</h3>
+
+      <form id="form-register-1">
+        <div class="form-row">
+          <div class="field">
+            <label for="r1-name">Họ và tên <span class="req">*</span></label>
+            <input type="text" id="r1-name" required>
+          </div>
+          <div class="field">
+            <label for="r1-phone">Số điện thoại <span class="req">*</span></label>
+            <input type="tel" id="r1-phone" placeholder="VD: 0123456789" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="r1-email">Email <span class="req">*</span></label>
+          <input type="email" id="r1-email" placeholder="VD: abc@gmail.com" required>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="r1-pass">Mật khẩu <span class="req">*</span></label>
+            <div class="input-wrap">
+              <input type="password" id="r1-pass" placeholder="Tối thiểu 6 ký tự" required>
+              <button type="button" class="inline-toggle" data-toggle="r1-pass">Hiện</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="r1-pass2">Xác nhận mật khẩu <span class="req">*</span></label>
+            <input type="password" id="r1-pass2" placeholder="Nhập lại mật khẩu" required>
+          </div>
+        </div>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="r1-agree" required>
+          <label for="r1-agree">Tôi đồng ý với <a href="#">Điều khoản sử dụng</a> và <a href="#">Chính sách bảo mật</a> của AgriTrace</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Tiếp tục&nbsp; &gt;</button>
+      </form>
+
+      <p class="helper-text">Đã có tài khoản? <a href="#" data-goto="landing" class="link-strong">Đăng nhập</a></p>
+    </section>
+
+    <!-- 3. Đăng ký — Bước 2/2: Thông tin doanh nghiệp -->
+    <section class="card card--lg" id="card-register-2" hidden>
+      <h2 class="card-title" text-center>Đăng ký Hồ sơ</h2>
+
+      <div class="steps">
+        <div class="step completed">
+          <span class="step-circle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+          <span class="step-label">Thông tin tài khoản</span>
+        </div>
+        <div class="step-line filled"></div>
+        <div class="step active">
+          <span class="step-circle">2</span>
+          <span class="step-label">Thông tin doanh nghiệp</span>
+        </div>
+      </div>
+
+      <p class="step-kicker">Bước 2/2</p>
+      <h3 class="step-heading">Thông tin doanh nghiệp</h3>
+
+      <form id="form-register-2">
+        <div class="form-row">
+          <div class="field">
+            <label for="r2-type">Loại hình hoạt động <span class="req">*</span></label>
+            <select id="r2-type" required>
+              <option value="" selected disabled>Chọn loại hình</option>
+              <option>Hộ kinh doanh cá thể</option>
+              <option>Doanh nghiệp tư nhân</option>
+              <option>Công ty TNHH</option>
+              <option>Công ty Cổ phần</option>
+              <option>Hợp tác xã</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="r2-category">Chủng loại sản phẩm <span class="req">*</span></label>
+            <input type="text" id="r2-category" placeholder="Nhập chủng loại" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="r2-company">Tên doanh nghiệp/ Hộ kinh doanh <span class="req">*</span></label>
+          <input type="text" id="r2-company" placeholder="Nhập tên doanh nghiệp" required>
+        </div>
+
+        <div class="field">
+          <label for="r2-tax">Mã số thuế <span class="req">*</span></label>
+          <input type="text" id="r2-tax" placeholder="Nhập 10 hoặc 13 chữ số" required>
+        </div>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="r2-agree" required>
+          <label for="r2-agree">Tôi đồng ý với <a href="#">Điều khoản sử dụng</a> và <a href="#">Chính sách bảo mật</a> của AgriTrace</label>
+        </div>
+
+        <div class="btn-row">
+          <button type="button" class="btn btn-outline" data-goto="register-1">Quay lại</button>
+          <button type="submit" class="btn btn-primary">Đăng ký</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 4. Đăng nhập — Tài khoản Kiểm định -->
+    <section class="card card--sm card--auth" id="card-login-kd" hidden>
+    
+    <button type="button" class="btn-back" data-goto="landing" title="Quay lại trang chủ">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+  </button>
+  
+  <h2 class="card-title">Chào mừng bạn đã quay trở lại!</h2>
+      <p class="subtitle-purple nowrap">Đăng nhập để tiếp tục xác minh và phê duyệt lô hàng</p>
+
+      <form id="form-login-kd">
+        <div class="field">
+          <label for="kd-id">ID <span class="req">*</span></label>
+          <input type="text" id="kd-id" required>
+        </div>
+        <div class="field">
+          <label for="kd-pass">Mật khẩu <span class="req">*</span></label>
+          <input type="password" id="kd-pass" required>
+        </div>
+
+        <p class="helper-text" text-align:center;>
+          <a href="#" class="link-strong">Quên mật khẩu?</a>
+        </p>
+
+        <button type="submit" class="btn btn-primary" disabled>Đăng nhập</button>
+      </form>
+    </section>
+
+    <!-- 5. Đăng nhập — Tài khoản Doanh nghiệp -->
+    <section class="card card--sm card--auth" id="card-login-dn" hidden>
+    
+      <button type="button" class="btn-back" data-goto="landing" title="Quay lại trang chủ">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+  </button>
+    <h2 class="card-title">Chào mừng bạn đã quay trở lại!</h2>
+      <p class="subtitle-purple">Đăng nhập để tiếp tục quản lý Hồ sơ số sản phẩm</p>
+
+      <form id="form-login-dn">
+        <div class="field">
+          <label for="dn-email">Email <span class="req">*</span></label>
+          <input type="email" id="dn-email" required>
+        </div>
+        <div class="field">
+          <label for="dn-pass">Mật khẩu <span class="req">*</span></label>
+          <input type="password" id="dn-pass" required>
+        </div>
+
+        <div class="options-row">
+          <label class="remember" for="dn-remember">
+            <input type="checkbox" id="dn-remember">
+            Ghi nhớ đăng nhập
+          </label>
+          <a href="#" class="link-strong">Quên mật khẩu ?</a>
+        </div>
+
+
+        <button type="submit" class="btn btn-primary" disabled>Đăng nhập</button>
+      </form>
+    </section>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
+
+
+
