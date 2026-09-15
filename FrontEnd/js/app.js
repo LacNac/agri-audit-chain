@@ -4,7 +4,7 @@
 
 (function () {
   const CARD_IDS = {
-    "landing": "card-landing",
+    landing: "card-landing",
     "register-1": "card-register-1",
     "register-2": "card-register-2",
     "login-kd": "card-login-kd",
@@ -23,7 +23,11 @@
 
     // Cuộn lên đầu panel khi chuyển màn hình (hữu ích trên mobile)
     const panel = document.querySelector(".panel");
-    if (panel) panel.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+    if (panel)
+      panel.scrollTo({
+        top: 0,
+        behavior: "instant" in window ? "instant" : "auto",
+      });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -64,34 +68,33 @@
   });
 })();
 
-
 // ==========================================
 // TỰ ĐỘNG ĐỔI MÀU NÚT KHI ĐIỀN ĐỦ THÔNG TIN
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-  const forms = document.querySelectorAll('form');
+document.addEventListener("DOMContentLoaded", () => {
+  const forms = document.querySelectorAll("form");
 
-  forms.forEach(form => {
+  forms.forEach((form) => {
     const submitBtn = form.querySelector('button[type="submit"]');
     if (!submitBtn) return;
 
     function validateForm() {
       // Kiểm tra xem tất cả các ô có chữ thuộc tính required đã điền chưa
       const isValid = form.checkValidity();
-      
+
       if (isValid) {
-        submitBtn.removeAttribute('disabled');
-        submitBtn.classList.add('is-ready'); // Thêm class để CSS nhận màu #1D12C3
+        submitBtn.removeAttribute("disabled");
+        submitBtn.classList.add("is-ready"); // Thêm class để CSS nhận màu #1D12C3
       } else {
-        submitBtn.setAttribute('disabled', 'disabled');
-        submitBtn.classList.remove('is-ready');
+        submitBtn.setAttribute("disabled", "disabled");
+        submitBtn.classList.remove("is-ready");
       }
     }
 
     // Lắng nghe mỗi khi người dùng gõ chữ hoặc tích chọn checkbox
-    form.addEventListener('input', validateForm);
-    form.addEventListener('change', validateForm);
-    
+    form.addEventListener("input", validateForm);
+    form.addEventListener("change", validateForm);
+
     // Chạy kiểm tra ngay lần đầu tải trang
     validateForm();
   });
