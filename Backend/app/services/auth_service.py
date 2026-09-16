@@ -1,7 +1,41 @@
 import sqlite3
 from fastapi import HTTPException
-from schema.auth import RegisterRequest
-from services.hash_service import hash_password
+from ..schema.auth import RegisterRequest, LoginRequest
+from ..services.hash_service import hash_password
+
+def login_user(db, data: LoginRequest, expected_roles: list[str] | None = None):
+    cursor = db.cursor()
+
+    cursor.execute(
+        """
+        SELECT id, username, password_hash, full_name, role, status
+        FROM users
+        WHERE email = ? OR username = ?
+        """,
+        (data.identifier, data.identifier),
+    )
+    row = cursor.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=401, detail="Tài khoản hoặc mật khẩu không đúng")
+
+    user_id, username, password_hash, full_name, role, status = row
+
+    if status != "active":
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị khóa")
+
+    if not verify_password(data.password, password_hash):
+        raise HTTPException(status_code=401, detail="Tài khoản hoặc mật khẩu không đúng")
+
+    if expected_roles and role not in expected_roles:
+        raise HTTPException(status_code=403, detail="Tài khoản này không có quyền đăng nhập ở đây")
+
+    return {
+        "user_id": user_id,
+        "username": username,
+        "full_name": full_name,
+        "role": role,
+    }
 
 def register_user_with_business(db: sqlite3.Connection, data: RegisterRequest):
     cursor = db.cursor()

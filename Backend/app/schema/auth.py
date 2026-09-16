@@ -1,5 +1,4 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
 
 class RegisterRequest(BaseModel):
     # Thông tin tài khoản
@@ -19,3 +18,14 @@ class RegisterResponse(BaseModel):
     business_id: int
     username: str
     message: str = "Đăng ký thành công"
+
+class LoginRequest(BaseModel):
+    identifier: str   # email (doanh nghiệp) hoặc username (kiểm định)
+    password: str
+
+class LoginResponse(BaseModel):
+    user_id: int
+    username: str
+    full_name: str
+    role: str
+    message: str = "Đăng nhập thành công"
