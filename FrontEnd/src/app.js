@@ -4,13 +4,24 @@
 
 const API_BASE = "http://127.0.0.1:8000";
 
-function () {
-  const CARD_IDS = {
-    "landing": "card-landing",
-    "register-1": "card-register-1",
-    "register-2": "card-register-2",
-    "login-kd": "card-login-kd",
-    "login-dn": "card-login-dn",
+const CARD_IDS = {
+  "landing": "card-landing",
+  "register-1": "card-register-1",
+  "register-2": "card-register-2",
+  "login-kd": "card-login-kd",
+  "login-dn": "card-login-dn",
+};
+
+const authManager = {
+  saveSession(user) {
+    sessionStorage.setItem("currentUser", JSON.stringify(user));
+  },
+  clearSession() {
+    sessionStorage.removeItem("currentUser");
+  },
+  getSession() {
+    const raw = sessionStorage.getItem("currentUser");
+    return raw ? JSON.parse(raw) : null;
   }
 };
 
@@ -107,6 +118,11 @@ if (formStep2) {
         throw new Error(data.detail || "Đăng ký thất bại");
       }
 
+      authManager.saveSession({
+        user_id: data.user_id,
+        username: data.username,
+        business_id: data.business_id,
+      });
       alert(`Đăng ký thành công! Chào mừng ${data.username}`);
       registerData = {};
       formStep1.reset();
@@ -148,8 +164,8 @@ if (formLoginDn) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
+      authManager.saveSession(data);
       alert(`Xin chào ${data.full_name}!`);
-      // TODO: lưu thông tin user (vd sessionStorage) và điều hướng sang trang quản lý doanh nghiệp
       formLoginDn.reset();
 
     } catch (err) {
@@ -187,8 +203,8 @@ if (formLoginKd) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
+      authManager.saveSession(data);
       alert(`Xin chào ${data.full_name}!`);
-      // TODO: lưu thông tin user và điều hướng sang trang kiểm định
       formLoginKd.reset();
 
     } catch (err) {
