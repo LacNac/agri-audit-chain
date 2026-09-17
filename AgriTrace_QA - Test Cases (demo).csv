@@ -1,45 +1,183 @@
 Test Case ID,Module,Test Case Name,Preconditions,Test Data,Test Steps,Expected Result,Actual Result,Status,Bug ID
-TC-RBAC-01,Authentication & RBAC,Đăng nhập bằng tài khoản hợp lệ,Tài khoản đã tồn tại,"Email, password đúng","1. Mở trang Login 
-2. Nhập thông tin
-3. Đăng nhập","Đăng nhập thành công 
-và nhận đúng role",,Not run,
-TC-RBAC-02,Authentication & RBAC,Đăng nhập bằng mật khẩu sai,Tài khoản đã tồn tại,"Email đúng, password sai","1. Mở Login 
-2. Nhập thông tin sai 
-3. Đăng nhập",Đăng nhập thất bại,,Not run,
-TC-RBAC-03,Authentication & RBAC,FARMER thực hiện Audit Batch,Đã đăng nhập FARMER,Batch hợp lệ,"1. Đăng nhập FARMER 
-2. Truy cập chức năng Audit",Hệ thống từ chối quyền truy cập,,Not run,
-"TC-RBAC-04
-",Authentication & RBAC,AUDITOR thực hiện Audit Batch,Đã đăng nhập AUDITOR,Batch UNVERIFIED,"1. Đăng nhập AUDITOR 
-2. Chọn Batch 
-3. Thực hiện Audit",AUDITOR được phép thực hiện Audit,,Not run,
-TC-BATCH-01,Batch,FARMER tạo Batch hợp lệ,Đã đăng nhập FARMER,Thông tin Batch hợp lệ,"1. Chọn tạo Batch 
-2. Nhập thông tin 
-3. Lưu",Batch được tạo thành công,,Not run,
-TC-BATCH-02,Batch,Kiểm tra trạng thái Batch mới,Batch vừa được tạo,Batch mới,"1. Tạo Batch 
-2. Kiểm tra status",Batch có trạng thái UNVERIFIED,,Not run,
-TC-BATCH-03,Batch,FARMER tự đặt Batch thành AUDITED,Đã đăng nhập FARMER,Status = AUDITED,"Gửi request tạo/cập nhật Batch 
-với status AUDITED","Backend không cho FARMER tự chuyển 
-Batch thành AUDITED",,Not run,
-TC-LAB-01,Laboratory Test Report,Upload báo cáo kiểm định hợp lệ,"Có Batch/Sample hợp lệ,
- Auditor đã đăng nhập",File PDF hợp lệ,"1. Chọn Batch/Sample
-2. Upload Lab Report","Báo cáo được lưu và
-liên kết đúng Batch/Sample",,Not run,
-TC-LAB-02,Laboratory Test Report,Upload báo cáo không hợp lệ,Có Batch/Sample,File không hợp lệ,"1. Chọn Batch/Sample 
-2. Upload file","Hệ thống từ chối dữ liệu/file 
-không hợp lệ",,Not run,
-TC-AUDIT-01,Auditor Gatekeeper,AUDITOR xem Batch chờ kiểm định,Đã đăng nhập AUDITOR,Batch UNVERIFIED,"1. Mở Auditor Dashboard 
-2. Xem danh sách Batch",Hiển thị Batch đang chờ kiểm định,,Not run,
-TC-AUDIT-02,Auditor Gatekeeper,AUDITOR phê duyệt Batch hợp lệ,"Batch UNVERIFIED 
-có đủ hồ sơ",Batch + Lab Report hợp lệ,"1. Mở Batch 
-2. Kiểm tra hồ sơ 
-3. Approve","Batch chuyển từ 
-UNVERIFIED → AUDITED",,Not run,
-TC-HASH-01,SHA-256,Tạo SHA-256 cho Lab Report,Lab Report đã upload,File PDF,Upload/ xử lý Lab Report,Backend tạo và lưu SHA-256 của file,,Not run,
-TC-HASH-02,SHA-256,Kiểm tra tính toàn vẹn của Lab Report,Đã có hash của Report,File đã bị thay đổi,"1. Thay đổi file 
-2. Verify hash",Hệ thống phát hiện hash không khớp,,Not run,
-TC-PROOF-01,Proof of Integrity,Kiểm tra chuỗi Proof,Đã có các Proof,"Proof 1, Proof 2",Kiểm tra previous_hash và current_hash,"Chuỗi Proof hợp lệ khi 
-các hash liên kết đúng",,Not run,
-TC-QR-01,QR / Public Traceability,Tra cứu Batch bằng QR,"Batch đã được AUDITED 
-và QR hợp lệ",QR của Batch,"1. Quét QR 
-2. Mở trang Public Traceability","Hiển thị đúng thông tin truy xuất 
-được phép công khai",,Not run,
+TC-AUTH-01,Authentication,Login với tài khoản hợp lệ,Có tài khoản hợp lệ,Username + Password đúng,"1. Nhập username
+2. Nhập password
+3. Login",Đăng nhập thành công và tạo phiên/token hợp lệ,,NOT RUN,
+TC-AUTH-02,Authentication,Login với password sai,Có tài khoản hợp lệ,Password sai,"1. Nhập username
+2. Nhập password sai
+3. Login","Đăng nhập thất bại, không cấp quyền truy cập",,NOT RUN,
+TC-AUTH-03,Authentication,Login với tài khoản không tồn tại,Không có tài khoản tương ứng,Username không tồn tại,"1. Nhập username
+2. Nhập password
+3. Login",Hệ thống từ chối đăng nhập,,NOT RUN,
+TC-AUTH-04,Authentication,Truy cập chức năng khi chưa đăng nhập,Chưa đăng nhập,Request protected API,"Gửi request đến chức năng 
+yêu cầu đăng nhập",Backend từ chối request và yêu cầu xác thực,,NOT RUN,
+TC-RBAC-01,RBAC,FARMER truy cập chức năng Audit Batch,Đăng nhập FARMER,FARMER account + Batch,FARMER gửi request Audit Batch,Backend từ chối quyền thực hiện,,NOT RUN,
+TC-RBAC-02,RBAC,AUDITOR thực hiện Audit Batch,Đăng nhập AUDITOR; Batch hợp lệ,AUDITOR + Batch UNVERIFIED,AUDITOR thực hiện Audit,"Backend cho phép AUDITOR thực hiện 
+chức năng theo quyền",,NOT RUN,
+TC-RBAC-03,RBAC,PUBLIC/CONSUMER thực hiện Audit Batch,Đăng nhập PUBLIC/CONSUMER hoặc không có quyền,Batch,Gửi request Audit Batch,Backend từ chối request,,NOT RUN,
+TC-RBAC-04,RBAC,FARMER xem Batch của mình,Đăng nhập FARMER; có Batch thuộc FARMER,Farmer Batch,Truy cập thông tin Batch của mình,FARMER xem được Batch thuộc quyền của mình,,NOT RUN,
+TC-RBAC-05,RBAC,FARMER truy cập Batch không thuộc quyền,Đăng nhập FARMER; Batch thuộc Farmer khác,Batch của Farmer khác,FARMER yêu cầu xem Batch,Backend từ chối nếu Batch không thuộc phạm vi quyền,,NOT RUN,
+TC-RBAC-06,RBAC,PUBLIC xem thông tin Batch được công khai,Có Batch đã được Audit và QR hợp lệ,QR/Batch ID,Truy cập trang traceability,PUBLIC xem được thông tin được phép công khai,,NOT RUN,
+TC-USER-01,User Management,ADMIN xem danh sách người dùng,Đăng nhập ADMIN,User list,Mở chức năng quản lý User,ADMIN xem được danh sách người dùng,,NOT RUN,
+TC-USER-02,User Management,ADMIN tạo tài khoản người dùng,Đăng nhập ADMIN,User hợp lệ + Role,1. Nhập thông tin2. Chọn role3. Tạo user,User được tạo thành công với role tương ứng,,NOT RUN,
+TC-USER-03,User Management,ADMIN cập nhật thông tin/role User,Có User tồn tại,User + thông tin mới,ADMIN cập nhật User,"Thông tin được cập nhật thành công 
+theo quyền ADMIN",,NOT RUN,
+TC-USER-04,User Management,User không có quyền quản trị User,Đăng nhập FARMER/AUDITOR,User data,Truy cập chức năng quản lý User,Backend từ chối truy cập,,NOT RUN,
+TC-BATCH-01,Batch,FARMER tạo Batch hợp lệ,Đăng nhập FARMER,Thông tin Batch hợp lệ,1. Nhập thông tin Batch2. Submit,Batch được tạo thành công,,NOT RUN,
+TC-BATCH-02,Batch,Batch mới có trạng thái UNVERIFIED,Có thể tạo Batch,Batch hợp lệ,Tạo Batch mới,Status của Batch mới là UNVERIFIED,,NOT RUN,
+TC-BATCH-03,Batch,FARMER không được tự đặt Batch thành AUDITED,Đăng nhập FARMER,Batch + status=AUDITED,"Gửi request tạo/cập nhật Batch 
+với AUDITED","Backend không cho FARMER tự đặt 
+trạng thái AUDITED",,NOT RUN,
+TC-BATCH-04,Batch,Tạo Batch thiếu thông tin bắt buộc,Đăng nhập FARMER,Thiếu required field,Tạo Batch,Hệ thống báo validation error và không tạo Batch,,NOT RUN,
+TC-BATCH-05,Batch,FARMER xem thông tin Batch,Có Batch của FARMER,Batch ID,Truy cập Batch,Hiển thị đúng thông tin Batch,,NOT RUN,
+TC-BATCH-06,Batch,Cập nhật Batch khi chưa Audit,Có Batch UNVERIFIED thuộc FARMER,Thông tin cập nhật hợp lệ,FARMER cập nhật Batch,Thông tin được cập nhật theo quyền/trạng thái cho phép,,NOT RUN,
+TC-BATCH-07,Batch,Kiểm tra Batch sau khi Audit,Batch đã được Auditor approve,Batch AUDITED,Truy cập Batch,Batch có trạng thái AUDITED và thông tin Audit tương ứng,,NOT RUN,
+TC-BATCH-08,Batch,Kiểm tra hệ thống tự tạo Batch ID khi Farmer tạo Batch,Farmer đã đăng nhập và có quyền tạo Batch,"Product Name, Product Type, 
+Production Date, Quantity, 
+Unit, Origin/Farm Location hợp lệ; 
+không nhập Batch ID","1. Farmer mở chức năng tạo Batch
+2. Nhập thông tin Batch
+3. Không nhập Batch ID
+4. Nhấn tạo Batch","Batch được tạo thành công; 
+hệ thống tự động sinh Batch ID; 
+Farmer không cần nhập Batch ID",,NOT RUN,
+TC-BATCH-09,Batch,Kiểm tra hệ thống tự gán Farmer khi tạo Batch,Farmer đã đăng nhập hệ thống,"Tài khoản Farmer hiện tại; 
+thông tin Batch hợp lệ","1. Farmer tạo Batch mới
+2. Kiểm tra thông tin người tạo Batch","Hệ thống tự động lấy thông tin Farmer từ tài khoản đăng nhập; 
+không cho phép nhập Farmer thủ công",,NOT RUN,
+TC-BATCH-10,Batch,Kiểm tra tạo Batch không nhập Note,Farmer đã đăng nhập,"- Các trường bắt buộc hợp lệ
+(Batch ID, Product Name, Product Type, 
+Production/Farming Date (Ngày sản xuất/thu hoạch), 
+Quantity, Unit (kg, tấn, hộp,...) Origin / Farm Location, 
+Farmer, Note (Ghi chú))
+- Note để trống","1. Farmer nhập thông tin Batch
+2. Không nhập Note
+3. Submit tạo Batch",Batch được tạo thành công vì Note là trường không bắt buộc,,NOT RUN,
+TC-BATCH-11,Batch,Kiểm tra không tạo Batch khi thiếu thông tin bắt buộc,Farmer đã đăng nhập,"Thiếu một trong các thông tin: Product Name, Product Type, 
+Production Date, Quantity, Unit, Origin/Farm Location","1. Farmer mở form tạo Batch
+2. Bỏ trống trường bắt buộc
+3. Nhấn tạo Batch","Hệ thống hiển thị lỗi yêu cầu nhập đầy đủ 
+thông tin bắt buộc; không tạo Batch",,NOT RUN,
+TC-BATCH-12,Batch,Kiểm tra Farmer được sửa Batch ở trạng thái UNVERIFIED,Farmer sở hữu Batch có trạng thái UNVERIFIED,Batch trạng thái UNVERIFIED; thông tin cập nhật mới,"1. Farmer mở Batch
+2. Chọn Edit
+3. Thay đổi thông tin
+4. Lưu thay đổi",Hệ thống cho phép sửa Batch và cập nhật thông tin thành công,,NOT RUN,
+TC-BATCH-13,Batch,Kiểm tra Farmer được xóa Batch ở trạng thái UNVERIFIED,Farmer sở hữu Batch có trạng thái UNVERIFIED,Batch trạng thái UNVERIFIED,"1. Farmer chọn xóa Batch
+2. Xác nhận xóa",Hệ thống cho phép xóa Batch thành công,,NOT RUN,
+TC-BATCH-14,Batch,Kiểm tra Farmer được sửa Batch ở trạng thái REJECTED,Batch đã bị Auditor Reject,"Batch trạng thái REJECTED; 
+thông tin cần chỉnh sửa","1. Farmer mở Batch REJECTED
+2. Chỉnh sửa thông tin
+3. Lưu",Farmer được phép sửa Batch để xử lý lỗi và gửi lại kiểm định,,NOT RUN,
+TC-BATCH-15,Batch,Kiểm tra Farmer không được xóa Batch ở trạng thái REJECTED,Batch trạng thái REJECTED,Batch REJECTED,1. Farmer chọn xóa Batch,Hệ thống không cho phép xóa Batch REJECTED,,NOT RUN,
+TC-BATCH-16,Batch,Batch đã được Auditor Approve,Batch trạng thái AUDITED,"1. Farmer mở Batch
+2. Chọn Edit","1. Farmer mở Batch
+2. Chọn Edit",Hệ thống không cho phép sửa Batch đã AUDITED,,NOT RUN,
+TC-BATCH-17,Batch,Kiểm tra Farmer không được xóa Batch ở trạng thái AUDITED,Batch đã được Auditor Approve,Batch trạng thái AUDITED,1. Farmer chọn xóa Batch,Hệ thống không cho phép xóa Batch đã AUDITED,,NOT RUN,
+TC-SAMPLE-01,Sample,Tạo Sample liên kết với Batch,Có Batch hợp lệ,Sample data + Batch ID,Tạo Sample cho Batch,Sample được tạo và liên kết đúng Batch,,NOT RUN,
+TC-SAMPLE-02,Sample,Sample tham chiếu Batch không tồn tại,Không có Batch tương ứng,Batch ID không tồn tại,Tạo Sample,Hệ thống từ chối và báo lỗi,,NOT RUN,
+TC-SAMPLE-03,Sample,Kiểm tra Sample thuộc đúng Batch,Có Sample đã tạo,Sample ID + Batch ID,Xem thông tin Sample,Sample hiển thị đúng Batch liên kết,,NOT RUN,
+TC-SAMPLE-04,Sample,Thiếu thông tin bắt buộc khi tạo Sample,Có Batch,Sample thiếu required field,Submit Sample,Hệ thống validation và không tạo dữ liệu không hợp lệ,,NOT RUN,
+TC-SAMPLE-05,Sample,Kiểm tra tạo nhiều Sample thuộc cùng một Batch,Batch đã tồn tại trong hệ thống,"Batch ID: BATCH-001
+Sample 1: SAMPLE-001
+Sample 2: SAMPLE-002
+Sample 3: SAMPLE-003","1. Farmer/Auditor tạo Sample cho Batch-001
+2. Tạo thêm Sample khác thuộc cùng Batch
+3. Kiểm tra danh sách Sample của Batch","Hệ thống cho phép nhiều Sample thuộc cùng một Batch; 
+mỗi Sample có Sample ID riêng và liên kết đúng với Batch",,NOT RUN,
+TC-SAMPLE-06,Sample,Kiểm tra không tạo Sample khi thiếu thông tin bắt buộc,Batch tồn tại trong hệ thống,"Thiếu một trong các thông tin:
+- Sampling Date
+- Sample Quantity
+- Sample Unit
+- Sampling Location
+- Sampling Method","1. Mở chức năng tạo Sample
+2. Nhập thông tin Sample nhưng 
+bỏ trống trường bắt buộc
+3. Nhấn tạo Sample","Hệ thống hiển thị thông báo lỗi yêu cầu nhập đầy đủ thông tin bắt buộc; 
+không tạo Sample",,NOT RUN,
+TC-SAMPLE-07,Sample,Kiểm tra Sample được liên kết đúng với Batch,Batch tồn tại và hợp lệ,"Batch ID: BATCH-001
+Sample ID: SAMPLE-001","1. Tạo Sample thuộc Batch-001
+2. Kiểm tra thông tin liên kết",Sample được tạo thành công và hiển thị đúng Batch ID liên kết,,NOT RUN,
+TC-LAB-01,Laboratory Test Report,Liên kết Laboratory Test Report với Sample,Có Sample hợp lệ,Report + Sample ID,Upload/tạo liên kết Report,Report được liên kết đúng Sample/Batch,,NOT RUN,
+TC-LAB-02,Laboratory Test Report,Upload Laboratory Test Report hợp lệ,Có Sample/Batch hợp lệ,Report hợp lệ,Upload Report,Report được tiếp nhận và lưu thành công,,NOT RUN,
+TC-LAB-03,Laboratory Test Report,Upload Report thiếu thông tin bắt buộc,Có Sample,Report thiếu required field,Upload Report,Hệ thống từ chối dữ liệu không hợp lệ,,NOT RUN,
+TC-LAB-04,Laboratory Test Report,Report tham chiếu Sample không tồn tại,Không có Sample tương ứng,Invalid Sample ID,Upload Report,Backend từ chối request,,NOT RUN,
+TC-LAB-05,Laboratory Test Report,Kiểm tra Report thuộc đúng Batch,Có Report đã liên kết,Report ID,Xem Report từ Batch,Report được hiển thị đúng với Sample/Batch tương ứng,,NOT RUN,
+TC-LAB-06,Laboratory Test Report,Kiểm tra hệ thống tự tạo SHA-256 sau khi upload Report,Auditor upload Laboratory Test Report thành công,File PDF Laboratory Test Report hợp lệ,"1. Auditor upload file PDF
+2. Kiểm tra thông tin Report sau khi upload","Backend tự động tạo SHA-256 cho file Report;
+ người dùng không cần nhập SHA-256 thủ công",,NOT RUN,
+TC-LAB-07,Laboratory Test Report,Kiểm tra thay đổi file Report làm thay đổi SHA-256,Report đã được upload và có SHA-256,File PDF trước và sau khi chỉnh sửa nội dung,"1. Upload file Report ban đầu
+2. Thay đổi nội dung file
+3. Kiểm tra SHA-256","SHA-256 của file sau khi thay đổi phải khác file ban đầu, 
+đảm bảo phát hiện thay đổi dữ liệu",,NOT RUN,
+TC-LAB-08,Laboratory Test Report,Kiểm tra thông tin toàn vẹn của Laboratory Test Report,Report đã upload thành công,"Report gồm:
+- Report ID
+- Sample ID
+- Batch Code
+- File Version
+- SHA-256","1. Mở thông tin Report
+2. Kiểm tra dữ liệu Report","Hệ thống hiển thị đầy đủ thông tin 
+Report và mã SHA-256 tương ứng",,NOT RUN,
+TC-AUDIT-01,Auditor ,AUDITOR xem Batch đang chờ kiểm định,Có Batch UNVERIFIED và đủ dữ liệu,Batch,AUDITOR mở danh sách/chi tiết Batch,AUDITOR xem được Batch cần kiểm định,,NOT RUN,
+TC-AUDIT-02,Auditor ,AUDITOR approve Batch hợp lệ,Batch có dữ liệu kiểm định hợp lệ,Batch + Report,AUDITOR thực hiện Approve,Batch chuyển sang AUDITED,,NOT RUN,
+TC-AUDIT-03,Auditor ,AUDITOR reject Batch không đạt,Batch không đáp ứng điều kiện kiểm định,Batch,AUDITOR thực hiện Reject,Batch bị từ chối và lưu kết quả Audit,,NOT RUN,
+TC-AUDIT-04,Auditor ,FARMER không được Approve Batch,Đăng nhập FARMER,Batch,FARMER gửi request Approve,Backend từ chối quyền,,NOT RUN,
+TC-AUDIT-05,Auditor ,Audit Batch thiếu bằng chứng kiểm định,Batch chưa đủ dữ liệu cần thiết,Batch thiếu Report/Proof cần thiết,AUDITOR thực hiện Audit,Hệ thống không cho Approve khi chưa đáp ứng điều kiện,,NOT RUN,
+TC-AUDIT-06,Auditor,Lưu Audit Trail sau thao tác Audit,Có Batch và AUDITOR,Approve/Reject action,AUDITOR thực hiện Audit,Hệ thống ghi nhận thao tác Audit vào Audit Trail,,NOT RUN,
+TC-AUDIT-07,Auditor,"Kiểm tra Auditor Approve Batch khi đầy đủ 
+Laboratory Test Report, SHA-256 và Proof","- Auditor đã đăng nhập
+- Batch tồn tại ở trạng thái UNVERIFIED
+- Batch đã có đầy đủ tài liệu kiểm định","Batch có:
+- Laboratory Test Report
+- SHA-256
+- Proof of Integrity","1. Auditor mở Batch cần kiểm định
+2. Kiểm tra thông tin tài liệu
+3. Chọn Approve","Hệ thống cho phép Approve Batch
+Batch chuyển trạng thái sang AUDITED",,NOT RUN,
+TC-AUDIT-08,Auditor,"Kiểm tra Auditor không thể Approve Batch 
+khi thiếu Laboratory Test Report","Auditor đã đăng nhập
+Batch ở trạng thái UNVERIFIED","Batch không có Laboratory Test Report 
+nhưng có SHA-256 và Proof","1. Auditor mở Batch
+2. Chọn Approve","Hệ thống cho phép Approve Batch
+Batch chuyển trạng thái sang AUDITED",,NOT RUN,
+TC-AUDIT-09,Auditor,Kiểm tra Auditor không thể Approve Batch khi thiếu SHA-256,"Auditor đã đăng nhập
+Batch ở trạng thái UNVERIFIED","Batch có Laboratory Test Report 
+và Proof nhưng không có SHA-256","1. Auditor mở Batch
+2. Chọn Approve","Hệ thống cho phép Approve Batch
+Batch chuyển trạng thái sang AUDITED",,NOT RUN,
+TC-AUDIT-10,Auditor,Kiểm tra Auditor không thể Approve Batch khi thiếu Proof of Integrity,"Auditor đã đăng nhập
+Batch ở trạng thái UNVERIFIED","Batch có Laboratory Test Report và 
+SHA-256 nhưng không có Proof","1. Auditor mở Batch
+2. Chọn Approve","Hệ thống không cho Approve
+Hiển thị thông báo thiếu Proof of Integrity",,NOT RUN,
+TC-AUDIT-11,Auditor,Kiểm tra Farmer xử lý Batch sau khi bị Auditor Reject,Batch có trạng thái REJECTED,"Batch bị Reject với lý do kiểm định 
+không đạt hoặc thiếu thông tin","1. Farmer mở Batch bị Reject
+2. Chỉnh sửa thông tin Batch
+3. Gửi lại yêu cầu kiểm định","Farmer được phép chỉnh sửa Batch REJECTED 
+và gửi lại để Auditor review",,NOT RUN,
+TC-HASH-01,SHA-256,Backend tạo SHA-256 cho dữ liệu/report,Có Report hợp lệ,File/Data,Tạo/lưu Report,Backend tạo SHA-256 tương ứng,,NOT RUN,
+TC-HASH-02,SHA-256,Cùng dữ liệu tạo cùng SHA-256,Có cùng một file/data,File A,Hash cùng dữ liệu nhiều lần,Kết quả SHA-256 giống nhau,,NOT RUN,
+TC-HASH-03,SHA-256,Dữ liệu thay đổi tạo SHA-256 khác,Có file/data ban đầu,File A + File A đã thay đổi,Tạo hash trước và sau khi thay đổi,SHA-256 sau thay đổi khác hash ban đầu,,NOT RUN,
+TC-HASH-04,SHA-256,Frontend không được tự quyết định SHA-256,Có API Backend,Hash giả/tự nhập từ frontend,"Gửi request với hash 
+không tương ứng dữ liệu","Backend không tin tưởng hash do client tự cung cấp; 
+hash phải được kiểm soát phía Backend",,NOT RUN,
+TC-PROOF-01,Proof of Integrity,Kiểm tra Proof hợp lệ,Có Proof được tạo đúng,Proof data,Kiểm tra Proof,Proof được xác định là hợp lệ,,NOT RUN,
+TC-PROOF-02,Proof of Integrity,Phát hiện Proof/Dữ liệu bị thay đổi,Có Proof ban đầu,Dữ liệu bị thay đổi,Kiểm tra lại Proof,Hệ thống phát hiện Integrity không còn hợp lệ,,NOT RUN,
+TC-QR-01,QR / Traceability,Kích hoạt QR cho Batch đã Audit,Batch AUDITED,Batch ID,Kích hoạt QR,QR được kích hoạt cho Batch đủ điều kiện,,NOT RUN,
+TC-QR-02,QR / Traceability,Không kích hoạt QR cho Batch chưa Audit,Batch UNVERIFIED,Batch ID,Thử kích hoạt QR,Hệ thống không cho kích hoạt QR,,NOT RUN,
+TC-QR-03,QR / Traceability,PUBLIC truy cập QR hợp lệ,"Batch đã AUDITED, QR active",QR code,Scan/truy cập QR,"Trang Public Traceability hiển thị thông tin 
+Batch được phép công khai",,NOT RUN,
+TC-QR-04,QR / Traceability,Truy cập QR/Batch không hợp lệ,QR không tồn tại hoặc không hợp lệ,Invalid QR,Scan/truy cập QR,Hệ thống báo QR/Batch không hợp lệ hoặc không tồn tại,,NOT RUN,
+TC-QR-05,QR / Traceability,Kiểm tra không tạo QR khi Batch chưa được Audit,Batch tồn tại nhưng trạng thái chưa phải AUDITED,Batch Status: UNVERIFIED/REJECTED,"1. Farmer/Auditor thử tạo QR cho Batch
+2. Kiểm tra kết quả",Hệ thống không cho phép tạo QR khi Batch chưa được AUDITED,,NOT RUN,
+TC-QR-06,QR / Traceability,Kiểm tra không tạo lại QR cho Batch đã có QR hợp lệ,Batch đã AUDITED và đã có QR,Batch ID đã tồn tại QR,"1. Yêu cầu tạo QR lần nữa cho cùng Batch
+2. Kiểm tra kết quả","Hệ thống không tạo QR mới
+Giữ nguyên QR hiện tại",,NOT RUN,
+TC-QR-07,QR / Traceability,"Kiểm tra thông tin QR không thay đổi
+ sau khi Batch được AUDITED",Batch đã AUDITED và đã tạo QR,"Batch có thông tin sản phẩm, 
+nguồn gốc, kiểm định","1. Quét QR
+2. Đối chiếu thông tin hiển thị với Batch","Thông tin QR hiển thị đúng dữ liệu Batch 
+đã được kiểm định; không bị thay đổi",,NOT RUN,
+TC-ADMIN-01,Admin / Audit Trail,ADMIN xem Audit Trail,Đăng nhập ADMIN,Audit logs,Mở Audit Trail,ADMIN xem được lịch sử thao tác theo quyền,,NOT RUN,
+TC-ADMIN-02,Admin / Audit Trail,Ghi nhận thao tác quan trọng vào Audit Trail,Có thao tác tạo/cập nhật/Audit,User action,Thực hiện thao tác,Hệ thống lưu thông tin thao tác tương ứng trong Audit Trail,,NOT RUN,
+TC-ADMIN-03,Admin Dashboard,ADMIN xem Dashboard,Đăng nhập ADMIN,System data,Mở Dashboard,"Dashboard hiển thị các thông tin/thống kê 
+theo yêu cầu hệ thống",,NOT RUN,
+TC-ADMIN-04,Admin / Audit Trail,User không có quyền truy cập Audit Trail,Đăng nhập FARMER/AUDITOR/PUBLIC,Audit logs,Truy cập Audit Trail,Backend từ chối truy cập nếu role không được phép,,NOT RUN,
