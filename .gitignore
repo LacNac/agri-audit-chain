@@ -12,11 +12,6 @@ __pycache__/
 .env
 .env.*
 
-# Database cục bộ
-*.db
-*.sqlite
-*.sqlite3
-
 # File log
 *.log
 logs/
