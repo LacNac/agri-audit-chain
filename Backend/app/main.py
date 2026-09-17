@@ -1,35 +1,26 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from .database.init_db import initialize_database
+from .routers import auth, admin, auditor, batches, public, users
 
-from app.database.database import Base, engine
-from app.database import models
+initialize_database()
 
-Base.metadata.create_all(bind=engine)
+app = FastAPI()
 
-app = FastAPI(
-    title="Agricultural Traceability API",
-    version="1.0.0"
-)
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(admin.router)
+app.include_router(auditor.router)
+app.include_router(batches.router)
+app.include_router(public.router)
+app.include_router(users.router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.get("/")
-def root():
-    return {
-        "message": "Agricultural Traceability API is running"
-    }
-
-
-@app.get("/api/v1/health")
-def health():
-    return {
-        "status": "OK",
-        "database": "connected"
-    }
