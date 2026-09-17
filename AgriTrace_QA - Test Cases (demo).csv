@@ -1,0 +1,45 @@
+Test Case ID,Module,Test Case Name,Preconditions,Test Data,Test Steps,Expected Result,Actual Result,Status,Bug ID
+TC-RBAC-01,Authentication & RBAC,Đăng nhập bằng tài khoản hợp lệ,Tài khoản đã tồn tại,"Email, password đúng","1. Mở trang Login 
+2. Nhập thông tin
+3. Đăng nhập","Đăng nhập thành công 
+và nhận đúng role",,Not run,
+TC-RBAC-02,Authentication & RBAC,Đăng nhập bằng mật khẩu sai,Tài khoản đã tồn tại,"Email đúng, password sai","1. Mở Login 
+2. Nhập thông tin sai 
+3. Đăng nhập",Đăng nhập thất bại,,Not run,
+TC-RBAC-03,Authentication & RBAC,FARMER thực hiện Audit Batch,Đã đăng nhập FARMER,Batch hợp lệ,"1. Đăng nhập FARMER 
+2. Truy cập chức năng Audit",Hệ thống từ chối quyền truy cập,,Not run,
+"TC-RBAC-04
+",Authentication & RBAC,AUDITOR thực hiện Audit Batch,Đã đăng nhập AUDITOR,Batch UNVERIFIED,"1. Đăng nhập AUDITOR 
+2. Chọn Batch 
+3. Thực hiện Audit",AUDITOR được phép thực hiện Audit,,Not run,
+TC-BATCH-01,Batch,FARMER tạo Batch hợp lệ,Đã đăng nhập FARMER,Thông tin Batch hợp lệ,"1. Chọn tạo Batch 
+2. Nhập thông tin 
+3. Lưu",Batch được tạo thành công,,Not run,
+TC-BATCH-02,Batch,Kiểm tra trạng thái Batch mới,Batch vừa được tạo,Batch mới,"1. Tạo Batch 
+2. Kiểm tra status",Batch có trạng thái UNVERIFIED,,Not run,
+TC-BATCH-03,Batch,FARMER tự đặt Batch thành AUDITED,Đã đăng nhập FARMER,Status = AUDITED,"Gửi request tạo/cập nhật Batch 
+với status AUDITED","Backend không cho FARMER tự chuyển 
+Batch thành AUDITED",,Not run,
+TC-LAB-01,Laboratory Test Report,Upload báo cáo kiểm định hợp lệ,"Có Batch/Sample hợp lệ,
+ Auditor đã đăng nhập",File PDF hợp lệ,"1. Chọn Batch/Sample
+2. Upload Lab Report","Báo cáo được lưu và
+liên kết đúng Batch/Sample",,Not run,
+TC-LAB-02,Laboratory Test Report,Upload báo cáo không hợp lệ,Có Batch/Sample,File không hợp lệ,"1. Chọn Batch/Sample 
+2. Upload file","Hệ thống từ chối dữ liệu/file 
+không hợp lệ",,Not run,
+TC-AUDIT-01,Auditor Gatekeeper,AUDITOR xem Batch chờ kiểm định,Đã đăng nhập AUDITOR,Batch UNVERIFIED,"1. Mở Auditor Dashboard 
+2. Xem danh sách Batch",Hiển thị Batch đang chờ kiểm định,,Not run,
+TC-AUDIT-02,Auditor Gatekeeper,AUDITOR phê duyệt Batch hợp lệ,"Batch UNVERIFIED 
+có đủ hồ sơ",Batch + Lab Report hợp lệ,"1. Mở Batch 
+2. Kiểm tra hồ sơ 
+3. Approve","Batch chuyển từ 
+UNVERIFIED → AUDITED",,Not run,
+TC-HASH-01,SHA-256,Tạo SHA-256 cho Lab Report,Lab Report đã upload,File PDF,Upload/ xử lý Lab Report,Backend tạo và lưu SHA-256 của file,,Not run,
+TC-HASH-02,SHA-256,Kiểm tra tính toàn vẹn của Lab Report,Đã có hash của Report,File đã bị thay đổi,"1. Thay đổi file 
+2. Verify hash",Hệ thống phát hiện hash không khớp,,Not run,
+TC-PROOF-01,Proof of Integrity,Kiểm tra chuỗi Proof,Đã có các Proof,"Proof 1, Proof 2",Kiểm tra previous_hash và current_hash,"Chuỗi Proof hợp lệ khi 
+các hash liên kết đúng",,Not run,
+TC-QR-01,QR / Public Traceability,Tra cứu Batch bằng QR,"Batch đã được AUDITED 
+và QR hợp lệ",QR của Batch,"1. Quét QR 
+2. Mở trang Public Traceability","Hiển thị đúng thông tin truy xuất 
+được phép công khai",,Not run,
