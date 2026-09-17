@@ -214,9 +214,14 @@ def seed_default_users() -> None:
     conn.execute("PRAGMA foreign_keys = ON")
     try:
         default_users = [
-            {"username": "admin", "password": "Admin@123", "full_name": "System Admin", "email": "admin@agriaudit.local", "phone": "0900000001", "role": "admin"},
-            {"username": "auditor01", "password": "Auditor@123", "full_name": "Auditor One", "email": "auditor@agriaudit.local", "phone": "0900000002", "role": "auditor"},
-            {"username": "farmer01", "password": "Farmer@123", "full_name": "Farmer One", "email": "farmer@agriaudit.local", "phone": "0900000003", "role": "farmer"},
+            {"username": "hanglt", "password": "Admin@123", "full_name": "Lê Thu Hằng", "email": "hanglt@gmail.com", "phone": "", "role": "admin"},
+            {"username": "dieult", "password": "Admin@234", "full_name": "Lê Thị Diệu", "email": "dieult@gamil.com", "phone": "", "role": "admin"},
+            {"username": "huyenhtk", "password": "Farmer@123", "full_name": "Hàn Thị Khánh Huyền", "email": "huyenhtk@gmail.com", "phone": "", "role": "farmer"},
+            {"username": "haidn", "password": "Farmer@234", "full_name": "Đặng Nhật Hải", "email": "haidn@gmail.com", "phone": "", "role": "farmer"},
+            {"username": "giangbh", "password": "Auditor@123", "full_name": "Bùi Hương Giang", "email": "giangbh@gmail.com", "phone": "", "role": "auditor"},
+            {"username": "dathx", "password": "Auditor@234", "full_name": "Hoàng Xuân Đạt", "email": "dathx@gmail.com", "phone": "", "role": "auditor"},
+            {"username": "trangnt", "password": "User@123", "full_name": "Nguyễn Thùy Trang", "email": "trangnt@gmail.com", "phone": "", "role": "consumer"},
+            {"username": "thuytt", "password": "User@234", "full_name": "Trần Thị Thùy", "email": "thuytt@gmail.com", "phone": "", "role": "consumer"},
         ]
 
         for user in default_users:

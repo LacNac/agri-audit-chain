@@ -9,19 +9,19 @@
   <body>
     <nav class="navbar">
       <div class="logo-group">
-        <img src="./assets/name.svg" alt="Logo AgriTrace" class="logo" />
-        <img src="./assets/Agritrace.svg" alt="..." class="logo2" />
+        <img src="./assets/logo-icon.svg" alt="Biểu tượng AgriTrace" class="logo-icon" />
+        <img src="./assets/logo-text.svg" alt="AgriTrace" class="logo-text" />
       </div>
 
       <ul class="nav-menu">
-        <li><a href="#">Trang chủ</a></li>
-        <li><a href="#">Sản phẩm</a></li>
-        <li><a href="#">Về chúng tôi</a></li>
+        <li><a class="active" href="#">Trang chủ</a></li>
+        <li><a href="#trace-search">Tra cứu</a></li>
+        <li><a href="#about">Về chúng tôi</a></li>
       </ul>
 
       <div class="nav-login">
         <a href="login.html">Đăng nhập</a>
-        <button>Tạo tài khoản miễn phí →</button>
+        <a class="nav-cta" href="login.html">Tạo tài khoản miễn phí <span aria-hidden="true">→</span></a>
       </div>
     </nav>
 
@@ -41,9 +41,20 @@
             thành hồ sơ số minh bạch, giúp nông sản Việt tự tin vươn xa.
           </p>
           <div class="check">
-            <button>Quét mã truy xuất</button>
-            <button>Tìm kiếm mã nông sản</button>
+            <a class="button button-primary" href="#trace-search">Quét mã truy xuất</a>
+            <a class="button button-secondary" href="#trace-search">Tìm kiếm mã nông sản</a>
           </div>
+          <form class="trace-search" id="trace-search" role="search">
+            <label for="trace-code">Tra cứu mã nông sản</label>
+            <div class="search-control">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m20 20-4-4"></path>
+              </svg>
+              <input id="trace-code" type="search" placeholder="Nhập Batch Code hoặc Trace ID" />
+              <button type="button">Tra cứu</button>
+            </div>
+          </form>
           <p class="trust-text">
             Chuỗi khối an toàn • Mã QR định danh • Dữ liệu bất biến
           </p>
@@ -88,5 +99,10 @@
         </button>
       </div>
     </main>
+    <section class="about-strip" id="about">
+      <p class="section-kicker">AGRI<span>TRACE</span></p>
+      <h2>Minh bạch hơn từ trang trại đến bàn ăn.</h2>
+      <p>Mỗi lô nông sản có một hồ sơ số rõ ràng, có thể kiểm chứng và truy xuất bất cứ lúc nào.</p>
+    </section>
   </body>
 </html>
