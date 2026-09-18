@@ -4,7 +4,7 @@ import os
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from ..core.security import decode_access_token
+from ..core.security import ALLOWED_ROLES, decode_access_token, normalize_role
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "database", "db.db")
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -28,4 +28,16 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_
     ).fetchone()
     if not row or row[4] != "active":
         raise HTTPException(status_code=401, detail="Tài khoản không hợp lệ hoặc đã bị khóa")
-    return {"id": row[0], "username": row[1], "full_name": row[2], "role": row[3]}
+
+    role = normalize_role(row[3])
+    if role not in ALLOWED_ROLES:
+        raise HTTPException(status_code=403, detail="Vai trò người dùng không hợp lệ")
+
+    if role != normalize_role(claims.get("role", row[3])):
+        raise HTTPException(status_code=401, detail="Token role không khớp với người dùng")
+
+    if role != normalize_role(row[3]):
+        db.execute("UPDATE users SET role = ? WHERE id = ?", (role, row[0]))
+        db.commit()
+
+    return {"id": row[0], "username": row[1], "full_name": row[2], "role": role}

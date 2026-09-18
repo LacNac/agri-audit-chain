@@ -10,6 +10,13 @@ from fastapi import HTTPException
 DEFAULT_PEPPER = "agri-audit-chain-v1"
 JWT_SECRET = "agri-audit-chain-jwt-v1"
 JWT_TTL_SECONDS = 3600
+ALLOWED_ROLES = {"ADMIN", "FARMER", "AUDITOR", "PUBLIC"}
+
+
+def normalize_role(role: str | None) -> str:
+    if role is None:
+        return ""
+    return str(role).strip().upper()
 
 
 def hash_password(password: str) -> str:
@@ -33,8 +40,9 @@ def _decode_segment(value: str) -> bytes:
 
 
 def create_access_token(user_id: int, role: str) -> str:
+    normalized_role = normalize_role(role)
     header = _encode_segment(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
-    payload = _encode_segment(json.dumps({"sub": str(user_id), "role": role, "exp": int(time.time()) + JWT_TTL_SECONDS}, separators=(",", ":")).encode())
+    payload = _encode_segment(json.dumps({"sub": str(user_id), "role": normalized_role, "exp": int(time.time()) + JWT_TTL_SECONDS}, separators=(",", ":")).encode())
     unsigned = f"{header}.{payload}".encode("ascii")
     signature = _encode_segment(hmac.new(JWT_SECRET.encode(), unsigned, hashlib.sha256).digest())
     return f"{header}.{payload}.{signature}"
@@ -48,8 +56,12 @@ def decode_access_token(token: str) -> dict:
         if not hmac.compare_digest(signature, expected):
             raise ValueError("invalid signature")
         data = json.loads(_decode_segment(payload))
+        if "exp" not in data:
+            raise ValueError("missing exp")
         if int(data["exp"]) < int(time.time()):
             raise ValueError("expired token")
+        if "role" in data:
+            data["role"] = normalize_role(data["role"])
         return data
     except (KeyError, ValueError, TypeError, json.JSONDecodeError, UnicodeDecodeError):
         raise HTTPException(status_code=401, detail="Token không hợp lệ hoặc đã hết hạn")

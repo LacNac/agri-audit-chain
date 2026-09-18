@@ -1,6 +1,6 @@
 import sqlite3
 from fastapi import HTTPException
-from ..core.security import create_access_token, hash_password, verify_password
+from ..core.security import ALLOWED_ROLES, create_access_token, hash_password, normalize_role, verify_password
 from ..schema.auth import RegisterRequest, LoginRequest
 
 
@@ -23,7 +23,7 @@ class AuthManager:
             cursor.execute(
                 """
                 INSERT INTO users (username, password_hash, full_name, email, phone, role, status)
-                VALUES (?, ?, ?, ?, ?, 'farmer', 'active')
+                VALUES (?, ?, ?, ?, ?, 'FARMER', 'active')
                 """,
                 (username, password_hash, data.full_name, data.email, data.phone),
             )
@@ -69,14 +69,19 @@ class AuthManager:
             raise HTTPException(status_code=401, detail="Tài khoản hoặc mật khẩu không đúng")
 
         user_id, username, stored_hash, full_name, role, status = row
+        role = normalize_role(role)
 
         if status != "active":
             raise HTTPException(status_code=403, detail="Tài khoản đã bị khóa")
 
+        if role not in ALLOWED_ROLES:
+            raise HTTPException(status_code=403, detail="Vai trò người dùng không hợp lệ")
+
         if not verify_password(data.password, stored_hash):
             raise HTTPException(status_code=401, detail="Tài khoản hoặc mật khẩu không đúng")
 
-        if expected_roles and role not in expected_roles:
+        normalized_expected = {normalize_role(item) for item in (expected_roles or [])}
+        if normalized_expected and role not in normalized_expected:
             raise HTTPException(status_code=403, detail="Tài khoản này không có quyền đăng nhập ở đây")
 
         return {

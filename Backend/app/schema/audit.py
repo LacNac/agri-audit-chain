@@ -11,9 +11,9 @@ class LabReportCreate(BaseModel):
     report_date: Optional[date] = None
     result: str = Field(..., min_length=2, max_length=100)
     file_name: Optional[str] = None
-    file_hash: Optional[str] = None
     file_path: Optional[str] = None
     status: str = "PENDING"
+    file_hash: Optional[str] = Field(default=None, exclude=True)
 
 
 class LabReportOut(BaseModel):
@@ -32,4 +32,4 @@ class LabReportOut(BaseModel):
 
 
 class AuditDecision(BaseModel):
-    reason: Optional[str] = None
+    reason: str = Field(..., min_length=1)
