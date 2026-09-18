@@ -1,7 +1,11 @@
+import sqlite3
+
 from fastapi import APIRouter, Depends, HTTPException
 
+from ..core.security import hash_password
 from ..dependencies.auth import get_current_user, get_db
 from ..dependencies.rbac import require_roles
+from ..schema.user import AuditorCreate, UserStatusUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -57,3 +61,53 @@ def list_users(db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
         "role": row[3],
         "status": row[4],
     } for row in rows]
+
+
+@router.post("/auditors", status_code=201)
+def create_auditor(data: AuditorCreate, db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
+    username = data.email.split("@", 1)[0].strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Email không hợp lệ")
+
+    try:
+        cursor = db.execute(
+            """
+            INSERT INTO users (username, password_hash, full_name, email, phone, role, status)
+            VALUES (?, ?, ?, ?, ?, 'AUDITOR', 'active')
+            """,
+            (username, hash_password(data.password), data.full_name.strip(), data.email.strip(), data.phone or ""),
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Email hoặc tên đăng nhập đã tồn tại")
+
+    return {
+        "id": cursor.lastrowid,
+        "username": username,
+        "full_name": data.full_name.strip(),
+        "email": data.email.strip(),
+        "phone": data.phone or "",
+        "role": "AUDITOR",
+        "status": "active",
+    }
+
+
+@router.patch("/{user_id}/status")
+def update_user_status(
+    user_id: int,
+    data: UserStatusUpdate,
+    db=Depends(get_db),
+    user=Depends(require_roles("ADMIN")),
+):
+    if user_id == user["id"] and data.status == "locked":
+        raise HTTPException(status_code=400, detail="Không thể tự khóa tài khoản đang sử dụng")
+
+    cursor = db.execute(
+        "UPDATE users SET status = ? WHERE id = ?",
+        (data.status, user_id),
+    )
+    if cursor.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+    db.commit()
+    return {"id": user_id, "status": data.status}

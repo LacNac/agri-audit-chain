@@ -175,12 +175,81 @@
         font-style: italic;
       }
 
+      .user-management {
+        display: grid;
+        grid-template-columns: minmax(280px, 0.8fr) minmax(460px, 1.8fr);
+        gap: 20px;
+        margin-bottom: 28px;
+      }
+
+      .management-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        box-shadow: var(--shadow);
+        padding: 20px;
+      }
+
+      .management-card h2 {
+        margin: 0 0 16px;
+        color: var(--primary);
+        font-size: 1.2rem;
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .form-grid label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+
+      .form-grid input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font: inherit;
+      }
+
+      .primary-btn, .status-btn {
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+      }
+
+      .primary-btn { background: var(--primary); color: #fff; }
+      .primary-btn:disabled { opacity: 0.55; cursor: wait; }
+      .status-btn.lock { background: rgba(239, 68, 68, 0.12); color: var(--danger); }
+      .status-btn.unlock { background: rgba(18, 183, 106, 0.12); color: var(--success); }
+
+      .user-table-wrap { overflow-x: auto; }
+      .user-table { width: 100%; border-collapse: collapse; min-width: 520px; }
+      .user-table th, .user-table td { padding: 11px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+      .user-table th { color: var(--muted); font-size: 0.76rem; text-transform: uppercase; }
+      .user-table td { font-size: 0.88rem; }
+      .user-status { font-weight: 700; }
+      .user-status.active { color: var(--success); }
+      .user-status.locked { color: var(--danger); }
+      .form-message { min-height: 20px; margin: 10px 0 0; color: var(--muted); font-size: 0.85rem; }
+
       @media (max-width: 768px) {
         .topbar {
           padding: 14px 18px;
         }
         .dashboard-shell {
           margin-top: 20px;
+        }
+        .user-management {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -225,6 +294,30 @@
         <article class="stat-card">
           <div class="stat-label">Pending batches</div>
           <p id="pending-count" class="stat-value">0</p>
+        </article>
+      </section>
+
+      <section class="user-management">
+        <article class="management-card">
+          <h2>Tạo tài khoản Auditor</h2>
+          <form id="create-auditor-form" class="form-grid">
+            <label>Họ và tên<input name="full_name" required minlength="2" /></label>
+            <label>Email<input name="email" type="email" required /></label>
+            <label>Mật khẩu<input name="password" type="password" required minlength="6" /></label>
+            <label>Số điện thoại<input name="phone" /></label>
+            <button class="primary-btn" type="submit">Tạo tài khoản</button>
+          </form>
+          <p id="auditor-form-message" class="form-message" aria-live="polite"></p>
+        </article>
+
+        <article class="management-card">
+          <h2>Quản lý người dùng</h2>
+          <div class="user-table-wrap">
+            <table class="user-table">
+              <thead><tr><th>Người dùng</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead>
+              <tbody id="users-table-body"><tr><td colspan="5" class="empty">Đang tải...</td></tr></tbody>
+            </table>
+          </div>
         </article>
       </section>
 
