@@ -86,6 +86,12 @@ async function submitAuthForm(form, endpoint, identifierId, passwordId) {
     if (!response.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
     authManager.saveSession(data);
+
+    if (data.role === "ADMIN") {
+      window.location.href = "./admin.html";
+      return;
+    }
+
     alert(`Xin chào ${data.full_name}!`);
     form.reset();
   } catch (error) {
