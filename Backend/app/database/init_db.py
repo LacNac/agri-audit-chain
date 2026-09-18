@@ -311,6 +311,41 @@ def migrate_legacy_users_schema() -> None:
         conn.close()
 
 
+def repair_businesses_user_foreign_key() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        foreign_keys = conn.execute("PRAGMA foreign_key_list(businesses)").fetchall()
+        if not foreign_keys or foreign_keys[0][2] != "users_legacy":
+            return
+
+        conn.execute("ALTER TABLE businesses RENAME TO businesses_legacy")
+        conn.execute(
+            """
+            CREATE TABLE businesses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                business_name TEXT,
+                business_type TEXT,
+                product_type TEXT,
+                tax_code TEXT UNIQUE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO businesses (id, user_id, business_name, business_type, product_type, tax_code)
+            SELECT id, user_id, business_name, business_type, product_type, tax_code
+            FROM businesses_legacy
+            """
+        )
+        conn.execute("DROP TABLE businesses_legacy")
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def ensure_batch_columns() -> None:
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON")
@@ -402,6 +437,7 @@ def initialize_database() -> None:
     ensure_batch_columns()
     ensure_sample_columns()
     migrate_legacy_users_schema()
+    repair_businesses_user_foreign_key()
     normalize_role_values()
     seed_default_role_permissions()
     seed_default_users()

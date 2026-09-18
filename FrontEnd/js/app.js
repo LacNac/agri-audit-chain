@@ -102,6 +102,28 @@ async function submitAuthForm(form, endpoint, identifierId, passwordId) {
   }
 }
 
+function formatApiError(detail, fallbackMessage) {
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        const field = Array.isArray(item.loc) ? item.loc[item.loc.length - 1] : "Dữ liệu";
+        const messages = {
+          full_name: "Họ và tên",
+          phone: "Số điện thoại",
+          email: "Email",
+          password: "Mật khẩu",
+          business_name: "Tên doanh nghiệp",
+          business_type: "Loại hình hoạt động",
+          product_type: "Chủng loại sản phẩm",
+          tax_code: "Mã số thuế",
+        };
+        return `${messages[field] || field}: ${item.msg || "Dữ liệu không hợp lệ"}`;
+      })
+      .join("; ");
+  }
+  return typeof detail === "string" ? detail : fallbackMessage;
+}
+
 formStep2?.addEventListener("submit", async (event) => {
   event.preventDefault();
   registerData.business_type = document.getElementById("r2-type").value;
@@ -121,7 +143,7 @@ formStep2?.addEventListener("submit", async (event) => {
       body: JSON.stringify(registerData),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || "Đăng ký thất bại");
+    if (!response.ok) throw new Error(formatApiError(data.detail, "Đăng ký thất bại"));
 
     alert(`Đăng ký thành công! Chào mừng ${data.username}`);
     registerData = {};
