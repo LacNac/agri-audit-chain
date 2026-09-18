@@ -16,11 +16,10 @@ def register(data: RegisterRequest, db = Depends(get_db)):
 
 @router.post("/login", response_model=LoginResponse)
 def login(data: LoginRequest, db = Depends(get_db)):
-    # role farmer/admin dùng cho form Doanh nghiệp; auditor/admin dùng cho form Kiểm định
-    result = login_user(db, data, expected_roles=["farmer", "admin"])
+    result = login_user(db, data, expected_roles=["FARMER", "ADMIN", "AUDITOR"])
     return LoginResponse(**result)
 
 @router.post("/login-auditor", response_model=LoginResponse)
 def login_auditor(data: LoginRequest, db = Depends(get_db)):
-    result = login_user(db, data, expected_roles=["auditor", "admin"])
+    result = login_user(db, data, expected_roles=["AUDITOR", "ADMIN"])
     return LoginResponse(**result)

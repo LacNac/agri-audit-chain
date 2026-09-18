@@ -161,6 +161,8 @@
                   type="tel"
                   id="r1-phone"
                   placeholder="VD: 0123456789"
+                  minlength="9"
+                  maxlength="15"
                   required
                 />
               </div>
@@ -304,6 +306,9 @@
                 type="text"
                 id="r2-tax"
                 placeholder="Nhập 10 hoặc 13 chữ số"
+                minlength="10"
+                maxlength="14"
+                pattern="[0-9]{10,14}"
                 required
               />
             </div>

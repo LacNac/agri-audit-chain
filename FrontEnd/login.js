@@ -2,21 +2,43 @@
 // AgriTrace — điều hướng giữa các màn hình (SPA đơn giản, không reload)
 // ===================================================================
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "http://127.0.0.1:8001";
 
-const CARD_IDS = {
-  landing: "card-landing",
+const CARDS = {
+  "landing": "card-landing",
   "register-1": "card-register-1",
   "register-2": "card-register-2",
   "login-kd": "card-login-kd",
   "login-dn": "card-login-dn",
 };
 
+const authManager = {
+  saveSession(user) {
+    sessionStorage.setItem("currentUser", JSON.stringify(user));
+  },
+};
+
+function handleSuccessfulLogin(data) {
+  authManager.saveSession(data);
+
+  if (data.role === "ADMIN") {
+    window.location.href = "./admin.html";
+    return;
+  }
+
+  if (data.role === "AUDITOR") {
+    alert("Tài khoản auditor đang được hỗ trợ ở màn hình riêng.");
+    return;
+  }
+
+  window.location.href = "./index.html";
+}
+
 function showCard(name) {
-  const targetId = CARD_IDS[name];
+  const targetId = CARDS[name];
   if (!targetId) return;
 
-  Object.values(CARD_IDS).forEach((id) => {
+  Object.values(CARDS).forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.hidden = id !== targetId;
@@ -146,9 +168,7 @@ if (formLoginDn) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
-      sessionStorage.setItem("currentUser", JSON.stringify(data));
-      alert(`Xin chào ${data.full_name}!`);
-      // TODO: lưu thông tin user (vd sessionStorage) và điều hướng sang trang quản lý doanh nghiệp
+      handleSuccessfulLogin(data);
       formLoginDn.reset();
 
     } catch (err) {
@@ -186,9 +206,7 @@ if (formLoginKd) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
-      sessionStorage.setItem("currentUser", JSON.stringify(data));
-      alert(`Xin chào ${data.full_name}!`);
-      // TODO: lưu thông tin user và điều hướng sang trang kiểm định
+      handleSuccessfulLogin(data);
       formLoginKd.reset();
 
     } catch (err) {
