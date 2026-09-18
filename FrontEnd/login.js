@@ -2,9 +2,9 @@
 // AgriTrace — điều hướng giữa các màn hình (SPA đơn giản, không reload)
 // ===================================================================
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "http://127.0.0.1:8001";
 
-const CARD_IDS = {
+const CARDS = {
   "landing": "card-landing",
   "register-1": "card-register-1",
   "register-2": "card-register-2",
@@ -16,20 +16,29 @@ const authManager = {
   saveSession(user) {
     sessionStorage.setItem("currentUser", JSON.stringify(user));
   },
-  clearSession() {
-    sessionStorage.removeItem("currentUser");
-  },
-  getSession() {
-    const raw = sessionStorage.getItem("currentUser");
-    return raw ? JSON.parse(raw) : null;
-  }
 };
 
+function handleSuccessfulLogin(data) {
+  authManager.saveSession(data);
+
+  if (data.role === "ADMIN") {
+    window.location.href = "./admin.html";
+    return;
+  }
+
+  if (data.role === "AUDITOR") {
+    alert("Tài khoản auditor đang được hỗ trợ ở màn hình riêng.");
+    return;
+  }
+
+  window.location.href = "./index.html";
+}
+
 function showCard(name) {
-  const targetId = CARD_IDS[name];
+  const targetId = CARDS[name];
   if (!targetId) return;
 
-  Object.values(CARD_IDS).forEach((id) => {
+  Object.values(CARDS).forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.hidden = id !== targetId;
@@ -118,11 +127,6 @@ if (formStep2) {
         throw new Error(data.detail || "Đăng ký thất bại");
       }
 
-      authManager.saveSession({
-        user_id: data.user_id,
-        username: data.username,
-        business_id: data.business_id,
-      });
       alert(`Đăng ký thành công! Chào mừng ${data.username}`);
       registerData = {};
       formStep1.reset();
@@ -164,8 +168,7 @@ if (formLoginDn) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
-      authManager.saveSession(data);
-      alert(`Xin chào ${data.full_name}!`);
+      handleSuccessfulLogin(data);
       formLoginDn.reset();
 
     } catch (err) {
@@ -203,8 +206,7 @@ if (formLoginKd) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
-      authManager.saveSession(data);
-      alert(`Xin chào ${data.full_name}!`);
+      handleSuccessfulLogin(data);
       formLoginKd.reset();
 
     } catch (err) {
