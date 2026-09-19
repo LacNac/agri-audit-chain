@@ -5,7 +5,7 @@
 const API_BASE = "http://127.0.0.1:8000";
 
 const CARD_IDS = {
-  "landing": "card-landing",
+  landing: "card-landing",
   "register-1": "card-register-1",
   "register-2": "card-register-2",
   "login-kd": "card-login-kd",
@@ -71,6 +71,14 @@ formStep1?.addEventListener("submit", (event) => {
 
 async function submitAuthForm(form, endpoint, identifierId, passwordId) {
   const button = form.querySelector('button[type="submit"]');
+  const identifierInput = form.querySelector(`#${identifierId}`);
+  const passwordInput = form.querySelector(`#${passwordId}`);
+
+  if (!button || !identifierInput || !passwordInput) {
+    alert("Không tìm thấy đầy đủ trường đăng nhập trên trang.");
+    return;
+  }
+
   const originalText = button.textContent;
   button.disabled = true;
   button.textContent = "Đang xử lý...";
@@ -80,8 +88,8 @@ async function submitAuthForm(form, endpoint, identifierId, passwordId) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        identifier: document.getElementById(identifierId).value.trim(),
-        password: document.getElementById(passwordId).value,
+        identifier: identifierInput.value.trim(),
+        password: passwordInput.value,
       }),
     });
     const data = await response.json();
@@ -91,6 +99,16 @@ async function submitAuthForm(form, endpoint, identifierId, passwordId) {
 
     if (String(data.role || "").toUpperCase() === "ADMIN") {
       window.location.href = "./admin.html";
+      return;
+    }
+
+    if (String(data.role || "").toUpperCase() === "AUDITOR") {
+      window.location.href = "./auditor.html";
+      return;
+    }
+
+    if (String(data.role || "").toUpperCase() === "FARMER") {
+      window.location.href = "./farmer.html";
       return;
     }
 
@@ -108,7 +126,9 @@ function formatApiError(detail, fallbackMessage) {
   if (Array.isArray(detail)) {
     return detail
       .map((item) => {
-        const field = Array.isArray(item.loc) ? item.loc[item.loc.length - 1] : "Dữ liệu";
+        const field = Array.isArray(item.loc)
+          ? item.loc[item.loc.length - 1]
+          : "Dữ liệu";
         const messages = {
           full_name: "Họ và tên",
           phone: "Số điện thoại",
@@ -129,8 +149,12 @@ function formatApiError(detail, fallbackMessage) {
 formStep2?.addEventListener("submit", async (event) => {
   event.preventDefault();
   registerData.business_type = document.getElementById("r2-type").value;
-  registerData.product_type = document.getElementById("r2-category").value.trim();
-  registerData.business_name = document.getElementById("r2-company").value.trim();
+  registerData.product_type = document
+    .getElementById("r2-category")
+    .value.trim();
+  registerData.business_name = document
+    .getElementById("r2-company")
+    .value.trim();
   registerData.tax_code = document.getElementById("r2-tax").value.trim();
 
   const button = formStep2.querySelector('button[type="submit"]');
@@ -145,7 +169,8 @@ formStep2?.addEventListener("submit", async (event) => {
       body: JSON.stringify(registerData),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(formatApiError(data.detail, "Đăng ký thất bại"));
+    if (!response.ok)
+      throw new Error(formatApiError(data.detail, "Đăng ký thất bại"));
 
     alert(`Đăng ký thành công! Chào mừng ${data.username}`);
     registerData = {};
@@ -160,15 +185,24 @@ formStep2?.addEventListener("submit", async (event) => {
   }
 });
 
-document.getElementById("form-login-dn")?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  submitAuthForm(event.currentTarget, "/auth/login", "dn-email", "dn-pass");
-});
+document
+  .getElementById("form-login-dn")
+  ?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitAuthForm(event.currentTarget, "/auth/login", "dn-email", "dn-pass");
+  });
 
-document.getElementById("form-login-kd")?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  submitAuthForm(event.currentTarget, "/auth/login-auditor", "kd-id", "kd-pass");
-});
+document
+  .getElementById("form-login-kd")
+  ?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitAuthForm(
+      event.currentTarget,
+      "/auth/login-auditor",
+      "kd-email",
+      "kd-pass",
+    );
+  });
 
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("form").forEach((form) => {

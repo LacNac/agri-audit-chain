@@ -10,6 +10,56 @@ from ..services.audit_service import approve_batch, create_report, reject_batch
 router = APIRouter(prefix="/auditor", tags=["auditor"])
 
 
+@router.get("/queue")
+def get_audit_queue(db=Depends(get_db), user=Depends(require_permission("AUDIT_VIEW"))):
+    batches = db.execute(
+        """
+        SELECT b.id, b.batch_code, b.product_name, b.product_type, b.producer_name,
+               b.origin, b.quantity, b.unit, b.production_date, b.expiry_date,
+               b.status, b.created_at,
+               (SELECT COUNT(*) FROM samples s WHERE s.batch_id = b.id) AS sample_count,
+               (SELECT COUNT(*) FROM lab_reports lr WHERE lr.batch_id = b.id) AS report_count
+        FROM batches b
+        WHERE b.status IN ('UNVERIFIED', 'REJECTED')
+        ORDER BY CASE b.status WHEN 'REJECTED' THEN 0 ELSE 1 END, b.id DESC
+        """
+    ).fetchall()
+
+    queue = []
+    for row in batches:
+        batch = dict(zip(
+            [
+                "id", "batch_code", "product_name", "product_type", "producer_name",
+                "origin", "quantity", "unit", "production_date", "expiry_date",
+                "status", "created_at", "sample_count", "report_count",
+            ],
+            row,
+        ))
+        sample_columns = [column[1] for column in db.execute("PRAGMA table_info(samples)").fetchall()]
+        batch["samples"] = [dict(zip(sample_columns, sample)) for sample in db.execute(
+            "SELECT * FROM samples WHERE batch_id = ? ORDER BY id DESC", (batch["id"],)
+        ).fetchall()]
+        report_columns = [column[1] for column in db.execute("PRAGMA table_info(lab_reports)").fetchall()]
+        batch["reports"] = [dict(zip(report_columns, report)) for report in db.execute(
+            "SELECT * FROM lab_reports WHERE batch_id = ? ORDER BY id DESC", (batch["id"],)
+        ).fetchall()]
+        batch["latest_audit"] = db.execute(
+            """
+            SELECT action, previous_status, new_status, reason, created_at
+            FROM audit_logs WHERE batch_id = ? ORDER BY id DESC LIMIT 1
+            """,
+            (batch["id"],),
+        ).fetchone()
+        if batch["latest_audit"]:
+            batch["latest_audit"] = dict(zip(
+                ["action", "previous_status", "new_status", "reason", "created_at"],
+                batch["latest_audit"],
+            ))
+        queue.append(batch)
+
+    return queue
+
+
 @router.post("/reports", response_model=LabReportOut)
 async def create_lab_report_with_file(
     sample_id: int = Form(...),
