@@ -5,8 +5,7 @@ from ..dependencies.auth import get_db
 router = APIRouter(prefix="/public", tags=["public"])
 
 
-@router.get("/trace/{batch_code}")
-def trace_batch(batch_code: str, db=Depends(get_db)):
+def _trace_batch(batch_code: str, db):
     batch_row = db.execute(
         """
         SELECT b.id, b.batch_code, b.product_name, b.origin, b.production_date, b.status, b.farmer_id,
@@ -20,7 +19,9 @@ def trace_batch(batch_code: str, db=Depends(get_db)):
     if not batch_row:
         raise HTTPException(status_code=404, detail="Batch không tồn tại")
 
-    batch_id, _, product_name, origin, production_date, audit_status, farmer_id, farmer_name = batch_row
+    batch_id, resolved_batch_code, product_name, origin, production_date, audit_status, farmer_id, farmer_name = batch_row
+    if audit_status != "AUDITED":
+        raise HTTPException(status_code=403, detail="Batch chưa được kiểm định công khai")
     report_rows = db.execute(
         """
         SELECT lr.result, lr.file_hash, lr.report_code
@@ -50,7 +51,13 @@ def trace_batch(batch_code: str, db=Depends(get_db)):
         result_summary = {"report_count": 0, "latest_result": None, "latest_report_code": None}
         verification = {"sha256": None, "integrity_proof": "missing", "verified": False}
 
+    trace_row = db.execute(
+        "SELECT trace_id, public_url FROM trace_records WHERE batch_id = ? ORDER BY id DESC LIMIT 1",
+        (batch_id,),
+    ).fetchone()
+
     return {
+        "batch_code": resolved_batch_code,
         "product_name": product_name,
         "origin": origin,
         "farmer": farmer_name or ("Farmer ID " + str(farmer_id) if farmer_id is not None else None),
@@ -58,4 +65,22 @@ def trace_batch(batch_code: str, db=Depends(get_db)):
         "audit_status": audit_status,
         "laboratory_result_summary": result_summary,
         "verification": verification,
+        "trace_id": trace_row[0] if trace_row else None,
+        "public_url": trace_row[1] if trace_row else None,
     }
+
+
+@router.get("/trace/{batch_code}")
+def trace_batch(batch_code: str, db=Depends(get_db)):
+    return _trace_batch(batch_code, db)
+
+
+@router.get("/trace-id/{trace_id}")
+def trace_by_id(trace_id: str, db=Depends(get_db)):
+    row = db.execute(
+        "SELECT b.batch_code FROM trace_records t JOIN batches b ON b.id = t.batch_id WHERE t.trace_id = ?",
+        (trace_id,),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Mã QR không tồn tại")
+    return _trace_batch(row[0], db)

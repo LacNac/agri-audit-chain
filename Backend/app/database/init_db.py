@@ -364,6 +364,86 @@ def ensure_batch_columns() -> None:
         conn.close()
 
 
+def migrate_batch_status_schema() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        schema = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'batches'"
+        ).fetchone()
+        if not schema or "UNVERIFIED" in schema[0]:
+            return
+
+        conn.execute(
+            """
+            CREATE TABLE batches_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_code TEXT NOT NULL UNIQUE,
+                product_name TEXT NOT NULL,
+                product_type TEXT,
+                producer_name TEXT NOT NULL,
+                origin TEXT NOT NULL,
+                quantity REAL NOT NULL CHECK (quantity > 0),
+                unit TEXT NOT NULL,
+                production_date DATE,
+                expiry_date DATE,
+                status TEXT NOT NULL DEFAULT 'UNVERIFIED'
+                    CHECK (status IN ('UNVERIFIED', 'AUDITED', 'REJECTED')),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                farmer_id INTEGER,
+                note TEXT,
+                FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO batches_new
+            (id, batch_code, product_name, product_type, producer_name, origin,
+             quantity, unit, production_date, expiry_date, status, created_at,
+             farmer_id, note)
+            SELECT id, batch_code, product_name, product_type,
+                   COALESCE(producer_name, 'Chưa xác định'),
+                   COALESCE(origin, 'Chưa xác định'),
+                   quantity, unit, production_date, expiry_date,
+                   CASE status
+                       WHEN 'passed' THEN 'AUDITED'
+                       WHEN 'inspected' THEN 'AUDITED'
+                       WHEN 'failed' THEN 'REJECTED'
+                       ELSE 'UNVERIFIED'
+                   END,
+                   created_at, farmer_id, note
+            FROM batches_legacy
+            """
+        )
+        conn.execute("DROP TABLE batches")
+        conn.execute("ALTER TABLE batches_new RENAME TO batches")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def repair_legacy_foreign_key_references() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA writable_schema = ON")
+    try:
+        conn.execute(
+            """
+            UPDATE sqlite_master
+            SET sql = REPLACE(REPLACE(sql, '"batches_legacy"', 'batches'), '"users_legacy"', 'users')
+                        WHERE type = 'table'
+                            AND name NOT IN ('batches_legacy', 'users_legacy')
+                            AND sql IS NOT NULL
+            """
+        )
+        version = conn.execute("PRAGMA schema_version").fetchone()[0]
+        conn.execute(f"PRAGMA schema_version = {version + 1}")
+        conn.commit()
+    finally:
+        conn.execute("PRAGMA writable_schema = OFF")
+        conn.close()
+
+
 def ensure_sample_columns() -> None:
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON")
@@ -435,6 +515,8 @@ def normalize_role_values() -> None:
 def initialize_database() -> None:
     ensure_database_schema()
     ensure_batch_columns()
+    migrate_batch_status_schema()
+    repair_legacy_foreign_key_references()
     ensure_sample_columns()
     migrate_legacy_users_schema()
     repair_businesses_user_foreign_key()
