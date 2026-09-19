@@ -14,7 +14,9 @@ const CARD_IDS = {
 
 const authManager = {
   saveSession(user) {
-    sessionStorage.setItem("currentUser", JSON.stringify(user));
+    const serializedUser = JSON.stringify(user);
+    sessionStorage.setItem("currentUser", serializedUser);
+    localStorage.setItem("currentUser", serializedUser);
   },
 };
 
@@ -87,7 +89,7 @@ async function submitAuthForm(form, endpoint, identifierId, passwordId) {
 
     authManager.saveSession(data);
 
-    if (data.role === "ADMIN") {
+    if (String(data.role || "").toUpperCase() === "ADMIN") {
       window.location.href = "./admin.html";
       return;
     }

@@ -66,6 +66,62 @@ def _recent_activity(db: sqlite3.Connection):
     ]
 
 
+def _all_batches(db: sqlite3.Connection):
+    if not _table_exists(db, "batches"):
+        return []
+
+    rows = db.execute(
+        """
+        SELECT b.id, b.batch_code, b.product_name, b.producer_name,
+               b.created_at, b.status, b.farmer_id, u.full_name
+        FROM batches b
+        LEFT JOIN users u ON u.id = b.farmer_id
+        ORDER BY b.created_at DESC, b.id DESC
+        """
+    ).fetchall()
+    return [
+        {
+            "id": row[0],
+            "batch_code": row[1],
+            "product_name": row[2],
+            "producer_name": row[3] or row[7] or "-",
+            "created_at": row[4],
+            "status": row[5],
+            "farmer_id": row[6],
+        }
+        for row in rows
+    ]
+
+
+def _all_audit_trails(db: sqlite3.Connection):
+    if not _table_exists(db, "audit_trails"):
+        return []
+
+    rows = db.execute(
+        """
+        SELECT at.id, at.created_at, at.user_id, u.full_name, u.role,
+               at.action, at.entity_type, at.entity_id
+        FROM audit_trails at
+        LEFT JOIN users u ON u.id = at.user_id
+        ORDER BY at.created_at DESC, at.id DESC
+        LIMIT 200
+        """
+    ).fetchall()
+    return [
+        {
+            "id": row[0],
+            "created_at": row[1],
+            "user_id": row[2],
+            "user_name": row[3] or "Hệ thống",
+            "role": row[4] or "SYSTEM",
+            "action": row[5],
+            "entity_type": row[6],
+            "entity_id": row[7],
+        }
+        for row in rows
+    ]
+
+
 @router.get("/dashboard")
 def dashboard(db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
     total_users = _safe_count(db, "users")
@@ -95,3 +151,13 @@ def dashboard(db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
         },
         "recent_activity": _recent_activity(db),
     }
+
+
+@router.get("/batches")
+def list_admin_batches(db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
+    return _all_batches(db)
+
+
+@router.get("/audit-trails")
+def list_admin_audit_trails(db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
+    return _all_audit_trails(db)
