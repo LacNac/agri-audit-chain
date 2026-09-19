@@ -9,8 +9,8 @@
   --btn-yellow: #F0E658;
   --btn-yellow-hover: #E9DE3F;
   --btn-yellow-text: #241C4A;
-  --btn-lavender: #B2AEEA;
-  --btn-lavender-hover: #A29CE2;
+  --btn-lavender: #483ddd;
+  --btn-lavender-hover: #382cdb;
   --btn-primary: #857FDE;
   --btn-primary-hover: #726BD6;
   --input-border: #D6D3F5;
@@ -373,10 +373,10 @@ input, select{ font-family: inherit; }
 
 .btn:active{ transform: translateY(1px); }
 
-.btn-yellow{ background: var(--btn-yellow); color: var(--btn-yellow-text); }
-.btn-yellow:hover{ background: var(--btn-yellow-hover); }
+.btn-yellow {background: var(--btn-yellow); color: #fff; }
+.btn-yellow:hover { background: var(--btn-yellow-hover);}
 
-.btn-lavender{ background: var(--btn-lavender); color: #fff; }
+.btn-lavender{ background: var(--btn-lavender); color: #fff ; }
 .btn-lavender:hover{ background: var(--btn-lavender-hover); }
 
 .btn-primary{ background: var(--btn-primary); color: #fff; }

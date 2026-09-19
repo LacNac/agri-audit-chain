@@ -48,6 +48,25 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function setTextContent(elementId, value) {
+  const element = document.getElementById(elementId);
+  if (element) element.textContent = value;
+}
+
+function renderActivity(items) {
+  const list = document.getElementById("activity-list");
+  if (!list) return;
+  if (!items || items.length === 0) {
+    list.innerHTML = '<p class="empty">Chưa có hoạt động</p>';
+    return;
+  }
+
+  list.innerHTML = items.map((item) => {
+    const time = item.created_at ? new Date(item.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "--:--";
+    return `<div class="activity-row"><span class="activity-time">${time}</span><span>${escapeHtml(item.user_name)} ${escapeHtml(item.action)}</span></div>`;
+  }).join("");
+}
+
 async function loadUsers(token) {
   const response = await fetch(`${API_BASE}/users`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -113,13 +132,15 @@ async function loadDashboard() {
     const data = await response.json();
     const summary = data.summary || {};
 
-    document.getElementById("users-count").textContent = summary.users ?? 0;
-    document.getElementById("farmers-count").textContent = summary.farmers ?? 0;
-    document.getElementById("auditors-count").textContent = summary.auditors ?? 0;
-    document.getElementById("batches-count").textContent = summary.batches ?? 0;
-    document.getElementById("audited-count").textContent = summary.audited_batches ?? 0;
-    document.getElementById("rejected-count").textContent = summary.rejected_batches ?? 0;
-    document.getElementById("pending-count").textContent = summary.pending_batches ?? 0;
+    setTextContent("users-count", summary.users ?? 0);
+    setTextContent("farmers-count", summary.farmers ?? 0);
+    setTextContent("auditors-count", summary.auditors ?? 0);
+    setTextContent("batches-count", summary.batches ?? 0);
+    setTextContent("audited-count", summary.audited_batches ?? 0);
+    setTextContent("rejected-count", summary.rejected_batches ?? 0);
+    setTextContent("pending-count", summary.pending_batches ?? 0);
+    setTextContent("admins-count", summary.admins ?? 0);
+    renderActivity(data.recent_activity || []);
 
     renderList("new-batches", data.lists?.new_batches || [], "Không có batch mới");
     renderList("pending-batches", data.lists?.pending_batches || [], "Không có batch chờ kiểm định");
@@ -154,7 +175,7 @@ document.getElementById("create-auditor-form")?.addEventListener("submit", async
   const message = document.getElementById("auditor-form-message");
   const currentUser = getCurrentUser();
   button.disabled = true;
-  message.textContent = "Đang tạo tài khoản...";
+  if (message) message.textContent = "Đang tạo tài khoản...";
 
   try {
     const response = await fetch(`${API_BASE}/users/auditors`, {
@@ -168,15 +189,39 @@ document.getElementById("create-auditor-form")?.addEventListener("submit", async
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.detail || "Không thể tạo tài khoản Auditor");
     form.reset();
-    message.textContent = `Đã tạo tài khoản ${data.username}.`;
+    if (message) message.textContent = `Đã tạo tài khoản ${data.username}.`;
     await loadUsers(currentUser.access_token);
     await loadDashboard();
   } catch (error) {
-    message.textContent = error.message;
+    if (message) message.textContent = error.message;
   } finally {
     button.disabled = false;
   }
 });
+
+function showDashboardSection(sectionId) {
+  const sectionIds = ["overview-section", "users-section", "batches-section"];
+  sectionIds.forEach((id) => {
+    document.getElementById(id)?.classList.toggle("view-hidden", id !== sectionId);
+  });
+
+  if (sectionId === "activity-section") {
+    document.getElementById("overview-section")?.classList.remove("view-hidden");
+    document.getElementById("activity-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+document.querySelectorAll(".sidebar-link").forEach((link) => {
+  link.addEventListener("click", () => {
+    document.querySelectorAll(".sidebar-link").forEach((item) => item.classList.remove("active"));
+    link.classList.add("active");
+    showDashboardSection(link.dataset.section);
+  });
+});
+
+showDashboardSection("overview-section");
 
 document.getElementById("logoutBtn")?.addEventListener("click", logout);
 loadDashboard();

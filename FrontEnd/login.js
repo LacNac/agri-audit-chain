@@ -219,9 +219,9 @@ if (formLoginKd) {
 }
 
 
-// ==========================================
-// TỰ ĐỘNG ĐỔI MÀU NÚT KHI ĐIỀN ĐỦ THÔNG TIN
-// ==========================================
+// ===================================================================
+// TỰ ĐỘNG KIỂM TRA ĐỊNH DẠNG VÀ ĐỔI MÀU NÚT (#1D12C3)
+// ===================================================================
 document.addEventListener('DOMContentLoaded', () => {
   const forms = document.querySelectorAll('form');
 
@@ -230,7 +230,32 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!submitBtn) return;
 
     function validateForm() {
-      const isValid = form.checkValidity();
+      // 1. Kiểm tra tính hợp lệ cơ bản của form (required, pattern, ...)
+      let isValid = form.checkValidity();
+
+      // 2. Kiểm tra riêng cho Form Đăng ký Bước 1
+      if (form.id === 'form-register-1') {
+        const pass = document.getElementById('r1-pass') ? document.getElementById('r1-pass').value : '';
+        const pass2 = document.getElementById('r1-pass2') ? document.getElementById('r1-pass2').value : '';
+        const email = document.getElementById('r1-email') ? document.getElementById('r1-email').value : '';
+        const phone = document.getElementById('r1-phone') ? document.getElementById('r1-phone').value : '';
+
+        const isGmail = email.trim().toLowerCase().endsWith('@gmail.com');
+        const isValidPhone = /^0[0-9]{9}$/.test(phone.trim());
+        const isPassMatch = (pass === pass2) && (pass.length >= 6);
+
+        isValid = isValid && isGmail && isValidPhone && isPassMatch;
+      }
+
+      // 3. Kiểm tra riêng cho Form Đăng ký Bước 2
+      if (form.id === 'form-register-2') {
+        const tax = document.getElementById('r2-tax') ? document.getElementById('r2-tax').value.trim() : '';
+        const isValidTax = /^[0-9]{10}$|^[0-9]{13}$/.test(tax);
+
+        isValid = isValid && isValidTax;
+      }
+
+      // Đổi màu nút khi form hoàn toàn hợp lệ
       if (isValid) {
         submitBtn.removeAttribute('disabled');
         submitBtn.classList.add('is-ready');
@@ -244,4 +269,4 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('change', validateForm);
     validateForm();
   });
-})
+});
