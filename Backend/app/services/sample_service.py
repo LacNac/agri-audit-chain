@@ -4,6 +4,8 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from .audit_trail_service import record_audit_trail
+
 
 def generate_sample_code() -> str:
     return f"SAMPLE-{datetime.now().strftime('%Y%m%d%H%M%S')}"
@@ -15,15 +17,7 @@ def _serialize_sample(row: tuple[Any, ...], columns: list[str]) -> dict[str, Any
     return data
 
 
-def _log_sample_activity(db: sqlite3.Connection, sample_id: int, action: str, details: str | None = None):
-    db.execute(
-        "INSERT INTO sample_history (sample_id, action, details) VALUES (?, ?, ?)",
-        (sample_id, action, details),
-    )
-    db.commit()
-
-
-def create_sample(db: sqlite3.Connection, batch_id: int, payload: dict[str, Any]):
+def create_sample(db: sqlite3.Connection, batch_id: int, payload: dict[str, Any], user_id: int | None = None):
     batch_exists = db.execute("SELECT id FROM batches WHERE id = ?", (batch_id,)).fetchone()
     if not batch_exists:
         raise HTTPException(status_code=404, detail="Batch không tồn tại")
@@ -56,7 +50,14 @@ def create_sample(db: sqlite3.Connection, batch_id: int, payload: dict[str, Any]
     )
     sample_id = cursor.lastrowid
     db.commit()
-    _log_sample_activity(db, sample_id, "created", f"batch_id={batch_id}")
+    record_audit_trail(
+        db,
+        user_id=user_id,
+        action="CREATE_SAMPLE",
+        entity_type="sample",
+        entity_id=sample_id,
+        new_value={"batch_id": batch_id, "sample_code": sample_code},
+    )
     row = db.execute("SELECT * FROM samples WHERE id = ?", (sample_id,)).fetchone()
     columns = [col[1] for col in db.execute("PRAGMA table_info(samples)").fetchall()]
     return _serialize_sample(row, columns)

@@ -111,11 +111,6 @@ def approve_batch(db: sqlite3.Connection, batch_id: int, user_id: int, reason: s
         "UPDATE batches SET status = 'AUDITED' WHERE id = ?",
         (batch_id,),
     )
-    db.execute(
-        "INSERT INTO audit_logs (batch_id, user_id, action, previous_status, new_status, reason) VALUES (?, ?, 'APPROVE', ?, 'AUDITED', ?)",
-        (batch_id_db, user_id, current_status, reason or "Auditor approved"),
-    )
-    db.commit()
     record_audit_trail(db, user_id=user_id, action="APPROVE_BATCH", entity_type="batch", entity_id=batch_id_db, old_value={"status": current_status}, new_value={"status": "AUDITED", "reason": reason or "Auditor approved"})
     return {"batch_id": batch_id_db, "status": "AUDITED"}
 
@@ -133,10 +128,5 @@ def reject_batch(db: sqlite3.Connection, batch_id: int, user_id: int, reason: st
         "UPDATE batches SET status = 'REJECTED' WHERE id = ?",
         (batch_id,),
     )
-    db.execute(
-        "INSERT INTO audit_logs (batch_id, user_id, action, previous_status, new_status, reason) VALUES (?, ?, 'REJECT', ?, 'REJECTED', ?)",
-        (batch_id_db, user_id, current_status, reason.strip()),
-    )
-    db.commit()
     record_audit_trail(db, user_id=user_id, action="REJECT_BATCH", entity_type="batch", entity_id=batch_id_db, old_value={"status": current_status}, new_value={"status": "REJECTED", "reason": reason.strip()})
     return {"batch_id": batch_id_db, "status": "REJECTED"}

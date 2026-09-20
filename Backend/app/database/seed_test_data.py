@@ -1,4 +1,5 @@
 import sqlite3
+import json
 from pathlib import Path
 from datetime import datetime
 
@@ -40,7 +41,7 @@ def seed_test_data():
                          "(SELECT id FROM batches WHERE batch_code = ?)", (code,))
             conn.execute("DELETE FROM packages WHERE batch_id IN "
                          "(SELECT id FROM batches WHERE batch_code = ?)", (code,))
-            conn.execute("DELETE FROM audit_logs WHERE batch_id IN "
+            conn.execute("DELETE FROM audit_trails WHERE entity_type = 'batch' AND entity_id IN "
                          "(SELECT id FROM batches WHERE batch_code = ?)", (code,))
             conn.execute("DELETE FROM lab_reports WHERE batch_id IN "
                          "(SELECT id FROM batches WHERE batch_code = ?)", (code,))
@@ -352,17 +353,16 @@ def seed_test_data():
         for code, user_id, action, old_status, new_status, reason in audit_data:
             conn.execute(
                 """
-                INSERT INTO audit_logs
-                (batch_id, user_id, action, previous_status, new_status, reason)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO audit_trails
+                    (user_id, action, entity_type, entity_id, old_value, new_value)
+                VALUES (?, ?, 'batch', ?, ?, ?)
                 """,
                 (
-                    batch_rows[code],
                     user_id,
-                    action,
-                    old_status,
-                    new_status,
-                    reason,
+                    "APPROVE_BATCH" if action == "APPROVE" else "REJECT_BATCH",
+                    batch_rows[code],
+                    json.dumps({"status": old_status}, ensure_ascii=False),
+                    json.dumps({"status": new_status, "reason": reason}, ensure_ascii=False),
                 ),
             )
 

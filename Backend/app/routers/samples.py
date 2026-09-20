@@ -14,7 +14,7 @@ def create_new_sample(
     db=Depends(get_db),
     user=Depends(require_roles("FARMER", "AUDITOR")),
 ):
-    sample = create_sample(db, payload.batch_id, payload.model_dump(exclude_none=True))
+    sample = create_sample(db, payload.batch_id, payload.model_dump(exclude_none=True), user_id=user["id"])
     return SampleOut(**sample)
 
 
