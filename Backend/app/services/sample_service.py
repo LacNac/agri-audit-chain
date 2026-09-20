@@ -22,6 +22,12 @@ def create_sample(db: sqlite3.Connection, batch_id: int, payload: dict[str, Any]
     if not batch_exists:
         raise HTTPException(status_code=404, detail="Batch không tồn tại")
 
+    existing_batch_sample = db.execute(
+        "SELECT id FROM samples WHERE batch_id = ?", (batch_id,)
+    ).fetchone()
+    if existing_batch_sample:
+        raise HTTPException(status_code=409, detail="Batch đã có sample; chỉ được chỉnh sửa sample hiện tại")
+
     sample_code = payload.get("sample_id") or payload.get("sample_code") or generate_sample_code()
     sample_code = str(sample_code)
 
@@ -61,6 +67,61 @@ def create_sample(db: sqlite3.Connection, batch_id: int, payload: dict[str, Any]
     row = db.execute("SELECT * FROM samples WHERE id = ?", (sample_id,)).fetchone()
     columns = [col[1] for col in db.execute("PRAGMA table_info(samples)").fetchall()]
     return _serialize_sample(row, columns)
+
+
+def update_sample(db: sqlite3.Connection, sample_id: int, payload: dict[str, Any], user_id: int | None = None):
+    row = db.execute(
+        "SELECT * FROM samples WHERE id = ?", (sample_id,)
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Sample không tồn tại")
+
+    columns = [col[1] for col in db.execute("PRAGMA table_info(samples)").fetchall()]
+    current = dict(zip(columns, row))
+    if payload.get("batch_id") != current["batch_id"]:
+        raise HTTPException(status_code=400, detail="Không được chuyển sample sang batch khác")
+
+    allowed_fields = {
+        "sample_code": "sample_id",
+        "sampling_date": "sampling_date",
+        "sample_quantity": "sample_quantity",
+        "sample_unit": "sample_unit",
+        "sampling_location": "sampling_location",
+        "sampling_method": "sampling_method",
+        "status": "status",
+    }
+    updates = {}
+    for field, payload_key in allowed_fields.items():
+        if payload_key in payload and payload[payload_key] is not None:
+            updates[field] = payload[payload_key]
+    if not updates:
+        return _serialize_sample(row, columns)
+
+    if "sample_code" in updates:
+        duplicate = db.execute(
+            "SELECT id FROM samples WHERE sample_code = ? AND id != ?",
+            (updates["sample_code"], sample_id),
+        ).fetchone()
+        if duplicate:
+            raise HTTPException(status_code=400, detail="Sample ID đã tồn tại")
+
+    assignments = ", ".join(f"{field} = ?" for field in updates)
+    db.execute(
+        f"UPDATE samples SET {assignments} WHERE id = ?",
+        [*updates.values(), sample_id],
+    )
+    db.commit()
+    record_audit_trail(
+        db,
+        user_id=user_id,
+        action="UPDATE_SAMPLE",
+        entity_type="sample",
+        entity_id=sample_id,
+        old_value={field: current.get(field) for field in updates},
+        new_value=updates,
+    )
+    updated = db.execute("SELECT * FROM samples WHERE id = ?", (sample_id,)).fetchone()
+    return _serialize_sample(updated, columns)
 
 
 def list_samples_by_batch(db: sqlite3.Connection, batch_id: int):

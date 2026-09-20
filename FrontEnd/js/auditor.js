@@ -116,7 +116,7 @@ function renderDetail(batch) {
         <div><span class="info-label">Ngày sản xuất</span><span class="info-value">${escapeHtml(batch.production_date || "-")}</span></div>
       </div>
     </div>
-    <div class="detail-section"><h3>Sample liên kết (${samples.length})</h3>${renderSamples(samples)}</div>
+    <div class="detail-section"><div class="detail-header"><h3>Sample liên kết (${samples.length})</h3></div>${renderSampleForm(batch, samples)}${renderSamples(samples)}</div>
     <div class="detail-section"><h3>Laboratory Test Report (${reports.length})</h3>${renderReports(reports)}</div>
     <div class="detail-section"><h3>Upload report mới</h3>${renderReportForm(batch, samples)}</div>
     <div class="detail-section"><h3>Quyết định kiểm định</h3><label class="info-label" for="decision-reason">Ghi chú / lý do</label><textarea id="decision-reason" rows="3" style="width:100%;margin-top:6px;border:1px solid #dce5e8;border-radius:6px;padding:9px;resize:vertical" placeholder="Nhập nhận xét kiểm định"></textarea><div class="action-row"><button class="button button-primary" data-action="approve" type="button">Approve batch</button><button class="button button-danger" data-action="reject" type="button">Reject batch</button></div></div>
@@ -127,6 +127,12 @@ function renderSamples(samples) {
   if (!samples.length)
     return '<p class="empty-state">Chưa có sample liên kết.</p>';
   return `<table class="data-table"><thead><tr><th>Sample</th><th>Ngày lấy</th><th>Khối lượng</th><th>Địa điểm</th></tr></thead><tbody>${samples.map((sample) => `<tr><td>${escapeHtml(sample.sample_code)}</td><td>${escapeHtml(sample.sampling_date || "-")}</td><td>${escapeHtml(sample.sample_quantity || "-")} ${escapeHtml(sample.sample_unit || "")}</td><td>${escapeHtml(sample.sampling_location || "-")}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function renderSampleForm(batch, samples) {
+  const sample = samples[0];
+  const action = sample ? "Cập nhật sample" : "Tạo sample";
+  return `<form id="sample-form" class="report-form" data-batch-id="${batch.id}"${sample ? ` data-sample-id="${sample.id}"` : ""}><label>Mã mẫu<input name="sample_id" value="${escapeHtml(sample?.sample_code || "")}" placeholder="Tự sinh nếu để trống" /></label><label>Ngày lấy mẫu<input name="sampling_date" type="date" value="${escapeHtml(sample?.sampling_date || "")}" /></label><label>Số lượng mẫu<input name="sample_quantity" type="number" min="0.001" step="0.001" value="${escapeHtml(sample?.sample_quantity || "")}" required /></label><label>Đơn vị mẫu<input name="sample_unit" placeholder="kg" value="${escapeHtml(sample?.sample_unit || "")}" required /></label><label>Địa điểm lấy mẫu<input name="sampling_location" value="${escapeHtml(sample?.sampling_location || "")}" required /></label><label>Phương pháp lấy mẫu<input name="sampling_method" value="${escapeHtml(sample?.sampling_method || "")}" required /></label><div class="full"><button class="button button-secondary" type="submit">${action}</button></div></form>`;
 }
 
 function renderReports(reports) {
@@ -160,6 +166,37 @@ async function submitReport(form) {
   try {
     await request("/auditor/reports", { method: "POST", body: data });
     showToast("Đã upload report và tạo SHA-256.");
+    await loadQueue();
+    selectBatch(Number(form.dataset.batchId));
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function submitSample(form) {
+  const payload = Object.fromEntries(new FormData(form));
+  payload.batch_id = Number(form.dataset.batchId);
+  if (payload.sample_quantity)
+    payload.sample_quantity = Number(payload.sample_quantity);
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === "") delete payload[key];
+  });
+  const button = form.querySelector("button[type=submit]");
+  button.disabled = true;
+  try {
+    const sampleId = form.dataset.sampleId;
+    await request(sampleId ? `/samples/${sampleId}` : "/samples", {
+      method: sampleId ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    showToast(
+      sampleId
+        ? "Đã cập nhật sample kiểm nghiệm."
+        : "Đã tạo sample kiểm nghiệm.",
+    );
     await loadQueue();
     selectBatch(Number(form.dataset.batchId));
   } catch (error) {
@@ -225,9 +262,9 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("submit", (event) => {
-  if (event.target.id !== "report-form") return;
   event.preventDefault();
-  submitReport(event.target);
+  if (event.target.id === "report-form") submitReport(event.target);
+  if (event.target.id === "sample-form") submitSample(event.target);
 });
 
 document.getElementById("refresh-button").addEventListener("click", loadQueue);

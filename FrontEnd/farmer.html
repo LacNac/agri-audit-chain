@@ -111,7 +111,7 @@
       </main>
     </div>
     <dialog id="batch-dialog" class="dialog">
-      <form id="batch-form" method="dialog">
+      <form id="batch-form" method="dialog" novalidate>
         <div class="dialog-heading">
           <div>
             <p class="eyebrow">BATCH RECORD</p>
@@ -172,62 +172,6 @@
             type="submit"
           >
             Lưu lô hàng
-          </button>
-        </div>
-      </form>
-    </dialog>
-    <dialog id="sample-dialog" class="dialog">
-      <form id="sample-form" method="dialog">
-        <div class="dialog-heading">
-          <div>
-            <p class="eyebrow">SAMPLE RECORD</p>
-            <h2>Tạo mẫu kiểm nghiệm</h2>
-          </div>
-          <button
-            class="icon-button"
-            value="cancel"
-            type="submit"
-            aria-label="Đóng"
-          >
-            ×
-          </button>
-        </div>
-        <input type="hidden" name="batch_id" />
-        <div class="form-grid">
-          <label
-            >Mã mẫu (không bắt buộc)<input
-              name="sample_id"
-              placeholder="Tự sinh nếu để trống" /></label
-          ><label>Ngày lấy mẫu<input name="sampling_date" type="date" /></label
-          ><label
-            >Số lượng mẫu<input
-              name="sample_quantity"
-              type="number"
-              min="0.001"
-              step="0.001"
-              required /></label
-          ><label
-            >Đơn vị mẫu<input
-              name="sample_unit"
-              placeholder="kg"
-              required /></label
-          ><label
-            >Địa điểm lấy mẫu<input
-              name="sampling_location"
-              required
-              minlength="2" /></label
-          ><label
-            >Phương pháp lấy mẫu<input
-              name="sampling_method"
-              required
-              minlength="2"
-          /></label>
-        </div>
-        <div class="dialog-actions">
-          <button class="button button-secondary" value="cancel" type="submit">
-            Hủy</button
-          ><button class="button button-primary" value="default" type="submit">
-            Tạo mẫu
           </button>
         </div>
       </form>
