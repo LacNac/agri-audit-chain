@@ -35,12 +35,26 @@ body{
 img,svg{max-width:100%;}
 
 /* ---------- Logo (icon + wordmark) ---------- */
-.logo{display:flex;align-items:center;gap:10px;padding:4px 8px 22px 8px;cursor:pointer;}
-.logo-mark{width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;}
-.logo-mark svg{width:100%;height:100%;display:block;}
-.logo-wordmark{font-weight:800;font-size:18px;letter-spacing:-0.3px;white-space:nowrap;}
-.logo-agri{background:linear-gradient(135deg,var(--logo-blue-1),var(--logo-blue-2));-webkit-background-clip:text;background-clip:text;color:transparent;}
-.logo-trace{background:linear-gradient(135deg,var(--logo-purple-1),var(--logo-purple-2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.logo{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:4px 8px 22px 8px;
+    cursor:pointer;
+}
+
+.logo-icon{
+    width:42px;
+    height:42px;
+    flex:0 0 42px;
+    display:block;
+}
+
+.logo-text{
+    width:150px;
+    height:auto;
+    display:block;
+}
 
 /* ---------- Topbar (mobile only) ---------- */
 .topbar{

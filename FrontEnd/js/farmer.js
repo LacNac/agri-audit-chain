@@ -41,8 +41,8 @@ const ICONS = {
 
 function renderLogo(){
   return `<div class="logo" onclick="navigate('overview')">
-    <div class="logo-mark">${ICONS.logoMark}</div>
-    <div class="logo-wordmark"><span class="logo-agri">Agri</span><span class="logo-trace">Trace</span></div>
+    <img src="assets/logo-icon.svg" class="logo-icon" alt="AgriTrace">
+    <img src="assets/logo-text.svg" class="logo-text" alt="AgriTrace">
   </div>`;
 }
 
