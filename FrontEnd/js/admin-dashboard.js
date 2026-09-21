@@ -16,7 +16,7 @@ function getCurrentUser() {
 function logout() {
   sessionStorage.removeItem("currentUser");
   localStorage.removeItem("currentUser");
-  window.location.href = "./login.html";
+  window.location.href = "./admin_login.html";
 }
 
 function renderList(elementId, items, emptyMessage = "Không có dữ liệu") {

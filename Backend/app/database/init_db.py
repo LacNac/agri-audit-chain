@@ -1,4 +1,5 @@
 import sqlite3
+import json
 from pathlib import Path
 
 from ..core.security import hash_password
@@ -87,14 +88,8 @@ def ensure_database_schema() -> None:
                 FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE CASCADE
             );
 
-            CREATE TABLE IF NOT EXISTS sample_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                sample_id INTEGER NOT NULL,
-                action TEXT NOT NULL,
-                details TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE
-            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_samples_one_per_batch
+                ON samples(batch_id);
 
             CREATE TABLE IF NOT EXISTS lab_reports (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,19 +107,6 @@ def ensure_database_schema() -> None:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE,
                 FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS audit_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                batch_id INTEGER,
-                user_id INTEGER,
-                action TEXT NOT NULL,
-                previous_status TEXT,
-                new_status TEXT,
-                reason TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE SET NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
             );
 
             CREATE TABLE IF NOT EXISTS audit_trails (
@@ -182,9 +164,17 @@ def ensure_database_schema() -> None:
             ("BATCH_CREATE", "Create Batch", "Create new batch"),
             ("BATCH_VIEW_OWN", "View own batches", "View own produced batches"),
             ("BATCH_VIEW_ALL", "View all batches", "View all batches for auditor/admin"),
+            ("BATCH_UPDATE_OWN", "Update own batch", "Update own batch before audit"),
+            ("BATCH_DELETE_OWN", "Delete own batch", "Delete own unverified batch"),
+            ("SAMPLE_CREATE", "Create Sample", "Create sample linked to a batch"),
+            ("SAMPLE_VIEW_OWN", "View own samples", "View samples belonging to own batches"),
+            ("SAMPLE_VIEW_ALL", "View all samples", "View all samples"),
             ("AUDIT_VIEW", "View audit list", "Review audit queue"),
+            ("AUDIT_UPLOAD_REPORT", "Upload lab report", "Upload laboratory test report"),
             ("AUDIT_APPROVE", "Approve batch", "Approve audited batch"),
             ("AUDIT_REJECT", "Reject batch", "Reject batch"),
+            ("AUDIT_VIEW_HISTORY", "View audit history", "View audit trail"),
+            ("QR_GENERATE", "Generate QR", "Generate QR for audited batch"),
             ("PUBLIC_TRACE_VIEW", "Public trace view", "Public traceability access"),
             ("DASHBOARD_VIEW", "Dashboard view", "Admin dashboard access"),
         ]
@@ -205,9 +195,9 @@ def seed_default_role_permissions() -> None:
     conn.execute("PRAGMA foreign_keys = ON")
     try:
         role_permission_map = {
-            "ADMIN": ["AUTH_LOGIN", "BATCH_CREATE", "BATCH_VIEW_OWN", "BATCH_VIEW_ALL", "AUDIT_VIEW", "AUDIT_APPROVE", "AUDIT_REJECT", "PUBLIC_TRACE_VIEW", "DASHBOARD_VIEW"],
-            "FARMER": ["AUTH_LOGIN", "BATCH_CREATE", "BATCH_VIEW_OWN"],
-            "AUDITOR": ["AUTH_LOGIN", "BATCH_VIEW_ALL", "AUDIT_VIEW", "AUDIT_APPROVE", "AUDIT_REJECT"],
+            "ADMIN": ["AUTH_LOGIN", "BATCH_CREATE", "BATCH_VIEW_OWN", "BATCH_VIEW_ALL", "BATCH_UPDATE_OWN", "BATCH_DELETE_OWN", "SAMPLE_CREATE", "SAMPLE_VIEW_OWN", "SAMPLE_VIEW_ALL", "AUDIT_VIEW", "AUDIT_UPLOAD_REPORT", "AUDIT_APPROVE", "AUDIT_REJECT", "AUDIT_VIEW_HISTORY", "QR_GENERATE", "PUBLIC_TRACE_VIEW", "DASHBOARD_VIEW"],
+            "FARMER": ["AUTH_LOGIN", "BATCH_CREATE", "BATCH_VIEW_OWN", "BATCH_UPDATE_OWN", "BATCH_DELETE_OWN", "SAMPLE_VIEW_OWN", "QR_GENERATE"],
+            "AUDITOR": ["AUTH_LOGIN", "BATCH_VIEW_ALL", "SAMPLE_CREATE", "SAMPLE_VIEW_ALL", "AUDIT_VIEW", "AUDIT_UPLOAD_REPORT", "AUDIT_APPROVE", "AUDIT_REJECT", "AUDIT_VIEW_HISTORY"],
             "PUBLIC": ["PUBLIC_TRACE_VIEW"],
         }
 
@@ -301,7 +291,9 @@ def migrate_legacy_users_schema() -> None:
             conn.execute(
                 """
                 INSERT INTO users (id, username, password_hash, full_name, email, phone, role, status, created_at)
-                SELECT id, username, password_hash, full_name, email, phone, UPPER(role), status, created_at
+                  SELECT id, username, password_hash, full_name, email, phone,
+                      CASE UPPER(role) WHEN 'CONSUMER' THEN 'PUBLIC' ELSE UPPER(role) END,
+                      status, created_at
                 FROM users_legacy
                 """
             )
@@ -461,9 +453,75 @@ def ensure_sample_columns() -> None:
             conn.execute("ALTER TABLE samples ADD COLUMN sampling_method TEXT")
         if "sample_code" not in sample_columns:
             conn.execute("ALTER TABLE samples ADD COLUMN sample_code TEXT")
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS sample_history (id INTEGER PRIMARY KEY AUTOINCREMENT, sample_id INTEGER NOT NULL, action TEXT NOT NULL, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE CASCADE)"
-        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def migrate_sample_history_to_audit_trails() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sample_history'"
+        ).fetchone()
+        if not exists:
+            return
+
+        rows = conn.execute(
+            "SELECT sample_id, action, details, created_at FROM sample_history ORDER BY id"
+        ).fetchall()
+        for sample_id, action, details, created_at in rows:
+            conn.execute(
+                """
+                INSERT INTO audit_trails
+                    (user_id, action, entity_type, entity_id, old_value, new_value, created_at)
+                VALUES (NULL, ?, 'sample', ?, NULL, ?, ?)
+                """,
+                (action.upper(), sample_id, json.dumps({"details": details}, ensure_ascii=False), created_at),
+            )
+        conn.execute("DROP TABLE sample_history")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def migrate_audit_logs_to_trails() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        audit_logs_exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'audit_logs'"
+        ).fetchone()
+        if not audit_logs_exists:
+            return
+
+        rows = conn.execute(
+            """
+            SELECT batch_id, user_id, action, previous_status, new_status, reason, created_at
+            FROM audit_logs
+            ORDER BY id
+            """
+        ).fetchall()
+        for batch_id, user_id, action, previous_status, new_status, reason, created_at in rows:
+            if batch_id is None:
+                continue
+            conn.execute(
+                """
+                INSERT INTO audit_trails
+                    (user_id, action, entity_type, entity_id, old_value, new_value, created_at)
+                VALUES (?, ?, 'batch', ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    "APPROVE_BATCH" if action == "APPROVE" else "REJECT_BATCH",
+                    batch_id,
+                    json.dumps({"status": previous_status}, ensure_ascii=False),
+                    json.dumps({"status": new_status, "reason": reason}, ensure_ascii=False),
+                    created_at,
+                ),
+            )
+        conn.execute("DROP TABLE audit_logs")
         conn.commit()
     finally:
         conn.close()
@@ -494,9 +552,17 @@ def normalize_role_values() -> None:
             ("BATCH_CREATE", "Create Batch", "Create new batch"),
             ("BATCH_VIEW_OWN", "View own batches", "View own produced batches"),
             ("BATCH_VIEW_ALL", "View all batches", "View all batches for auditor/admin"),
+            ("BATCH_UPDATE_OWN", "Update own batch", "Update own batch before audit"),
+            ("BATCH_DELETE_OWN", "Delete own batch", "Delete own unverified batch"),
+            ("SAMPLE_CREATE", "Create Sample", "Create sample linked to a batch"),
+            ("SAMPLE_VIEW_OWN", "View own samples", "View samples belonging to own batches"),
+            ("SAMPLE_VIEW_ALL", "View all samples", "View all samples"),
             ("AUDIT_VIEW", "View audit list", "Review audit queue"),
+            ("AUDIT_UPLOAD_REPORT", "Upload lab report", "Upload laboratory test report"),
             ("AUDIT_APPROVE", "Approve batch", "Approve audited batch"),
             ("AUDIT_REJECT", "Reject batch", "Reject batch"),
+            ("AUDIT_VIEW_HISTORY", "View audit history", "View audit trail"),
+            ("QR_GENERATE", "Generate QR", "Generate QR for audited batch"),
             ("PUBLIC_TRACE_VIEW", "Public trace view", "Public traceability access"),
             ("DASHBOARD_VIEW", "Dashboard view", "Admin dashboard access"),
         ]
@@ -521,5 +587,7 @@ def initialize_database() -> None:
     migrate_legacy_users_schema()
     repair_businesses_user_foreign_key()
     normalize_role_values()
+    migrate_sample_history_to_audit_trails()
+    migrate_audit_logs_to_trails()
     seed_default_role_permissions()
     seed_default_users()

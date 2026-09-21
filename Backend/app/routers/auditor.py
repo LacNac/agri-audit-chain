@@ -1,4 +1,5 @@
 from datetime import date
+import json
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
@@ -45,16 +46,24 @@ def get_audit_queue(db=Depends(get_db), user=Depends(require_permission("AUDIT_V
         ).fetchall()]
         batch["latest_audit"] = db.execute(
             """
-            SELECT action, previous_status, new_status, reason, created_at
-            FROM audit_logs WHERE batch_id = ? ORDER BY id DESC LIMIT 1
+            SELECT action, old_value, new_value, created_at
+            FROM audit_trails
+            WHERE entity_type = 'batch' AND entity_id = ?
+            ORDER BY id DESC LIMIT 1
             """,
             (batch["id"],),
         ).fetchone()
         if batch["latest_audit"]:
-            batch["latest_audit"] = dict(zip(
-                ["action", "previous_status", "new_status", "reason", "created_at"],
-                batch["latest_audit"],
-            ))
+            action, old_value, new_value, created_at = batch["latest_audit"]
+            old_data = json.loads(old_value) if old_value else {}
+            new_data = json.loads(new_value) if new_value else {}
+            batch["latest_audit"] = {
+                "action": action,
+                "previous_status": old_data.get("status"),
+                "new_status": new_data.get("status"),
+                "reason": new_data.get("reason"),
+                "created_at": created_at,
+            }
         queue.append(batch)
 
     return queue

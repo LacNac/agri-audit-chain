@@ -48,15 +48,15 @@ def _list_batches_by_status(db: sqlite3.Connection, status: str):
 
 
 def _recent_activity(db: sqlite3.Connection):
-    if not _table_exists(db, "audit_logs"):
+    if not _table_exists(db, "audit_trails"):
         return []
 
     rows = db.execute(
         """
-        SELECT al.action, al.created_at, u.full_name
-        FROM audit_logs al
-        LEFT JOIN users u ON u.id = al.user_id
-        ORDER BY al.created_at DESC, al.id DESC
+        SELECT at.action, at.created_at, u.full_name
+        FROM audit_trails at
+        LEFT JOIN users u ON u.id = at.user_id
+        ORDER BY at.created_at DESC, at.id DESC
         LIMIT 5
         """
     ).fetchall()
