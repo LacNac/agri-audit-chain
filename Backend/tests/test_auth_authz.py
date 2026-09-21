@@ -323,7 +323,7 @@ def test_qr_traceability_requires_audited_batch_and_public_summary_is_redacted()
     assert "audit_log" not in str(public)
 
 
-def test_sample_creation_requires_valid_batch_and_records_history():
+def test_sample_creation_requires_valid_batch_and_records_audit_trail():
     db = sqlite3.connect(":memory:")
     db.execute(
         "CREATE TABLE batches (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_code TEXT NOT NULL UNIQUE, product_name TEXT NOT NULL, product_type TEXT, producer_name TEXT, origin TEXT, quantity REAL, unit TEXT, production_date DATE, expiry_date DATE, status TEXT NOT NULL DEFAULT 'UNVERIFIED', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, farmer_id INTEGER, note TEXT)"
@@ -336,7 +336,7 @@ def test_sample_creation_requires_valid_batch_and_records_history():
         "CREATE TABLE samples (id INTEGER PRIMARY KEY AUTOINCREMENT, sample_code TEXT NOT NULL UNIQUE, batch_id INTEGER NOT NULL, sampling_date DATE, sample_quantity REAL, sample_unit TEXT, sampling_location TEXT, sampling_method TEXT, status TEXT NOT NULL DEFAULT 'PENDING', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
     )
     db.execute(
-        "CREATE TABLE sample_history (id INTEGER PRIMARY KEY AUTOINCREMENT, sample_id INTEGER NOT NULL, action TEXT NOT NULL, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+        "CREATE TABLE audit_trails (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id INTEGER NOT NULL, old_value TEXT, new_value TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
     )
 
     result = create_sample(
@@ -355,8 +355,11 @@ def test_sample_creation_requires_valid_batch_and_records_history():
 
     assert result["sample_code"] == "Sample-001"
     assert result["batch_id"] == 1
-    history = db.execute("SELECT action, sample_id FROM sample_history WHERE sample_id = ?", (result["id"],)).fetchone()
-    assert history[0] == "created"
+    history = db.execute(
+        "SELECT action, entity_type, entity_id FROM audit_trails WHERE entity_id = ?",
+        (result["id"],),
+    ).fetchone()
+    assert history == ("CREATE_SAMPLE", "sample", result["id"])
 
     with pytest.raises(HTTPException):
         create_sample(
@@ -385,9 +388,6 @@ def test_batch_samples_list_and_lookup_return_sample_rows():
     )
     db.execute(
         "CREATE TABLE samples (id INTEGER PRIMARY KEY AUTOINCREMENT, sample_code TEXT NOT NULL UNIQUE, batch_id INTEGER NOT NULL, sampling_date DATE, sample_quantity REAL, sample_unit TEXT, sampling_location TEXT, sampling_method TEXT, status TEXT NOT NULL DEFAULT 'PENDING', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
-    )
-    db.execute(
-        "CREATE TABLE sample_history (id INTEGER PRIMARY KEY AUTOINCREMENT, sample_id INTEGER NOT NULL, action TEXT NOT NULL, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
     )
     db.execute(
         "INSERT INTO samples (sample_code, batch_id, sampling_date, sample_quantity, sample_unit, sampling_location, sampling_method, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

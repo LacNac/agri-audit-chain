@@ -161,9 +161,9 @@
                   type="tel"
                   id="r1-phone"
                   placeholder="VD: 0123456789"
-                  minlength="9"
-                  maxlength="15"
                   required
+                  pattern="0[0-9]{9}"
+                  maxlength="10"
                 />
               </div>
             </div>
@@ -175,6 +175,7 @@
                 id="r1-email"
                 placeholder="VD: abc@gmail.com"
                 required
+                pattern="[a-zA-Z0-9._%+\-]+@gmail\.com$"
               />
             </div>
 
@@ -306,10 +307,9 @@
                 type="text"
                 id="r2-tax"
                 placeholder="Nhập 10 hoặc 13 chữ số"
-                minlength="10"
-                maxlength="14"
-                pattern="[0-9]{10,14}"
                 required
+                pattern="([0-9]{10}|[0-9]{13})"
+                maxlength="13"
               />
             </div>
 
@@ -362,12 +362,28 @@
 
           <form id="form-login-kd">
             <div class="field">
-              <label for="kd-id">ID <span class="req">*</span></label>
-              <input type="text" id="kd-id" required />
+              <label for="kd-email">Email <span class="req">*</span></label>
+              <input
+                type="email"
+                id="kd-email"
+                placeholder="VD: abc@gmail.com"
+                required
+                pattern="[a-zA-Z0-9._%+\-]+@gmail\.com$"
+              />
             </div>
+
             <div class="field">
               <label for="kd-pass">Mật khẩu <span class="req">*</span></label>
-              <input type="password" id="kd-pass" required />
+              <div class="input-wrap">
+                <input type="password" id="kd-pass" required />
+                <button
+                  type="button"
+                  class="inline-toggle"
+                  data-toggle="kd-pass"
+                >
+                  Hiện
+                </button>
+              </div>
             </div>
 
             <p class="helper-text" text-align:center;>
@@ -408,11 +424,26 @@
           <form id="form-login-dn">
             <div class="field">
               <label for="dn-email">Email <span class="req">*</span></label>
-              <input type="email" id="dn-email" required />
+              <input
+                type="email"
+                id="dn-email"
+                placeholder="VD: abc@gmail.com"
+                required
+                pattern="[a-zA-Z0-9._%+\-]+@gmail\.com$"
+              />
             </div>
             <div class="field">
               <label for="dn-pass">Mật khẩu <span class="req">*</span></label>
-              <input type="password" id="dn-pass" required />
+              <div class="input-wrap">
+                <input type="password" id="dn-pass" required />
+                <button
+                  type="button"
+                  class="inline-toggle"
+                  data-toggle="dn-pass"
+                >
+                  Hiện
+                </button>
+              </div>
             </div>
 
             <div class="options-row">

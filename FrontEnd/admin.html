@@ -241,6 +241,54 @@
       .user-status.locked { color: var(--danger); }
       .form-message { min-height: 20px; margin: 10px 0 0; color: var(--muted); font-size: 0.85rem; }
 
+      .app-shell { display: flex; min-height: 100vh; background: #fff; }
+      .sidebar { width: 212px; flex: 0 0 212px; padding: 26px 14px; border-right: 1px solid #f0f0f0; background: #fff; }
+      .sidebar-brand { padding: 0 0 24px; color: #171717; font-size: 18px; font-weight: 800; }
+      .sidebar-nav { display: grid; gap: 8px; }
+      .sidebar-link { display: flex; align-items: center; gap: 11px; width: 100%; border: 0; border-radius: 9px; padding: 11px 12px; background: transparent; color: #4f4f4f; font: inherit; font-size: 15px; text-align: left; cursor: pointer; }
+      .sidebar-link:hover, .sidebar-link.active { background: #cfe5fb; color: #285889; }
+      .sidebar-icon { width: 18px; text-align: center; font-size: 18px; }
+      .main-area { min-width: 0; flex: 1; padding: 30px 26px 48px; background: #fff; }
+      .main-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+      .overview-title { margin: 0; color: #1c1c1c; font-size: 27px; letter-spacing: 0; }
+      .logout-btn { background: #fff; border: 1px solid #dedede; color: #505050; padding: 8px 13px; }
+      .overview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; margin-bottom: 26px; }
+      .overview-card { min-height: 116px; border-radius: 11px; padding: 22px 20px; background: #fbfbfa; }
+      .overview-card.pending { background: #f9dfa9; color: #654612; }
+      .overview-card.audited { background: #c9e8c7; color: #1d6e28; }
+      .overview-card.rejected { background: #f5d0d0; color: #8d302d; }
+      .overview-label { margin: 0 0 4px; font-size: 16px; }
+      .overview-value { margin: 0; color: #111; font-size: 32px; line-height: 1; font-weight: 500; }
+      .overview-card.pending .overview-value, .overview-card.audited .overview-value, .overview-card.rejected .overview-value { color: inherit; }
+      .overview-panels { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 28px; }
+      .overview-panel { min-height: 145px; border-radius: 11px; padding: 20px; background: #fbfbfa; }
+      .overview-panel h2 { margin: 0 0 14px; color: #3f3f3f; font-size: 16px; font-weight: 500; }
+      .role-row, .activity-row { display: flex; justify-content: space-between; gap: 16px; margin: 8px 0; color: #161616; font-size: 15px; }
+      .role-row strong { font-weight: 500; }
+      .activity-row { justify-content: flex-start; margin: 7px 0; }
+      .activity-time { color: #8e8e8e; min-width: 45px; }
+      .content-section { scroll-margin-top: 20px; }
+      .content-section.view-hidden { display: none; }
+      .section-heading { color: #333; font-size: 20px; font-weight: 600; }
+      .management-card, .list-card { border-radius: 11px; box-shadow: 0 4px 14px rgba(0,0,0,.035); }
+      .data-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 11px; box-shadow: 0 4px 14px rgba(0,0,0,.035); overflow: hidden; }
+      .data-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid var(--border); }
+      .data-panel-header h2 { margin: 0; color: #333; font-size: 20px; font-weight: 600; }
+      .table-wrap { overflow-x: auto; }
+      .data-table { width: 100%; min-width: 780px; border-collapse: collapse; }
+      .data-table th, .data-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+      .data-table th { background: #fbfbfa; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+      .data-table td { color: #292929; font-size: 14px; }
+      .data-table tbody tr:last-child td { border-bottom: 0; }
+      .data-table tbody tr:hover { background: #fafcff; }
+      .batch-code { color: var(--primary); font-weight: 700; white-space: nowrap; }
+      .table-muted { color: var(--muted); }
+      .table-action { border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px; background: #fff; color: var(--primary); cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
+      .table-action:hover { background: #f1f5ff; }
+      .audit-action { font-weight: 600; }
+      .audit-entity { white-space: nowrap; }
+      .view-hidden { display: none !important; }
+
       @media (max-width: 768px) {
         .topbar {
           padding: 14px 18px;
@@ -251,55 +299,58 @@
         .user-management {
           grid-template-columns: 1fr;
         }
+        .app-shell { display: block; }
+        .sidebar { width: 100%; padding: 16px; border-right: 0; border-bottom: 1px solid #eee; }
+        .sidebar-brand { padding-bottom: 12px; }
+        .sidebar-nav { display: flex; overflow-x: auto; }
+        .sidebar-link { min-width: max-content; }
+        .main-area { padding: 24px 16px; }
+        .overview-grid, .overview-panels { grid-template-columns: 1fr 1fr; }
+      }
+      @media (max-width: 480px) {
+        .overview-grid, .overview-panels { grid-template-columns: 1fr; }
       }
     </style>
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">A</div>
-        <span>AgriTrace Admin</span>
-      </div>
-      <button id="logoutBtn" class="logout-btn" type="button">Đăng xuất</button>
-    </header>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">AgriTrace Admin</div>
+        <nav class="sidebar-nav" aria-label="Điều hướng quản trị">
+          <button class="sidebar-link active" data-section="overview-section"><span class="sidebar-icon">▥</span>Dashboard</button>
+          <button class="sidebar-link" data-section="users-section"><span class="sidebar-icon">♧</span>Người dùng</button>
+          <button class="sidebar-link" data-section="activity-section"><span class="sidebar-icon">◷</span>Nhật ký</button>
+          <button class="sidebar-link" data-section="batches-section"><span class="sidebar-icon">◇</span>Lô hàng</button>
+        </nav>
+      </aside>
 
-    <main class="dashboard-shell">
-      <h1 class="page-title">Dashboard quản trị</h1>
+      <main class="main-area">
+        <div class="main-toolbar">
+          <h1 id="page-title" class="overview-title">Tổng quan</h1>
+          <button id="logoutBtn" class="logout-btn" type="button">Đăng xuất</button>
+        </div>
 
-      <section class="summary-grid">
-        <article class="stat-card">
-          <div class="stat-label">Users</div>
-          <p id="users-count" class="stat-value">0</p>
-        </article>
-        <article class="stat-card">
-          <div class="stat-label">Farmers</div>
-          <p id="farmers-count" class="stat-value">0</p>
-        </article>
-        <article class="stat-card">
-          <div class="stat-label">Auditors</div>
-          <p id="auditors-count" class="stat-value">0</p>
-        </article>
-        <article class="stat-card">
-          <div class="stat-label">Batches</div>
-          <p id="batches-count" class="stat-value">0</p>
-        </article>
-        <article class="stat-card">
-          <div class="stat-label">Audited batches</div>
-          <p id="audited-count" class="stat-value">0</p>
-        </article>
-        <article class="stat-card">
-          <div class="stat-label">Rejected batches</div>
-          <p id="rejected-count" class="stat-value">0</p>
-        </article>
-        <article class="stat-card">
-          <div class="stat-label">Pending batches</div>
-          <p id="pending-count" class="stat-value">0</p>
-        </article>
-      </section>
+        <section id="overview-section" class="content-section">
+          <div class="overview-grid">
+            <article class="overview-card"><p class="overview-label">Tổng lô hàng</p><p id="batches-count" class="overview-value">0</p></article>
+            <article class="overview-card pending"><p class="overview-label">Chưa kiểm định</p><p id="pending-count" class="overview-value">0</p></article>
+            <article class="overview-card audited"><p class="overview-label">Đã kiểm định</p><p id="audited-count" class="overview-value">0</p></article>
+            <article class="overview-card rejected"><p class="overview-label">Bị từ chối</p><p id="rejected-count" class="overview-value">0</p></article>
+          </div>
 
-      <section class="user-management">
+          <div class="overview-panels">
+            <article class="overview-panel">
+              <h2>Người dùng theo vai trò</h2>
+              <div class="role-row"><strong>Farmer</strong><span id="farmers-count">0</span></div>
+              <div class="role-row"><strong>Auditor</strong><span id="auditors-count">0</span></div>
+              <div class="role-row"><strong>Admin</strong><span id="admins-count">0</span></div>
+            </article>
+          </div>
+        </section>
+
+      <section id="users-section" class="user-management content-section">
         <article class="management-card">
-          <h2>Tạo tài khoản Auditor</h2>
+          <h2 class="section-heading">Tạo tài khoản Auditor</h2>
           <form id="create-auditor-form" class="form-grid">
             <label>Họ và tên<input name="full_name" required minlength="2" /></label>
             <label>Email<input name="email" type="email" required /></label>
@@ -311,7 +362,7 @@
         </article>
 
         <article class="management-card">
-          <h2>Quản lý người dùng</h2>
+          <h2 class="section-heading">Quản lý người dùng</h2>
           <div class="user-table-wrap">
             <table class="user-table">
               <thead><tr><th>Người dùng</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead>
@@ -321,23 +372,31 @@
         </article>
       </section>
 
-      <section class="lists">
-        <article class="list-card">
-          <h3>Batch mới tạo</h3>
-          <ul id="new-batches" class="batch-list"></ul>
-        </article>
-
-        <article class="list-card">
-          <h3>Batch đang chờ kiểm định</h3>
-          <ul id="pending-batches" class="batch-list"></ul>
-        </article>
-
-        <article class="list-card">
-          <h3>Batch bị reject</h3>
-          <ul id="rejected-batches" class="batch-list"></ul>
+      <section id="batches-section" class="content-section view-hidden">
+        <article class="data-panel">
+          <div class="data-panel-header"><h2>Tất cả lô hàng</h2></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Mã lô hàng</th><th>Sản phẩm</th><th>Người tạo</th><th>Ngày tạo</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+              <tbody id="batches-table-body"><tr><td colspan="6" class="empty">Đang tải...</td></tr></tbody>
+            </table>
+          </div>
         </article>
       </section>
-    </main>
+
+      <section id="activity-section" class="content-section view-hidden">
+        <article class="data-panel">
+          <div class="data-panel-header"><h2>Audit Trail</h2></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Thời gian</th><th>Người thực hiện</th><th>Vai trò</th><th>Thao tác / hành động</th><th>Đối tượng tác động</th></tr></thead>
+              <tbody id="audit-table-body"><tr><td colspan="5" class="empty">Đang tải...</td></tr></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+      </main>
+    </div>
 
     <script src="./js/admin-dashboard.js"></script>
   </body>
