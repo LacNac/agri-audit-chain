@@ -257,9 +257,9 @@ def seed_test_data():
                 "LAB-ABC-001",
                 "2026-08-24",
                 "PASS",
-                "report_batch_004.pdf",
-                "9a1c7e5f2b4d8a6e0f3c9b7d5e1a2f4c6b8d0e9f7a5c3b1d2e4f6a8c0b9d7e5",
-                "/reports/report_batch_004.pdf",
+                "lab_report.pdf",
+                "27179aa2a19f7a647dff8f6a2c826fb53e4e08441ef8786eb2f4563fce25424c",
+                "/uploads/lab_report.pdf",
                 "APPROVED",
             ),
             (
