@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chi tiết lô hàng | AgriTrace</title>
+    <link rel="stylesheet" href="../css/auditor.css" />
+  </head>
+  <body data-page="detail">
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="pendingdashboard.html"
+          ><span class="brand-mark">⌁</span><strong>AgriTrace</strong></a
+        >
+        <nav class="side-nav" aria-label="Điều hướng Auditor">
+          <a class="nav-item active" href="pendingdashboard.html"
+            ><span>◷</span> Chờ duyệt</a
+          ><a class="nav-item" href="#"><span>✓</span> Đã duyệt</a
+          ><a class="nav-item" href="#"><span>⊗</span> Từ chối</a
+          ><a class="nav-item" href="#"><span>◔</span> Lịch sử</a
+          ><a class="nav-item" href="#"><span>◇</span> Quản lý mẫu</a>
+        </nav>
+        <div class="sidebar-footer">
+          <span class="role-pill">♟ Vai trò: Auditor</span>
+          <div class="profile">
+            <span class="avatar">ĐN</span><strong>Đặng Nhật Hải</strong>
+          </div>
+          <button class="logout-button" type="button" data-logout>
+            Log out <span>↪</span>
+          </button>
+        </div>
+      </aside>
+      <main class="main-content detail-page">
+        <div class="detail-card">
+          <a class="back-link" href="pendingdashboard.html"
+            >◉ &nbsp;Quay lại danh sách chờ duyệt</a
+          >
+          <div class="detail-title">
+            <div>
+              <p class="batch-code" id="detail-code">AGT-2026-0042</p>
+              <h1 id="detail-product">Xoài Cát Hòa Lộc</h1>
+            </div>
+            <span class="status-badge">Chờ kiểm định</span>
+          </div>
+          <div class="facts-grid">
+            <div>
+              <small>Nông dân</small><b id="detail-farmer">Nông trại Ba Trúc</b>
+            </div>
+            <div>
+              <small>Ngày thu hoạch</small><b id="detail-expiry">14/09/2026</b>
+            </div>
+            <div>
+              <small>Khối lượng</small><b id="detail-quantity">180 kg</b>
+            </div>
+            <div>
+              <small>Ngày tạo hồ sơ</small><b id="detail-created">15/09/2026</b>
+            </div>
+            <div>
+              <small>Nguồn gốc</small><b id="detail-origin">An Giang</b>
+            </div>
+          </div>
+          <h2>Sample liên kết</h2>
+          <div class="linked-row" id="sample-row">
+            <span>⌕ &nbsp;<b id="sample-label">Sample #SPL-0091</b></span
+            ><span id="sample-date">Lấy mẫu 16/09/2026</span
+            ><button class="blue-button" type="button" id="create-sample">
+              ＋ Tạo sample mới
+            </button>
+          </div>
+          <div class="linked-row">
+            <span>♧ &nbsp; Báo cáo kiểm nghiệm</span
+            ><button class="blue-button" type="button" id="scroll-report">
+              ＋ Upload báo cáo
+            </button>
+          </div>
+          <h2>Upload report mới</h2>
+          <form id="report-form" class="report-form">
+            <label
+              >Sample<select name="sample_id" id="sample-select">
+                <option value="">Chọn sample</option>
+              </select></label
+            ><label
+              >Kết quả<select name="result">
+                <option value="PASS">PASS</option>
+                <option value="FAIL">FAIL</option>
+              </select></label
+            ><label
+              >Tên phòng lab<input
+                name="lab_name"
+                placeholder="Nhập tên phòng lab"
+                required /></label
+            ><label
+              >Mã phòng lab<input
+                name="lab_code"
+                placeholder="Nhập mã phòng lab"
+                required /></label
+            ><label>Ngày báo cáo<input name="report_date" type="date" /></label
+            ><label
+              >File PDF<input
+                name="file"
+                type="file"
+                accept="application/pdf"
+                required /></label
+            ><button class="hash-button" type="submit">
+              Upload và tạo SHA-256
+            </button>
+            <p class="form-message" id="report-message" role="status"></p>
+          </form>
+          <label class="reject-label"
+            >Lí do từ chối<textarea
+              id="reject-reason"
+              placeholder="Nhập lí do trước khi từ chối..."
+            ></textarea>
+          </label>
+          <div class="decision-row">
+            <button class="approve-button" type="button" id="approve-button">
+              APPROVE</button
+            ><button class="reject-button" type="button" id="reject-button">
+              REJECT
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="../js/auditor.js"></script>
+  </body>
+</html>

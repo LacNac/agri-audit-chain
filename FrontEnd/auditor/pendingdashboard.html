@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Danh sách chờ duyệt | AgriTrace</title>
+    <link rel="stylesheet" href="../css/auditor.css" />
+  </head>
+  <body data-page="dashboard">
+    <div class="app-shell">
+      <header class="mobile-header">
+        <a class="brand" href="pendingdashboard.html"
+          ><span class="brand-mark">⌁</span><strong>AgriTrace</strong></a
+        >
+        <button
+          class="icon-button"
+          type="button"
+          data-sidebar-toggle
+          aria-label="Mở menu"
+        >
+          ☰
+        </button>
+      </header>
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="pendingdashboard.html"
+          ><span class="brand-mark">⌁</span><strong>AgriTrace</strong></a
+        >
+        <nav class="side-nav" aria-label="Điều hướng Auditor">
+          <a class="nav-item active" href="pendingdashboard.html"
+            ><span>◷</span> Chờ duyệt</a
+          >
+          <a class="nav-item" href="#approved"><span>✓</span> Đã duyệt</a>
+          <a class="nav-item" href="#rejected"><span>⊗</span> Từ chối</a>
+          <a class="nav-item" href="#history"><span>◔</span> Lịch sử</a>
+          <a class="nav-item" href="#samples"><span>◇</span> Quản lý mẫu</a>
+        </nav>
+        <div class="sidebar-footer">
+          <span class="role-pill">♟ Vai trò: Auditor</span>
+          <div class="profile">
+            <span class="avatar">ĐN</span
+            ><strong id="sidebar-user">Đặng Nhật Hải</strong>
+          </div>
+          <button class="logout-button" type="button" data-logout>
+            Log out <span>↪</span>
+          </button>
+        </div>
+      </aside>
+      <main class="main-content">
+        <div class="page-heading">
+          <div>
+            <p class="kicker">Trang chờ duyệt</p>
+            <h1>Danh sách chờ duyệt</h1>
+          </div>
+          <button class="refresh-link" type="button" data-refresh>
+            ↻ Làm mới
+          </button>
+        </div>
+        <section class="content-card">
+          <form class="filter-grid" id="filter-form">
+            <label
+              >Batch code<input name="batch" placeholder="Nhập mã lô hàng"
+            /></label>
+            <label
+              >Tên sản phẩm<input
+                name="product"
+                placeholder="Nhập tên sản phẩm"
+            /></label>
+            <label>Ngày gửi kiểm định<input type="date" name="date" /></label>
+            <label
+              >Nông dân<input name="farmer" placeholder="Nhập tên nông dân"
+            /></label>
+          </form>
+          <div class="table-toolbar">
+            <div class="total-box">
+              <strong>Tổng lô hàng chưa duyệt</strong
+              ><span>▣ <b id="pending-count">48</b></span>
+            </div>
+            <button class="outline-button" type="button" data-refresh>
+              ↻ &nbsp;Làm mới</button
+            ><button class="primary-button" type="button" id="search-button">
+              ⌕ &nbsp;Tìm kiếm
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table class="batch-table">
+              <thead>
+                <tr>
+                  <th>Batch code</th>
+                  <th>Sản phẩm</th>
+                  <th>Ngày tạo hồ sơ</th>
+                  <th>Nông dân</th>
+                </tr>
+              </thead>
+              <tbody id="queue-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <button type="button" aria-label="Trang trước">‹</button
+            ><button class="selected" type="button">1</button
+            ><button type="button">2</button><button type="button">3</button
+            ><span>...</span><button type="button">54</button
+            ><button type="button" aria-label="Trang sau">›</button>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="../js/auditor.js"></script>
+  </body>
+</html>

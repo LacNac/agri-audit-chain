@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AgriTrace — Hồ sơ số cho nông sản Việt</title>
+    <title>AgriTrace — Nền tảng hồ sơ số nông sản</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,58 +13,45 @@
     <link rel="stylesheet" href="./css/index.css" />
   </head>
   <body>
-    <div class="utility-bar">
-      <a class="brand" href="about.html">
+    <nav class="navbar">
+      <a class="brand" href="index.html">
         <img src="./assets/logo-icon.svg" alt="" class="brand-icon" />
         <img src="./assets/logo-text.svg" alt="AgriTrace" class="brand-text" />
       </a>
 
-      <div class="utility-actions">
-        <a class="login-link" href="login.html">Đăng nhập</a>
-        <a class="qr-link" href="lookup.html">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-            <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-            <rect x="3" y="14" width="7" height="7" rx="1"></rect>
-            <rect x="14" y="14" width="3" height="3"></rect>
-            <rect x="18" y="14" width="3" height="3"></rect>
-            <rect x="14" y="18" width="3" height="3"></rect>
-            <rect x="18" y="18" width="3" height="3"></rect>
-          </svg>
-          Quét mã QR
-        </a>
-        <a class="signup signup-auditor" href="login.html?role=auditor"
+      <div class="nav-actions">
+        <a class="nav-login" href="login.html">Đăng nhập</a>
+        <a class="btn-purple" href="login.html?role=auditor"
           >Tạo tài khoản miễn phí →</a
         >
       </div>
-    </div>
+    </nav>
 
-    <header class="hero">
-      <div class="hero-mark" aria-hidden="true">
-        <span></span><span></span><span></span><span></span>
+    <header class="hero-custom">
+      <div class="hero-content">
+        <p class="hero-tagline">NỀN TẢNG HỒ SƠ SỐ NÔNG SẢN</p>
+        <h1 class="hero-heading">
+          MỖI NÔNG SẢN.<br />
+          MỘT DANH TÍNH<br />
+          SỐ.
+        </h1>
+        <p class="hero-desc">
+          Số hóa quy trình canh tác, chuỗi cung ứng và kiểm định chất lượng
+          thành hồ sơ số minh bạch, giúp nông sản Việt tự tin vươn xa.
+        </p>
+
+        <div class="hero-buttons">
+          <a class="btn-yellow" href="trace.html">Quét mã truy xuất</a>
+          <a class="btn-outline" href="trace.html">Tìm kiếm mã nông sản</a>
+        </div>
       </div>
-      <p class="hero-eyebrow">Về AgriTrace</p>
-      <h1>
-        Mỗi lô nông sản mang theo<br /><em>một hồ sơ số không thể sửa.</em>
-      </h1>
-      <p class="hero-lede">
-        AgriTrace ghi lại toàn bộ hành trình của một lô nông sản — từ ngày thu
-        hoạch, kết quả kiểm nghiệm, cho đến người đã xác nhận chất lượng — thành
-        một hồ sơ mà bất kỳ ai cũng có thể tra cứu và không ai có thể âm thầm
-        chỉnh sửa.
-      </p>
+
+      <div class="hero-visual">
+        <img src="./assets/fruit.svg" alt="Hình ảnh nông sản rau củ quả tươi" />
+      </div>
     </header>
 
+    <!-- Giữ nguyên toàn bộ các phần phía sau -->
     <section class="problem">
       <div class="problem-inner">
         <h2>
@@ -224,8 +211,8 @@
         </div>
         <div class="footer-col">
           <p class="footer-heading">Sản phẩm</p>
-          <a href="lookup.html">Tra cứu nguồn gốc</a>
-          <a href="about.html">Về AgriTrace</a>
+          <a href="trace.html">Tra cứu nguồn gốc</a>
+          <a href="index.html">Về AgriTrace</a>
           <a href="login.html">Đăng nhập</a>
         </div>
         <div class="footer-col">
