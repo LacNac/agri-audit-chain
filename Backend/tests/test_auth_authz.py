@@ -91,6 +91,29 @@ def test_login_returns_uppercase_role_and_valid_jwt():
     assert claim["sub"] == str(result["user_id"])
 
 
+def test_login_role_boundaries_keep_admin_and_auditor_separate():
+    db = make_db()
+    password_hash = hash_password("Secret@123")
+    db.executemany(
+        "INSERT INTO users (username, password_hash, full_name, email, phone, role, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
+        [
+            ("admin01", password_hash, "System Admin", "admin@example.com", "0901111111", "ADMIN"),
+            ("auditor01", password_hash, "System Auditor", "auditor@example.com", "0902222222", "AUDITOR"),
+            ("farmer01", password_hash, "Farmer", "farmer@example.com", "0903333333", "FARMER"),
+        ],
+    )
+
+    with pytest.raises(HTTPException):
+        login_user(db, LoginRequest(identifier="admin@example.com", password="Secret@123"), expected_roles=["FARMER"])
+    with pytest.raises(HTTPException):
+        login_user(db, LoginRequest(identifier="admin@example.com", password="Secret@123"), expected_roles=["AUDITOR"])
+    with pytest.raises(HTTPException):
+        login_user(db, LoginRequest(identifier="auditor@example.com", password="Secret@123"), expected_roles=["ADMIN"])
+
+    assert login_user(db, LoginRequest(identifier="admin@example.com", password="Secret@123"), expected_roles=["ADMIN"])["role"] == "ADMIN"
+    assert login_user(db, LoginRequest(identifier="auditor@example.com", password="Secret@123"), expected_roles=["AUDITOR"])["role"] == "AUDITOR"
+
+
 def test_get_current_user_profile_returns_business_info():
     db = make_db()
     db.execute(

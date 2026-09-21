@@ -16,10 +16,15 @@ def register(data: RegisterRequest, db = Depends(get_db)):
 
 @router.post("/login", response_model=LoginResponse)
 def login(data: LoginRequest, db = Depends(get_db)):
-    result = login_user(db, data, expected_roles=["FARMER", "ADMIN", "AUDITOR"])
+    result = login_user(db, data, expected_roles=["FARMER"])
     return LoginResponse(**result)
 
 @router.post("/login-auditor", response_model=LoginResponse)
 def login_auditor(data: LoginRequest, db = Depends(get_db)):
-    result = login_user(db, data, expected_roles=["AUDITOR", "ADMIN"])
+    result = login_user(db, data, expected_roles=["AUDITOR"])
+    return LoginResponse(**result)
+
+@router.post("/login-admin", response_model=LoginResponse)
+def login_admin(data: LoginRequest, db = Depends(get_db)):
+    result = login_user(db, data, expected_roles=["ADMIN"])
     return LoginResponse(**result)
