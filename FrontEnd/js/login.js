@@ -219,3 +219,28 @@ document.addEventListener("DOMContentLoaded", () => {
     updateButtonState();
   });
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const mode = urlParams.get("mode");
+  const role = urlParams.get("role");
+
+  if (mode === "register" || (role === "auditor" && mode !== "login")) {
+    // Bấm "Tạo tài khoản" -> Chuyển thẳng sang form Đăng ký bước 1
+    showCard("register-1");
+  } else if (mode === "login") {
+    if (role === "auditor") {
+      // Chỉ khi URL là login.html?mode=login&role=auditor mới vào kiểm định
+      showCard("login-kd");
+    } else if (role === "farmer" || role === "dn") {
+      // Chỉ khi URL có đích danh doanh nghiệp mới vào login-dn
+      showCard("login-dn");
+    } else {
+      // Bấm nút Đăng nhập chung từ trang chủ -> Hiện màn hình chọn vai trò (Landing)
+      showCard("landing");
+    }
+  } else {
+    // Mặc định không có tham số gì
+    showCard("landing");
+  }
+});

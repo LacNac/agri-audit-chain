@@ -52,11 +52,16 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 48px;
+  padding: 18px 48px;
   background: #ffffff;
-  border-bottom: 1px solid #f3f4f6;
   max-width: 1280px;
   margin: 0 auto;
+}
+
+.navaction {
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
 
 .brand {
@@ -67,12 +72,12 @@ p {
 }
 
 .brand-icon {
-  height: 36px;
+  height: 50px;
   width: auto;
 }
 
 .brand-text {
-  height: 26px;
+  height: 30px;
   width: auto;
 }
 
@@ -217,9 +222,6 @@ p {
   mix-blend-mode: multiply;
 }
 
-/* =========================================
-   3. CÁC PHẦN DƯỚI GIỮ NGUYÊN
-   ========================================= */
 .problem {
   background: var(--bg-tint);
   border-top: 1px solid var(--line);
