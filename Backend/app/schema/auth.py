@@ -28,4 +28,6 @@ class LoginResponse(BaseModel):
     username: str
     full_name: str
     role: str
+    access_token: str
+    token_type: str = "bearer"
     message: str = "Đăng nhập thành công"

@@ -4,14 +4,12 @@
 
 const API_BASE = "http://127.0.0.1:8000";
 
-function () {
-  const CARD_IDS = {
-    "landing": "card-landing",
-    "register-1": "card-register-1",
-    "register-2": "card-register-2",
-    "login-kd": "card-login-kd",
-    "login-dn": "card-login-dn",
-  }
+const CARD_IDS = {
+  landing: "card-landing",
+  "register-1": "card-register-1",
+  "register-2": "card-register-2",
+  "login-kd": "card-login-kd",
+  "login-dn": "card-login-dn",
 };
 
 function showCard(name) {
@@ -25,7 +23,11 @@ function showCard(name) {
   });
 
   const panel = document.querySelector(".panel");
-  if (panel) panel.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+  if (panel)
+    panel.scrollTo({
+      top: 0,
+      behavior: "instant" in window ? "instant" : "auto",
+    });
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -85,8 +87,12 @@ if (formStep2) {
     e.preventDefault();
 
     registerData.business_type = document.getElementById("r2-type").value;
-    registerData.product_type = document.getElementById("r2-category").value.trim();
-    registerData.business_name = document.getElementById("r2-company").value.trim();
+    registerData.product_type = document
+      .getElementById("r2-category")
+      .value.trim();
+    registerData.business_name = document
+      .getElementById("r2-company")
+      .value.trim();
     registerData.tax_code = document.getElementById("r2-tax").value.trim();
 
     const submitBtn = formStep2.querySelector('button[type="submit"]');
@@ -112,7 +118,6 @@ if (formStep2) {
       formStep1.reset();
       formStep2.reset();
       showCard("landing");
-
     } catch (err) {
       alert("Lỗi: " + err.message);
     } finally {
@@ -148,10 +153,19 @@ if (formLoginDn) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
-      alert(`Xin chào ${data.full_name}!`);
-      // TODO: lưu thông tin user (vd sessionStorage) và điều hướng sang trang quản lý doanh nghiệp
-      formLoginDn.reset();
+      const role = String(data.role || "").toUpperCase();
+      sessionStorage.setItem("currentUser", JSON.stringify(data));
+      localStorage.setItem("currentUser", JSON.stringify(data));
 
+      if (role === "FARMER") {
+        window.location.href = "./farmer.html";
+      } else if (role === "ADMIN") {
+        window.location.href = "./admin.html";
+      } else if (role === "AUDITOR") {
+        window.location.href = "./auditor.html";
+      } else {
+        throw new Error("Vai trò tài khoản không hợp lệ");
+      }
     } catch (err) {
       alert("Lỗi: " + err.message);
     } finally {
@@ -169,7 +183,7 @@ if (formLoginKd) {
   formLoginKd.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const identifier = document.getElementById("kd-id").value.trim();
+    const identifier = document.getElementById("kd-email").value.trim();
     const password = document.getElementById("kd-pass").value;
 
     const submitBtn = formLoginKd.querySelector('button[type="submit"]');
@@ -187,10 +201,19 @@ if (formLoginKd) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
-      alert(`Xin chào ${data.full_name}!`);
-      // TODO: lưu thông tin user và điều hướng sang trang kiểm định
-      formLoginKd.reset();
+      const role = String(data.role || "").toUpperCase();
+      sessionStorage.setItem("currentUser", JSON.stringify(data));
+      localStorage.setItem("currentUser", JSON.stringify(data));
 
+      if (role === "AUDITOR") {
+        window.location.href = "./auditor.html";
+      } else if (role === "ADMIN") {
+        window.location.href = "./admin.html";
+      } else if (role === "FARMER") {
+        window.location.href = "./farmer.html";
+      } else {
+        throw new Error("Vai trò tài khoản không hợp lệ");
+      }
     } catch (err) {
       alert("Lỗi: " + err.message);
     } finally {
@@ -200,30 +223,29 @@ if (formLoginKd) {
   });
 }
 
-
 // ==========================================
 // TỰ ĐỘNG ĐỔI MÀU NÚT KHI ĐIỀN ĐỦ THÔNG TIN
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-  const forms = document.querySelectorAll('form');
+document.addEventListener("DOMContentLoaded", () => {
+  const forms = document.querySelectorAll("form");
 
-  forms.forEach(form => {
+  forms.forEach((form) => {
     const submitBtn = form.querySelector('button[type="submit"]');
     if (!submitBtn) return;
 
     function validateForm() {
       const isValid = form.checkValidity();
       if (isValid) {
-        submitBtn.removeAttribute('disabled');
-        submitBtn.classList.add('is-ready');
+        submitBtn.removeAttribute("disabled");
+        submitBtn.classList.add("is-ready");
       } else {
-        submitBtn.setAttribute('disabled', 'disabled');
-        submitBtn.classList.remove('is-ready');
+        submitBtn.setAttribute("disabled", "disabled");
+        submitBtn.classList.remove("is-ready");
       }
     }
 
-    form.addEventListener('input', validateForm);
-    form.addEventListener('change', validateForm);
+    form.addEventListener("input", validateForm);
+    form.addEventListener("change", validateForm);
     validateForm();
   });
-})
+});

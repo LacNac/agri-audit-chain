@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hồ sơ truy xuất | AgriTrace</title>
+    <link rel="stylesheet" href="./trace.css" />
+  </head>
+  <body>
+    <main class="trace-shell">
+      <header class="trace-header">
+        <a href="../index.html" class="brand"
+          ><span class="brand-mark">A</span
+          ><span
+            ><strong>AgriTrace</strong><small>Public Traceability</small></span
+          ></a
+        ><span class="verified-pill">HỒ SƠ CÔNG KHAI</span>
+      </header>
+      <section id="loading" class="state">
+        Đang xác minh mã truy xuất...
+      </section>
+      <section id="error" class="state error-state hidden"></section>
+      <article id="trace-card" class="trace-card hidden"></article>
+    </main>
+    <script src="./trace.js"></script>
+  </body>
+</html>
