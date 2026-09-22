@@ -158,11 +158,11 @@ if (formLoginDn) {
       localStorage.setItem("currentUser", JSON.stringify(data));
 
       if (role === "FARMER") {
-        window.location.href = "./farmer.html";
+        window.location.href = "./farmer/farmer.html";
       } else if (role === "ADMIN") {
-        window.location.href = "./admin.html";
+        window.location.href = "./admin/admin.html";
       } else if (role === "AUDITOR") {
-        window.location.href = "./auditor.html";
+        window.location.href = "./auditor/auditor.html";
       } else {
         throw new Error("Vai trò tài khoản không hợp lệ");
       }
@@ -206,11 +206,11 @@ if (formLoginKd) {
       localStorage.setItem("currentUser", JSON.stringify(data));
 
       if (role === "AUDITOR") {
-        window.location.href = "./auditor.html";
+        window.location.href = "./auditor/auditor.html";
       } else if (role === "ADMIN") {
-        window.location.href = "./admin.html";
+        window.location.href = "./admin/admin.html";
       } else if (role === "FARMER") {
-        window.location.href = "./farmer.html";
+        window.location.href = "./farmer/farmer.html";
       } else {
         throw new Error("Vai trò tài khoản không hợp lệ");
       }

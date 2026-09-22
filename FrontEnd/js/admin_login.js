@@ -3,10 +3,15 @@ const API_BASE = "http://127.0.0.1:8000";
 // Auth Guard: Kiểm tra nếu đã có phiên Admin thì vào thằng admin.html
 function checkExistingSession() {
   try {
-    const serializedUser = sessionStorage.getItem("currentUser") || localStorage.getItem("currentUser");
+    const serializedUser =
+      sessionStorage.getItem("currentUser") ||
+      localStorage.getItem("currentUser");
     if (serializedUser) {
       const user = JSON.parse(serializedUser);
-      if (user.access_token && String(user.role || "").toUpperCase() === "ADMIN") {
+      if (
+        user.access_token &&
+        String(user.role || "").toUpperCase() === "ADMIN"
+      ) {
         window.location.href = "./admin.html";
       }
     }
@@ -35,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Xử lý gửi Form Đăng nhập
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    
+
     errorMessage.textContent = "";
     submitBtn.disabled = true;
     submitBtn.textContent = "Đang xác thực...";
@@ -64,7 +69,9 @@ document.addEventListener("DOMContentLoaded", () => {
       // Kiểm tra xem có đúng quyền ADMIN không
       const userRole = String(data.role || "").toUpperCase();
       if (userRole !== "ADMIN") {
-        throw new Error("Tài khoản của bạn không có quyền truy cập cổng Admin.");
+        throw new Error(
+          "Tài khoản của bạn không có quyền truy cập cổng Admin.",
+        );
       }
 
       // Lưu thông tin phiên đăng nhập
