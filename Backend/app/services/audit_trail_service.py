@@ -26,7 +26,7 @@ def record_audit_trail(db: sqlite3.Connection, user_id: int | None, action: str,
             return None
         if isinstance(value, (str, int, float, bool)):
             return value
-        return json.dumps(value, ensure_ascii=False)
+        return json.dumps(value, ensure_ascii=False, default=str)
 
     db.execute(
         """

@@ -7,6 +7,21 @@ from ..core.security import hash_password
 DB_PATH = Path(__file__).resolve().parent / "db.db"
 
 
+def drop_legacy_tables() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        for table_name in (
+            "auditors", "inspections", "inspection_details", "certificates",
+            "blockchain_records", "users_legacy", "batches_legacy",
+            "businesses_legacy", "sample_history", "audit_logs",
+        ):
+            conn.execute(f"DROP TABLE IF EXISTS {table_name}")
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def ensure_database_schema() -> None:
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON")
@@ -591,3 +606,4 @@ def initialize_database() -> None:
     migrate_audit_logs_to_trails()
     seed_default_role_permissions()
     seed_default_users()
+    drop_legacy_tables()

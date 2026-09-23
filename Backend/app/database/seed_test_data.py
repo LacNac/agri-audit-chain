@@ -1,506 +1,163 @@
-import sqlite3
+import hashlib
 import json
+import sqlite3
 from pathlib import Path
-from datetime import datetime
 
 DB_PATH = Path(__file__).resolve().parent / "db.db"
+
+
+def report_hash(report_code: str) -> str:
+    return hashlib.sha256(f"AgriTrace PDF content: {report_code}".encode()).hexdigest()
+
+
+def audit_trail(conn, user_id, action, entity_type, entity_id, created_at, old=None, new=None):
+    conn.execute(
+        """
+        INSERT INTO audit_trails
+            (user_id, action, entity_type, entity_id, old_value, new_value, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            user_id,
+            action,
+            entity_type,
+            entity_id,
+            json.dumps(old, ensure_ascii=False) if old is not None else None,
+            json.dumps(new, ensure_ascii=False) if new is not None else None,
+            created_at,
+        ),
+    )
+
+
+def reset_seed_data(conn):
+    for table in ("trace_records", "packages", "audit_trails", "lab_reports", "samples", "batches", "businesses"):
+        conn.execute(f"DELETE FROM {table}")
 
 
 def seed_test_data():
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON")
-
     try:
-        # Get existing users from init_db.py
-        farmers = conn.execute(
-            "SELECT id, username, full_name FROM users WHERE role = 'FARMER' ORDER BY id"
-        ).fetchall()
+        farmers = conn.execute("SELECT id, full_name FROM users WHERE role = 'FARMER' ORDER BY id").fetchall()
+        auditors = conn.execute("SELECT id, full_name FROM users WHERE role = 'AUDITOR' ORDER BY id").fetchall()
+        if len(farmers) < 2 or len(auditors) < 2:
+            raise RuntimeError("Cần ít nhất 2 FARMER và 2 AUDITOR. Hãy chạy initialize_database() trước.")
 
-        auditors = conn.execute(
-            "SELECT id, username, full_name FROM users WHERE role = 'AUDITOR' ORDER BY id"
-        ).fetchall()
+        reset_seed_data(conn)
+        farmer_1, farmer_2 = farmers[:2]
+        auditor_1, auditor_2 = auditors[:2]
 
-        if not farmers:
-            raise RuntimeError("Chưa có FARMER. Hãy chạy initialize_database() trước.")
+        conn.executemany(
+            "INSERT INTO businesses (user_id, business_name, business_type, product_type, tax_code) VALUES (?, ?, ?, ?, ?)",
+            [
+                (farmer_1[0], "Hợp tác xã Nông nghiệp Xanh", "Hợp tác xã", "Rau quả", "0101234567"),
+                (farmer_2[0], "Trang trại Green Farm", "Trang trại", "Rau quả", "0107654321"),
+            ],
+        )
 
-        if not auditors:
-            raise RuntimeError("Chưa có AUDITOR. Hãy chạy initialize_database() trước.")
-
-        farmer_1 = farmers[0]
-        farmer_2 = farmers[1] if len(farmers) > 1 else farmers[0]
-        auditor_1 = auditors[0]
-        auditor_2 = auditors[1] if len(auditors) > 1 else auditors[0]
-
-        business_data = [
-            (
-                farmer_1[0],
-                "Hợp tác xã Nông nghiệp Xanh",
-                "Hợp tác xã",
-                "Rau quả",
-                "0101234567",
-            ),
-            (
-                farmer_2[0],
-                "Trang trại Green Farm",
-                "Trang trại",
-                "Rau quả",
-                "0107654321",
-            ),
+        batch_specs = [
+            ("001", "Dưa lưới", "Hà Nội", 500, "2026-08-23", "2026-09-15", "UNVERIFIED", farmer_1),
+            ("002", "Cà chua bi", "Hà Nội", 300, "2026-08-24", "2026-09-10", "UNVERIFIED", farmer_2),
+            ("003", "Dưa chuột", "Hà Nội", 450, "2026-08-25", "2026-09-12", "UNVERIFIED", farmer_1),
+            ("004", "Gạo ST25", "Nam Định", 1000, "2026-08-20", "2027-08-20", "AUDITED", farmer_2),
+            ("005", "Rau cải xanh", "Hà Nội", 250, "2026-08-26", "2026-09-05", "REJECTED", farmer_2),
+            ("006", "Cam Cao Phong", "Hòa Bình", 800, "2026-08-18", "2026-10-18", "AUDITED", farmer_1),
+            ("007", "Dưa lưới vàng", "Hà Nội", 600, "2026-08-27", "2026-09-20", "UNVERIFIED", farmer_1),
+            ("008", "Xoài cát", "Tiền Giang", 700, "2026-08-15", "2026-09-30", "REJECTED", farmer_2),
+            ("009", "Rau xà lách", "Hà Nội", 150, "2026-08-28", "2026-09-07", "UNVERIFIED", farmer_2),
+            ("010", "Bưởi Diễn", "Hà Nội", 900, "2026-08-10", "2026-11-10", "AUDITED", farmer_1),
         ]
-        for business in business_data:
-            conn.execute(
+
+        batch_ids = {}
+        for code, product, origin, quantity, production_date, expiry_date, status, farmer in batch_specs:
+            batch_code = f"BATCH-HN-2026-{code}"
+            cur = conn.execute(
                 """
-                INSERT INTO businesses (user_id, business_name, business_type, product_type, tax_code)
-                SELECT ?, ?, ?, ?, ?
-                WHERE NOT EXISTS (SELECT 1 FROM businesses WHERE user_id = ?)
+                INSERT INTO batches
+                    (batch_code, product_name, producer_name, origin, quantity, unit,
+                     production_date, expiry_date, status, farmer_id, created_at)
+                VALUES (?, ?, ?, ?, ?, 'kg', ?, ?, ?, ?, ?)
                 """,
-                (*business, business[0]),
+                (batch_code, product, farmer[1], origin, quantity, production_date, expiry_date, status, farmer[0], f"2026-08-{10 + int(code):02d} 08:00:00"),
             )
+            batch_ids[code] = cur.lastrowid
+            audit_trail(conn, farmer[0], "CREATE_BATCH", "batch", cur.lastrowid, f"2026-08-{10 + int(code):02d} 08:00:00", new={"batch_code": batch_code, "status": "UNVERIFIED", "farmer_id": farmer[0]})
 
-        # Avoid duplicate seed data when running the script repeatedly.
-        batch_codes = [
-            f"BATCH-HN-2026-{i:03d}" for i in range(1, 11)
-        ]
-
-        for code in batch_codes:
-            conn.execute("DELETE FROM trace_records WHERE batch_id IN "
-                         "(SELECT id FROM batches WHERE batch_code = ?)", (code,))
-            conn.execute("DELETE FROM packages WHERE batch_id IN "
-                         "(SELECT id FROM batches WHERE batch_code = ?)", (code,))
-            conn.execute("DELETE FROM audit_trails WHERE entity_type = 'batch' AND entity_id IN "
-                         "(SELECT id FROM batches WHERE batch_code = ?)", (code,))
-            conn.execute("DELETE FROM lab_reports WHERE batch_id IN "
-                         "(SELECT id FROM batches WHERE batch_code = ?)", (code,))
-            conn.execute("DELETE FROM samples WHERE batch_id IN "
-                         "(SELECT id FROM batches WHERE batch_code = ?)", (code,))
-            conn.execute("DELETE FROM batches WHERE batch_code = ?", (code,))
-
-        batches = [
-            (
-                "BATCH-HN-2026-001",
-                "Dưa lưới",
-                "Hợp tác xã Nông nghiệp Xanh",
-                "Hà Nội",
-                500,
-                "kg",
-                "2026-08-23",
-                "2026-09-15",
-                "UNVERIFIED",
-                farmer_1[0],
-            ),
-            (
-                "BATCH-HN-2026-002",
-                "Cà chua bi",
-                "Trang trại Green Farm",
-                "Hà Nội",
-                300,
-                "kg",
-                "2026-08-24",
-                "2026-09-10",
-                "UNVERIFIED",
-                farmer_2[0],
-            ),
-            (
-                "BATCH-HN-2026-003",
-                "Dưa chuột",
-                "Hợp tác xã Nông nghiệp Xanh",
-                "Hà Nội",
-                450,
-                "kg",
-                "2026-08-25",
-                "2026-09-12",
-                "UNVERIFIED",
-                farmer_1[0],
-            ),
-            (
-                "BATCH-HN-2026-004",
-                "Gạo ST25",
-                "HTX Nông nghiệp Đồng Bằng",
-                "Nam Định",
-                1000,
-                "kg",
-                "2026-08-20",
-                "2027-08-20",
-                "AUDITED",
-                farmer_2[0],
-            ),
-            (
-                "BATCH-HN-2026-005",
-                "Rau cải xanh",
-                "Trang trại Green Farm",
-                "Hà Nội",
-                250,
-                "kg",
-                "2026-08-26",
-                "2026-09-05",
-                "REJECTED",
-                farmer_2[0],
-            ),
-            (
-                "BATCH-HN-2026-006",
-                "Cam Cao Phong",
-                "HTX Cao Phong",
-                "Hòa Bình",
-                800,
-                "kg",
-                "2026-08-18",
-                "2026-10-18",
-                "AUDITED",
-                farmer_1[0],
-            ),
-            (
-                "BATCH-HN-2026-007",
-                "Dưa lưới vàng",
-                "Hợp tác xã Nông nghiệp Xanh",
-                "Hà Nội",
-                600,
-                "kg",
-                "2026-08-27",
-                "2026-09-20",
-                "UNVERIFIED",
-                farmer_1[0],
-            ),
-            (
-                "BATCH-HN-2026-008",
-                "Xoài cát",
-                "Trang trại Mekong",
-                "Tiền Giang",
-                700,
-                "kg",
-                "2026-08-15",
-                "2026-09-30",
-                "REJECTED",
-                farmer_2[0],
-            ),
-            (
-                "BATCH-HN-2026-009",
-                "Rau xà lách",
-                "Trang trại Green Farm",
-                "Hà Nội",
-                150,
-                "kg",
-                "2026-08-28",
-                "2026-09-07",
-                "UNVERIFIED",
-                farmer_2[0],
-            ),
-            (
-                "BATCH-HN-2026-010",
-                "Bưởi Diễn",
-                "HTX Nông nghiệp Đồng Bằng",
-                "Hà Nội",
-                900,
-                "kg",
-                "2026-08-10",
-                "2026-11-10",
-                "AUDITED",
-                farmer_1[0],
-            ),
-        ]
-
-        conn.executemany(
-            """
-            INSERT INTO batches
-            (
-                batch_code, product_name, producer_name, origin,
-                quantity, unit, production_date, expiry_date,
-                status, farmer_id
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            batches,
-        )
-
-        batch_rows = {
-            row[1]: row[0]
-            for row in conn.execute(
-                "SELECT id, batch_code FROM batches WHERE batch_code LIKE 'BATCH-HN-2026-%'"
-            ).fetchall()
+        sample_specs = {
+            "001": ("PENDING", "2026-08-25", "Hà Nội"),
+            "002": ("PENDING", "2026-08-26", "Hà Nội"),
+            "004": ("APPROVED", "2026-08-22", "Nam Định"),
+            "005": ("REJECTED", "2026-08-27", "Hà Nội"),
+            "006": ("APPROVED", "2026-08-20", "Hòa Bình"),
+            "007": ("PENDING", "2026-08-28", "Hà Nội"),
+            "008": ("REJECTED", "2026-08-17", "Tiền Giang"),
+            "009": ("PENDING", "2026-08-29", "Hà Nội"),
+            "010": ("APPROVED", "2026-08-12", "Hà Nội"),
         }
-
-        # Samples:
-        # 001: complete
-        # 002: sample only, no report
-        # 003: no sample
-        # 004: complete
-        # 005: complete, rejected
-        # 006: complete, audited
-        # 007: complete, report with hash
-        # 008: complete, rejected
-        # 009: sample only
-        # 010: complete, audited
-        samples = [
-            ("SMP-HN-2026-001", batch_rows["BATCH-HN-2026-001"], "2026-08-25", 0.5, "kg", "Hà Nội", "Random sampling", "PENDING"),
-            ("SMP-HN-2026-002", batch_rows["BATCH-HN-2026-002"], "2026-08-26", 0.5, "kg", "Hà Nội", "Random sampling", "PENDING"),
-            ("SMP-HN-2026-004", batch_rows["BATCH-HN-2026-004"], "2026-08-22", 0.5, "kg", "Nam Định", "Random sampling", "APPROVED"),
-            ("SMP-HN-2026-005", batch_rows["BATCH-HN-2026-005"], "2026-08-27", 0.5, "kg", "Hà Nội", "Random sampling", "REJECTED"),
-            ("SMP-HN-2026-006", batch_rows["BATCH-HN-2026-006"], "2026-08-20", 0.5, "kg", "Hòa Bình", "Random sampling", "APPROVED"),
-            ("SMP-HN-2026-007", batch_rows["BATCH-HN-2026-007"], "2026-08-28", 0.5, "kg", "Hà Nội", "Random sampling", "PENDING"),
-            ("SMP-HN-2026-008", batch_rows["BATCH-HN-2026-008"], "2026-08-17", 0.5, "kg", "Tiền Giang", "Random sampling", "REJECTED"),
-            ("SMP-HN-2026-009", batch_rows["BATCH-HN-2026-009"], "2026-08-29", 0.5, "kg", "Hà Nội", "Random sampling", "PENDING"),
-            ("SMP-HN-2026-010", batch_rows["BATCH-HN-2026-010"], "2026-08-12", 0.5, "kg", "Hà Nội", "Random sampling", "APPROVED"),
-        ]
-
-        conn.executemany(
-            """
-            INSERT INTO samples
-            (
-                sample_code, batch_id, sampling_date, sample_quantity,
-                sample_unit, sampling_location, sampling_method, status
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            samples,
-        )
-
-        sample_rows = {
-            row[1]: row[0]
-            for row in conn.execute(
-                "SELECT id, sample_code FROM samples WHERE sample_code LIKE 'SMP-HN-2026-%'"
-            ).fetchall()
-        }
-
-        # Laboratory reports
-        reports = [
-            (
-                "LTR-HN-2026-001",
-                sample_rows["SMP-HN-2026-001"],
-                batch_rows["BATCH-HN-2026-001"],
-                "ABC Agricultural Testing Laboratory",
-                "LAB-ABC-001",
-                "2026-08-28",
-                "PASS",
-                "report_batch_001.pdf",
-                "8b7e8d2f5b6a9e0f5d2f2a0e7c1d4b6f9a3e5c8d7b2a1f0e4d6c9b8a7e5f2c1",
-                "/reports/report_batch_001.pdf",
-                "APPROVED",
-            ),
-            (
-                "LTR-HN-2026-004",
-                sample_rows["SMP-HN-2026-004"],
-                batch_rows["BATCH-HN-2026-004"],
-                "ABC Agricultural Testing Laboratory",
-                "LAB-ABC-001",
-                "2026-08-24",
-                "PASS",
-                "lab_report.pdf",
-                "27179aa2a19f7a647dff8f6a2c826fb53e4e08441ef8786eb2f4563fce25424c",
-                "/uploads/lab_report.pdf",
-                "APPROVED",
-            ),
-            (
-                "LTR-HN-2026-005",
-                sample_rows["SMP-HN-2026-005"],
-                batch_rows["BATCH-HN-2026-005"],
-                "ABC Agricultural Testing Laboratory",
-                "LAB-ABC-001",
-                "2026-08-29",
-                "FAIL",
-                "report_batch_005.pdf",
-                "4c9e2a7b5d1f8e3c6a0b9d2f4e7c1a5b8d6f3e0c2a9b7d4f1e8c5a2b6d9f0e3",
-                "/reports/report_batch_005.pdf",
-                "REJECTED",
-            ),
-            (
-                "LTR-HN-2026-006",
-                sample_rows["SMP-HN-2026-006"],
-                batch_rows["BATCH-HN-2026-006"],
-                "ABC Agricultural Testing Laboratory",
-                "LAB-ABC-001",
-                "2026-08-22",
-                "PASS",
-                "report_batch_006.pdf",
-                "a7f3c9e1b5d8a2f6c4e0b7d9f1a3c5e8b2d6f4a0c9e7b5d3f1a8c6e2b4d0f9",
-                "/reports/report_batch_006.pdf",
-                "APPROVED",
-            ),
-            (
-                "LTR-HN-2026-007",
-                sample_rows["SMP-HN-2026-007"],
-                batch_rows["BATCH-HN-2026-007"],
-                "ABC Agricultural Testing Laboratory",
-                "LAB-ABC-001",
-                "2026-08-30",
-                "PASS",
-                "report_batch_007.pdf",
-                "c4e8a1f7b3d9e2c6a5f0b8d4e7a3c1f9b6d2e5a8c0f4b7d1e9a6c3f2b5d8e0",
-                "/reports/report_batch_007.pdf",
-                "PENDING",
-            ),
-            (
-                "LTR-HN-2026-008",
-                sample_rows["SMP-HN-2026-008"],
-                batch_rows["BATCH-HN-2026-008"],
-                "ABC Agricultural Testing Laboratory",
-                "LAB-ABC-001",
-                "2026-08-20",
-                "FAIL",
-                "report_batch_008.pdf",
-                "e2a6c9f4b8d1e7a3c5f0b9d2e6a4c8f1b7d3e5a9c0f6b2d8e4a1c7f5b9d3e6",
-                "/reports/report_batch_008.pdf",
-                "REJECTED",
-            ),
-            (
-                "LTR-HN-2026-010",
-                sample_rows["SMP-HN-2026-010"],
-                batch_rows["BATCH-HN-2026-010"],
-                "ABC Agricultural Testing Laboratory",
-                "LAB-ABC-001",
-                "2026-08-15",
-                "PASS",
-                "report_batch_010.pdf",
-                "f1c7a3e9b5d2f8a0c4e6b1d9a7f3c5e2b8d0a6f4c9e1b7d3a5f8c2e6b0d4a9",
-                "/reports/report_batch_010.pdf",
-                "APPROVED",
-            ),
-        ]
-
-        conn.executemany(
-            """
-            INSERT INTO lab_reports
-            (
-                report_code, sample_id, batch_id, lab_name, lab_code,
-                report_date, result, file_name, file_hash, file_path, status
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            reports,
-        )
-
-        # Audit history
-        audit_data = [
-            ("BATCH-HN-2026-004", auditor_1[0], "APPROVE", "UNVERIFIED", "AUDITED", "All required documents and integrity hash are valid."),
-            ("BATCH-HN-2026-005", auditor_1[0], "REJECT", "UNVERIFIED", "REJECTED", "Laboratory result does not satisfy required quality criteria."),
-            ("BATCH-HN-2026-006", auditor_2[0], "APPROVE", "UNVERIFIED", "AUDITED", "Documents and SHA-256 integrity check passed."),
-            ("BATCH-HN-2026-008", auditor_2[0], "REJECT", "UNVERIFIED", "REJECTED", "Invalid laboratory result. Farmer must correct and resubmit."),
-            ("BATCH-HN-2026-010", auditor_1[0], "APPROVE", "UNVERIFIED", "AUDITED", "All verification requirements passed."),
-        ]
-
-        for code, user_id, action, old_status, new_status, reason in audit_data:
-            conn.execute(
+        sample_ids = {}
+        for code, (status, sampling_date, location) in sample_specs.items():
+            sample_code = f"SMP-HN-2026-{code}"
+            cur = conn.execute(
                 """
-                INSERT INTO audit_trails
-                    (user_id, action, entity_type, entity_id, old_value, new_value)
-                VALUES (?, ?, 'batch', ?, ?, ?)
+                INSERT INTO samples
+                    (sample_code, batch_id, sampling_date, sample_quantity, sample_unit,
+                     sampling_location, sampling_method, status, created_at)
+                VALUES (?, ?, ?, 0.5, 'kg', ?, 'Random sampling', ?, ?)
                 """,
-                (
-                    user_id,
-                    "APPROVE_BATCH" if action == "APPROVE" else "REJECT_BATCH",
-                    batch_rows[code],
-                    json.dumps({"status": old_status}, ensure_ascii=False),
-                    json.dumps({"status": new_status, "reason": reason}, ensure_ascii=False),
-                ),
+                (sample_code, batch_ids[code], sampling_date, location, status, sampling_date + " 09:00:00"),
             )
+            sample_ids[code] = cur.lastrowid
+            audit_trail(conn, auditor_1[0], "CREATE_SAMPLE", "sample", cur.lastrowid, sampling_date + " 10:00:00", new={"batch_id": batch_ids[code], "sample_code": sample_code, "status": status})
 
-        # Packages + public trace for audited batches
-        package_data = [
-            (
-                "PKG-HN-2026-004-001",
-                batch_rows["BATCH-HN-2026-004"],
-                100,
-                "kg",
-                "QR-BATCH-HN-2026-004",
-                "TRACE-HN-2026-004",
-                "ACTIVE",
-            ),
-            (
-                "PKG-HN-2026-006-001",
-                batch_rows["BATCH-HN-2026-006"],
-                200,
-                "kg",
-                "QR-BATCH-HN-2026-006",
-                "TRACE-HN-2026-006",
-                "ACTIVE",
-            ),
-            (
-                "PKG-HN-2026-010-001",
-                batch_rows["BATCH-HN-2026-010"],
-                150,
-                "kg",
-                "QR-BATCH-HN-2026-010",
-                "TRACE-HN-2026-010",
-                "ACTIVE",
-            ),
-        ]
-
-        conn.executemany(
-            """
-            INSERT INTO packages
-            (package_code, batch_id, quantity, unit, qr_code, trace_id, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            package_data,
-        )
-
-        package_rows = {
-            row[1]: row[0]
-            for row in conn.execute(
-                "SELECT id, package_code FROM packages WHERE package_code LIKE 'PKG-HN-2026-%'"
-            ).fetchall()
+        report_specs = {
+            "004": ("PASS", "APPROVED", auditor_1, "2026-08-24", "2026-08-26"),
+            "005": ("FAIL", "REJECTED", auditor_1, "2026-08-29", "2026-09-01"),
+            "006": ("PASS", "APPROVED", auditor_2, "2026-08-22", "2026-08-25"),
+            "007": ("PASS", "PENDING", auditor_2, "2026-08-30", None),
+            "008": ("FAIL", "REJECTED", auditor_2, "2026-08-20", "2026-08-23"),
+            "010": ("PASS", "APPROVED", auditor_1, "2026-08-15", "2026-08-18"),
         }
+        for code, (result, status, uploader, report_date, _) in report_specs.items():
+            report_code = f"LTR-HN-2026-{code}"
+            file_name = f"lab_report_{code}.pdf"
+            file_hash = report_hash(report_code)
+            cur = conn.execute(
+                """
+                INSERT INTO lab_reports
+                    (report_code, sample_id, batch_id, lab_name, lab_code, report_date,
+                     result, file_name, file_hash, file_path, status, created_at)
+                VALUES (?, ?, ?, 'ABC Agricultural Testing Laboratory', 'LAB-ABC-001', ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (report_code, sample_ids[code], batch_ids[code], report_date, result, file_name, file_hash, f"/uploads/{file_name}", status, report_date + " 14:00:00"),
+            )
+            audit_trail(conn, uploader[0], "UPLOAD_LAB_REPORT", "lab_report", cur.lastrowid, report_date + " 14:00:00", new={"report_code": report_code, "batch_id": batch_ids[code], "sample_id": sample_ids[code], "file_hash": file_hash, "status": status})
 
-        trace_data = [
-            (
-                batch_rows["BATCH-HN-2026-004"],
-                package_rows["PKG-HN-2026-004-001"],
-                "TRACE-HN-2026-004",
-                "https://agrirace.example/trace/TRACE-HN-2026-004",
-            ),
-            (
-                batch_rows["BATCH-HN-2026-006"],
-                package_rows["PKG-HN-2026-006-001"],
-                "TRACE-HN-2026-006",
-                "https://agrirace.example/trace/TRACE-HN-2026-006",
-            ),
-            (
-                batch_rows["BATCH-HN-2026-010"],
-                package_rows["PKG-HN-2026-010-001"],
-                "TRACE-HN-2026-010",
-                "https://agrirace.example/trace/TRACE-HN-2026-010",
-            ),
-        ]
+        audit_specs = {
+            "004": (auditor_1, "2026-08-26 16:00:00", "All required documents and SHA-256 integrity check are valid.", "AUDITED"),
+            "005": (auditor_1, "2026-09-01 16:00:00", "Laboratory result does not satisfy required quality criteria.", "REJECTED"),
+            "006": (auditor_2, "2026-08-25 16:30:00", "Documents and SHA-256 integrity check passed.", "AUDITED"),
+            "008": (auditor_2, "2026-08-23 15:30:00", "Invalid laboratory result. Farmer must correct and resubmit.", "REJECTED"),
+            "010": (auditor_1, "2026-08-18 16:00:00", "All verification requirements passed.", "AUDITED"),
+        }
+        for code, (auditor, audit_date, reason, new_status) in audit_specs.items():
+            audit_trail(conn, auditor[0], "APPROVE_BATCH" if new_status == "AUDITED" else "REJECT_BATCH", "batch", batch_ids[code], audit_date, old={"status": "UNVERIFIED"}, new={"status": new_status, "reason": reason, "auditor_id": auditor[0], "auditor_name": auditor[1]})
 
-        conn.executemany(
-            """
-            INSERT INTO trace_records
-            (batch_id, package_id, trace_id, public_url)
-            VALUES (?, ?, ?, ?)
-            """,
-            trace_data,
-        )
+        for code in ("004", "006", "010"):
+            package_code = f"PKG-HN-2026-{code}-001"
+            trace_id = f"TRACE-HN-2026-{code}"
+            cur = conn.execute(
+                "INSERT INTO packages (package_code, batch_id, quantity, unit, qr_code, trace_id, status, created_at) VALUES (?, ?, 100, 'kg', ?, ?, 'ACTIVE', ?)",
+                (package_code, batch_ids[code], f"QR-{code}", trace_id, audit_specs[code][1]),
+            )
+            conn.execute(
+                "INSERT INTO trace_records (batch_id, package_id, trace_id, public_url, created_at) VALUES (?, ?, ?, ?, ?)",
+                (batch_ids[code], cur.lastrowid, trace_id, f"/trace.html?trace_id={trace_id}", audit_specs[code][1]),
+            )
 
         conn.commit()
-
-        print("=" * 60)
-        print("ĐÃ SEED TEST DATA THÀNH CÔNG")
-        print("=" * 60)
-
-        rows = conn.execute(
-            """
-            SELECT batch_code, product_name, status, quantity, unit
-            FROM batches
-            WHERE batch_code LIKE 'BATCH-HN-2026-%'
-            ORDER BY batch_code
-            """
-        ).fetchall()
-
-        for row in rows:
-            print(f"{row[0]:<22} | {row[1]:<20} | {row[2]:<10} | {row[3]} {row[4]}")
-
-        print()
-        print("AUDITED batches có Public Trace:")
-        for row in conn.execute(
-            """
-            SELECT b.batch_code, t.trace_id, p.package_code
-            FROM batches b
-            JOIN trace_records t ON t.batch_id = b.id
-            LEFT JOIN packages p ON p.id = t.package_id
-            WHERE b.status = 'AUDITED'
-            ORDER BY b.batch_code
-            """
-        ):
-            print(f"{row[0]} | {row[1]} | {row[2]}")
-
+        print("ĐÃ SEED TEST DATA NHẤT QUÁN")
+        for row in conn.execute("SELECT batch_code, status, farmer_id FROM batches ORDER BY batch_code"):
+            print(f"{row[0]} | {row[1]} | farmer_id={row[2]}")
     finally:
         conn.close()
 

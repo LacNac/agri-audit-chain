@@ -20,6 +20,9 @@ async function loadAuditorProfile() {
 
   document.getElementById("sidebar-user-name").textContent = data.full_name;
   document.getElementById("profile-name").textContent = data.full_name;
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.full_name)}&background=5c33cf&color=fff`;
+  document.getElementById("sidebar-user-avatar").src = avatarUrl;
+  document.getElementById("profile-avatar").src = avatarUrl;
   document.getElementById("profile-code").textContent =
     `Mã Auditor: ${data.auditor_code}`;
   document.getElementById("profile-status").textContent = data.status;

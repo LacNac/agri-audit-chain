@@ -19,6 +19,27 @@ let SAMPLES = [];
 let AUDIT_HISTORY = [];
 let activeTab = "pending";
 let currentBatch = null;
+let currentAuditorName = "Auditor";
+
+async function loadAuditorIdentity() {
+  try {
+    const response = await fetch(`${API_BASE}/auditor/profile`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await response.json();
+    if (!response.ok)
+      throw new Error(data.detail || "Không thể tải hồ sơ Auditor.");
+
+    currentAuditorName = data.full_name;
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.full_name)}&background=5c33cf&color=fff`;
+    const nameElement = document.getElementById("sidebar-user-name");
+    const avatarElement = document.getElementById("sidebar-user-avatar");
+    if (nameElement) nameElement.textContent = data.full_name;
+    if (avatarElement) avatarElement.src = avatarUrl;
+  } catch (error) {
+    console.warn("Không thể tải thông tin Auditor:", error.message);
+  }
+}
 
 /* ========================================================
    2. GỌI API LẤY DỮ LIỆU TỪ DATABASE
@@ -441,7 +462,7 @@ async function openBatchDetail(batchIdOrCode) {
       <div class="reject-alert">
         <div class="reject-alert-title">⚠ Lý do từ chối ghi nhận trong Database</div>
         <p class="reject-alert-body">${currentBatch.reject_reason || currentBatch.rejectReason || "Không đạt chuẩn kiểm định chất lượng."}</p>
-        <p class="reject-alert-meta">Auditor phụ trách: ${currentBatch.auditor_name || "Đặng Nhật Hải"}</p>
+        <p class="reject-alert-meta">Auditor phụ trách: ${currentBatch.auditor_name || currentAuditorName}</p>
       </div>
     `;
   }
@@ -779,4 +800,5 @@ function renderSampleTable(list) {
 }
 
 // Khởi động trang với dữ liệu từ DB
+loadAuditorIdentity();
 switchTab("pending");
