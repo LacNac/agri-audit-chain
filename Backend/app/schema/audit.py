@@ -23,6 +23,8 @@ class LabReportOut(BaseModel):
     file_hash: Optional[str] = None
     file_path: Optional[str] = None
     status: str
+    proof_hash: Optional[str] = None
+    proof_valid: Optional[bool] = None
 
 
 class AuditDecision(BaseModel):

@@ -8,7 +8,7 @@ from app.routers.users import get_current_user_profile, list_users
 from app.services.auth_service import register_user_with_business, login_user
 from app.services.batch_service import create_batch, update_batch, delete_batch
 from app.services.sample_service import create_sample, get_sample_by_id, list_samples_by_batch
-from app.services.audit_service import create_report, approve_batch
+from app.services.audit_service import create_report, approve_batch, verify_report_integrity
 from app.services.audit_trail_service import record_audit_trail, list_audit_trails
 from app.services.qr_service import create_qr_record
 from app.routers.public import trace_batch
@@ -242,6 +242,8 @@ def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_i
     )
 
     assert result["file_hash"] == __import__("hashlib").sha256(pdf_bytes).hexdigest()
+    assert result["proof_hash"]
+    assert verify_report_integrity(db, result["id"])["valid"] is True
 
     db.execute(
         "INSERT INTO lab_reports (report_code, sample_id, batch_id, lab_name, lab_code, report_date, result, file_name, file_hash, file_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')",
@@ -251,12 +253,10 @@ def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_i
     with pytest.raises(HTTPException, match="Batch chưa đủ thông tin để kiểm định"):
         approve_batch(db, 1, user_id=7, reason="Approved")
 
+    db.execute("DELETE FROM lab_reports WHERE report_code = ?", ("REPORT-FAIL",))
+    db.commit()
     db.execute(
         "UPDATE samples SET status = 'READY' WHERE id = 1"
-    )
-    db.execute(
-        "INSERT INTO lab_reports (report_code, sample_id, batch_id, lab_name, lab_code, report_date, result, file_name, file_hash, file_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')",
-        ("REPORT-OK", 1, 1, "SGS Lab", "LAB-SGS-01", "2026-09-10", "PASS", "report.pdf", __import__("hashlib").sha256(pdf_bytes).hexdigest(), "/tmp/report.pdf"),
     )
 
     approved = approve_batch(db, 1, user_id=7, reason="Approved")

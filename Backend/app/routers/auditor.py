@@ -196,6 +196,8 @@ async def create_lab_report_with_file(
         file_hash=report["file_hash"],
         file_path=file_path or report["file_path"],
         status=report["status"],
+        proof_hash=report["proof_hash"],
+        proof_valid=True,
     )
 
 

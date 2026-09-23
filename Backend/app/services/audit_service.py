@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from .audit_trail_service import record_audit_trail
 
-UPLOADS_DIR = Path(__file__).resolve().parents[1] / "uploads"
+UPLOADS_DIR = Path(__file__).resolve().parents[2] / "uploads"
 
 
 def _ensure_integrity_table(db: sqlite3.Connection):
@@ -24,7 +24,7 @@ def _ensure_integrity_table(db: sqlite3.Connection):
 
 
 def generate_report_code() -> str:
-    return f"REPORT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    return f"REPORT-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
 
 
 def calculate_sha256(file_bytes: bytes) -> str:
@@ -100,7 +100,15 @@ def get_report(db: sqlite3.Connection, report_id: int):
     if not row:
         raise HTTPException(status_code=404, detail="Report không tồn tại")
     columns = [column[1] for column in db.execute("PRAGMA table_info(lab_reports)").fetchall()]
-    return dict(zip(columns, row))
+    report = dict(zip(columns, row))
+    _ensure_integrity_table(db)
+    proof = db.execute(
+        "SELECT previous_proof, proof_hash FROM integrity_proofs WHERE report_id = ?",
+        (report_id,),
+    ).fetchone()
+    report["previous_proof"] = proof[0] if proof else None
+    report["proof_hash"] = proof[1] if proof else None
+    return report
 
 
 def list_reports_by_batch(db: sqlite3.Connection, batch_id: int):
@@ -108,7 +116,18 @@ def list_reports_by_batch(db: sqlite3.Connection, batch_id: int):
         raise HTTPException(status_code=404, detail="Batch không tồn tại")
     rows = db.execute("SELECT * FROM lab_reports WHERE batch_id = ? ORDER BY id DESC", (batch_id,)).fetchall()
     columns = [column[1] for column in db.execute("PRAGMA table_info(lab_reports)").fetchall()]
-    return [dict(zip(columns, row)) for row in rows]
+    reports = []
+    for row in rows:
+        report = dict(zip(columns, row))
+        _ensure_integrity_table(db)
+        proof = db.execute(
+            "SELECT previous_proof, proof_hash FROM integrity_proofs WHERE report_id = ?",
+            (report["id"],),
+        ).fetchone()
+        report["previous_proof"] = proof[0] if proof else None
+        report["proof_hash"] = proof[1] if proof else None
+        reports.append(report)
+    return reports
 
 
 def verify_report_integrity(db: sqlite3.Connection, report_id: int):
@@ -119,10 +138,30 @@ def verify_report_integrity(db: sqlite3.Connection, report_id: int):
         raise HTTPException(status_code=404, detail="File report không tồn tại")
     actual_hash = calculate_sha256(file_path.read_bytes())
     _ensure_integrity_table(db)
-    proof = db.execute("SELECT file_hash, proof_hash FROM integrity_proofs WHERE report_id = ?", (report_id,)).fetchone()
+    proof = db.execute(
+        "SELECT file_hash, previous_proof, proof_hash FROM integrity_proofs WHERE report_id = ?",
+        (report_id,),
+    ).fetchone()
     hash_valid = actual_hash == report.get("file_hash")
-    proof_valid = bool(proof and proof[0] == actual_hash)
-    return {"report_id": report_id, "stored_hash": report.get("file_hash"), "actual_hash": actual_hash, "hash_valid": hash_valid, "proof_hash": proof[1] if proof else None, "proof_valid": proof_valid, "valid": hash_valid and proof_valid}
+    previous_proof = (proof[1] if proof else None) or ""
+    calculated_proof_hash = hashlib.sha256(
+        f"{previous_proof}:{report_id}:{report['batch_id']}:{actual_hash}".encode()
+    ).hexdigest()
+    proof_valid = bool(
+        proof
+        and proof[0] == report.get("file_hash")
+        and calculated_proof_hash == proof[2]
+    )
+    return {
+        "report_id": report_id,
+        "stored_hash": report.get("file_hash"),
+        "actual_hash": actual_hash,
+        "hash_valid": hash_valid,
+        "proof_hash": proof[2] if proof else None,
+        "calculated_proof_hash": calculated_proof_hash,
+        "proof_valid": proof_valid,
+        "valid": hash_valid and proof_valid,
+    }
 
 
 def validate_batch_report_integrity(db: sqlite3.Connection, batch_id: int):
