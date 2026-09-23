@@ -216,7 +216,7 @@
         <div class="sidebar-footer">
           <span class="role-pill">Vai trò: Auditor</span>
           <a
-            href="auditor-profile.html"
+            href="auditorprofile.html"
             class="user-row active-profile"
             style="text-decoration: none; cursor: pointer"
           >
@@ -229,7 +229,8 @@
             <span
               class="user-name"
               style="color: var(--primary-purple); text-decoration: underline"
-              >Đặng Nhật Hải</span
+              id="sidebar-user-name"
+              >Đang tải...</span
             >
           </a>
           <button
@@ -259,7 +260,7 @@
               alt="Auditor Avatar"
             />
             <div class="profile-name-box">
-              <h2>Đặng Nhật Hải</h2>
+              <h2 id="profile-name">Đang tải...</h2>
               <div
                 style="
                   display: flex;
@@ -268,9 +269,11 @@
                   margin-top: 4px;
                 "
               >
-                <span class="auditor-badge-id">Mã Auditor: AUD-HN-0428</span>
-                <span class="status-tag has-report"
-                  >Đang hoạt động (Active)</span
+                <span class="auditor-badge-id" id="profile-code"
+                  >Mã Auditor</span
+                >
+                <span class="status-tag has-report" id="profile-status"
+                  >Đang tải...</span
                 >
               </div>
             </div>
@@ -279,15 +282,15 @@
           <!-- Thống kê nghiệp vụ thực hiện -->
           <div class="stat-row-profile">
             <div class="stat-box-auditor">
-              <div class="num">192</div>
+              <div class="num" id="stat-approved">0</div>
               <div class="lbl">Hồ sơ đã Phê duyệt (Approve)</div>
             </div>
             <div class="stat-box-auditor">
-              <div class="num">14</div>
+              <div class="num" id="stat-rejected">0</div>
               <div class="lbl">Lô hàng Từ chối (Reject)</div>
             </div>
             <div class="stat-box-auditor">
-              <div class="num">100%</div>
+              <div class="num" id="stat-sealed">0</div>
               <div class="lbl">Báo cáo niêm phong SHA-256</div>
             </div>
           </div>
@@ -352,11 +355,15 @@
               <ul class="info-list">
                 <li class="info-item">
                   <span class="info-label">Email cơ quan:</span
-                  ><span class="info-value">hai.dn@agritrace.gov.vn</span>
+                  ><span class="info-value" id="profile-email"
+                    >Đang tải...</span
+                  >
                 </li>
                 <li class="info-item">
                   <span class="info-label">Số điện thoại:</span
-                  ><span class="info-value">(+84) 982 456 789</span>
+                  ><span class="info-value" id="profile-phone"
+                    >Đang tải...</span
+                  >
                 </li>
               </ul>
               <ul class="info-list">
@@ -377,4 +384,5 @@
       </main>
     </div>
   </body>
+  <script src="../js/auditorprofile.js"></script>
 </html>

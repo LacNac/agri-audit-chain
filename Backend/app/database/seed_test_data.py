@@ -31,6 +31,32 @@ def seed_test_data():
         auditor_1 = auditors[0]
         auditor_2 = auditors[1] if len(auditors) > 1 else auditors[0]
 
+        business_data = [
+            (
+                farmer_1[0],
+                "Hợp tác xã Nông nghiệp Xanh",
+                "Hợp tác xã",
+                "Rau quả",
+                "0101234567",
+            ),
+            (
+                farmer_2[0],
+                "Trang trại Green Farm",
+                "Trang trại",
+                "Rau quả",
+                "0107654321",
+            ),
+        ]
+        for business in business_data:
+            conn.execute(
+                """
+                INSERT INTO businesses (user_id, business_name, business_type, product_type, tax_code)
+                SELECT ?, ?, ?, ?, ?
+                WHERE NOT EXISTS (SELECT 1 FROM businesses WHERE user_id = ?)
+                """,
+                (*business, business[0]),
+            )
+
         # Avoid duplicate seed data when running the script repeatedly.
         batch_codes = [
             f"BATCH-HN-2026-{i:03d}" for i in range(1, 11)

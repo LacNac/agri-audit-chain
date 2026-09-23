@@ -11,6 +11,84 @@ from ..services.audit_service import approve_batch, create_report, reject_batch
 router = APIRouter(prefix="/auditor", tags=["auditor"])
 
 
+@router.get("/profile")
+def get_auditor_profile(db=Depends(get_db), user=Depends(require_permission("AUDIT_VIEW"))):
+    profile = db.execute(
+        "SELECT id, full_name, email, phone, role, status, created_at FROM users WHERE id = ?",
+        (user["id"],),
+    ).fetchone()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+
+    approved = db.execute(
+        "SELECT COUNT(*) FROM audit_trails WHERE user_id = ? AND action IN ('APPROVE', 'APPROVE_BATCH')",
+        (user["id"],),
+    ).fetchone()[0]
+    rejected = db.execute(
+        "SELECT COUNT(*) FROM audit_trails WHERE user_id = ? AND action IN ('REJECT', 'REJECT_BATCH')",
+        (user["id"],),
+    ).fetchone()[0]
+    reports = db.execute(
+        "SELECT COUNT(*), SUM(CASE WHEN file_hash IS NOT NULL AND file_hash != '' THEN 1 ELSE 0 END) FROM lab_reports"
+    ).fetchone()
+
+    return {
+        "user_id": profile[0], "full_name": profile[1], "email": profile[2],
+        "phone": profile[3], "role": profile[4], "status": profile[5],
+        "created_at": profile[6], "auditor_code": f"AUD-{profile[0]:04d}",
+        "statistics": {
+            "approved": approved, "rejected": rejected,
+            "sealed_reports": reports[1] or 0, "total_reports": reports[0] or 0,
+        },
+    }
+
+
+@router.get("/history")
+def get_auditor_history(db=Depends(get_db), user=Depends(require_permission("AUDIT_VIEW_HISTORY"))):
+    rows = db.execute(
+        """
+        SELECT a.id, a.action, a.entity_id, a.old_value, a.new_value, a.created_at,
+               b.batch_code, b.product_name
+        FROM audit_trails a
+        LEFT JOIN batches b ON b.id = a.entity_id AND a.entity_type = 'batch'
+        WHERE a.entity_type = 'batch'
+        ORDER BY a.id DESC
+        """
+    ).fetchall()
+    history = []
+    for row in rows:
+        old_data = json.loads(row[3]) if row[3] else {}
+        new_data = json.loads(row[4]) if row[4] else {}
+        history.append({
+            "id": row[0], "action": row[1].replace("_BATCH", ""),
+            "batch_id": row[2], "batch_code": row[6] or str(row[2]),
+            "product": row[7] or "",
+            "transition": f"{old_data.get('status', 'N/A')} -> {new_data.get('status', 'N/A')}",
+            "reason": new_data.get("reason"), "created_at": row[5],
+            "auditor_name": user["full_name"],
+        })
+    return history
+
+
+@router.get("/batches/{batch_id}")
+def get_auditor_batch(batch_id: int, db=Depends(get_db), user=Depends(require_permission("AUDIT_VIEW"))):
+    batch_row = db.execute("SELECT * FROM batches WHERE id = ?", (batch_id,)).fetchone()
+    if not batch_row:
+        raise HTTPException(status_code=404, detail="Batch không tồn tại")
+
+    batch_columns = [column[1] for column in db.execute("PRAGMA table_info(batches)").fetchall()]
+    sample_columns = [column[1] for column in db.execute("PRAGMA table_info(samples)").fetchall()]
+    report_columns = [column[1] for column in db.execute("PRAGMA table_info(lab_reports)").fetchall()]
+    batch = dict(zip(batch_columns, batch_row))
+    batch["samples"] = [dict(zip(sample_columns, row)) for row in db.execute(
+        "SELECT * FROM samples WHERE batch_id = ? ORDER BY id DESC", (batch_id,)
+    ).fetchall()]
+    batch["reports"] = [dict(zip(report_columns, row)) for row in db.execute(
+        "SELECT * FROM lab_reports WHERE batch_id = ? ORDER BY id DESC", (batch_id,)
+    ).fetchall()]
+    return batch
+
+
 @router.get("/queue")
 def get_audit_queue(db=Depends(get_db), user=Depends(require_permission("AUDIT_VIEW"))):
     batches = db.execute(

@@ -162,7 +162,7 @@ if (formLoginDn) {
       } else if (role === "ADMIN") {
         window.location.href = "./admin/admin.html";
       } else if (role === "AUDITOR") {
-        window.location.href = "./auditor/auditor.html";
+        window.location.href = "./auditor/auditdashboard.html";
       } else {
         throw new Error("Vai trò tài khoản không hợp lệ");
       }
@@ -206,7 +206,7 @@ if (formLoginKd) {
       localStorage.setItem("currentUser", JSON.stringify(data));
 
       if (role === "AUDITOR") {
-        window.location.href = "./auditor/auditor.html";
+        window.location.href = "./auditor/auditdashboard.html";
       } else if (role === "ADMIN") {
         window.location.href = "./admin/admin.html";
       } else if (role === "FARMER") {

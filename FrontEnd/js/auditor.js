@@ -1,7 +1,7 @@
 /* ========================================================
    1. CẤU HÌNH API & XÁC THỰC (JWT AUTHENTICATION)
    ======================================================== */
-const API_BASE = "http://127.0.0.1:8000/api/v1";
+const API_BASE = "http://127.0.0.1:8000";
 
 function getAuthHeaders() {
   const sessionUser =
@@ -27,7 +27,11 @@ let currentBatch = null;
 // Lấy danh sách Batches từ DB
 async function fetchBatchesFromDB() {
   try {
-    const res = await fetch(`${API_BASE}/auditor/batches`, {
+    const endpoint =
+      activeTab === "pending" || activeTab === "rejected"
+        ? "/auditor/queue"
+        : "/batches";
+    const res = await fetch(`${API_BASE}${endpoint}`, {
       method: "GET",
       headers: getAuthHeaders(),
     });
@@ -39,11 +43,9 @@ async function fetchBatchesFromDB() {
   }
 }
 
-// Lấy danh sách Mẫu (Samples) từ DB
 async function fetchSamplesFromDB() {
   try {
     const res = await fetch(`${API_BASE}/samples`, {
-      method: "GET",
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Không thể tải danh sách mẫu.");
@@ -54,11 +56,9 @@ async function fetchSamplesFromDB() {
   }
 }
 
-// Lấy Lịch sử kiểm định (Audit Trail) từ DB
 async function fetchAuditHistoryFromDB() {
   try {
     const res = await fetch(`${API_BASE}/auditor/history`, {
-      method: "GET",
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Không thể tải lịch sử kiểm định.");
@@ -69,14 +69,11 @@ async function fetchAuditHistoryFromDB() {
   }
 }
 
-/* ========================================================
-   3. CHUYỂN ĐỔI TAB & ĐIỀU HƯỚNG DỮ LIỆU
-   ======================================================== */
 document.querySelectorAll(".sidebar-nav .nav-item").forEach((btn) => {
   btn.addEventListener("click", async () => {
     document
       .querySelectorAll(".sidebar-nav .nav-item")
-      .forEach((b) => b.classList.remove("active"));
+      .forEach((item) => item.classList.remove("active"));
     btn.classList.add("active");
     activeTab = btn.getAttribute("data-tab");
     await switchTab(activeTab);
@@ -312,12 +309,22 @@ async function openBatchDetail(batchIdOrCode) {
   const code = currentBatch.batch_code || currentBatch.code;
   const product = currentBatch.product_name || currentBatch.product;
   const farmer =
-    currentBatch.farmer_name || currentBatch.farmer || "Chưa cập nhật";
-  const harvest = currentBatch.harvest_date || currentBatch.harvestDate || "—";
-  const weight = currentBatch.weight || "—";
+    currentBatch.producer_name ||
+    currentBatch.farmer_name ||
+    currentBatch.farmer ||
+    "Chưa cập nhật";
+  const harvest =
+    currentBatch.production_date ||
+    currentBatch.harvest_date ||
+    currentBatch.harvestDate ||
+    "—";
+  const weight = currentBatch.quantity
+    ? `${currentBatch.quantity} ${currentBatch.unit || ""}`
+    : currentBatch.weight || "—";
   const created = currentBatch.created_at || currentBatch.createdDate || "—";
   const origin = currentBatch.origin || "Việt Nam";
   const status = (currentBatch.status || "").toUpperCase();
+  const latestReport = currentBatch.reports?.[0];
 
   let statusBadge = '<span class="status-badge amber">Chờ kiểm định</span>';
   if (status === "AUDITED")
@@ -409,7 +416,7 @@ async function openBatchDetail(batchIdOrCode) {
   } else if (status === "AUDITED") {
     dynamicBody = `
       <div class="link-row" style="background:#f1f5f9;">
-        <span>📄 Báo cáo kiểm nghiệm &nbsp;<a href="#" style="text-decoration:underline; font-weight:600;">${currentBatch.report?.file_name || "phieu-kiem-nghiem.pdf"}</a></span>
+            <span>📄 Báo cáo kiểm nghiệm &nbsp;<a href="#" style="text-decoration:underline; font-weight:600;">${latestReport?.file_name || "Chưa có báo cáo"}</a></span>
         <button type="button" class="btn-gray-pill">Xem file</button>
       </div>
 
@@ -425,7 +432,7 @@ async function openBatchDetail(batchIdOrCode) {
       </div>
 
       <div style="background:#f8fafc; border-radius:8px; padding:12px; font-size:11.5px; color:#64748b; margin-top:12px;">
-        <div>Mã băm SHA-256: <code>${currentBatch.report?.sha256 || "3f9c1a7e5b21d0...889fa2e02b8d"}</code></div>
+        <div>Mã băm SHA-256: <code>${latestReport?.file_hash || "Chưa có"}</code></div>
         <div>Trace ID: <strong>${currentBatch.trace_id || currentBatch.traceId || "TRC-9F21-AGT"}</strong></div>
       </div>
     `;
@@ -493,6 +500,9 @@ function bindDetailEvents() {
 
       const formData = new FormData();
       formData.append("file", file);
+      const batchId =
+        currentBatch.id || currentBatch.code || currentBatch.batch_code;
+      formData.append("batch_id", batchId);
       formData.append("lab_name", labName);
       formData.append(
         "lab_code",
@@ -506,22 +516,21 @@ function bindDetailEvents() {
         "sample_id",
         document.getElementById("r-sample-select").value,
       );
+      formData.append(
+        "report_date",
+        document.getElementById("r-report-date").value,
+      );
 
       try {
-        const batchId =
-          currentBatch.id || currentBatch.code || currentBatch.batch_code;
-        const res = await fetch(
-          `${API_BASE}/auditor/batches/${batchId}/report`,
-          {
-            method: "POST",
-            headers: {
-              ...(getAuthHeaders().Authorization
-                ? { Authorization: getAuthHeaders().Authorization }
-                : {}),
-            },
-            body: formData,
+        const res = await fetch(`${API_BASE}/auditor/reports`, {
+          method: "POST",
+          headers: {
+            ...(getAuthHeaders().Authorization
+              ? { Authorization: getAuthHeaders().Authorization }
+              : {}),
           },
-        );
+          body: formData,
+        });
 
         const data = await res.json();
         if (!res.ok)
@@ -533,7 +542,7 @@ function bindDetailEvents() {
           "Upload báo cáo thành công! Mã SHA-256 đã được Backend tính và lưu vào cơ sở dữ liệu.",
         );
         document.getElementById("hash-box").style.display = "block";
-        document.getElementById("hash-val-text").textContent = data.sha256;
+        document.getElementById("hash-val-text").textContent = data.file_hash;
         document.getElementById("btn-action-approve").disabled = false;
         currentBatch.report = data;
       } catch (err) {
@@ -651,13 +660,15 @@ document
   ?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const samplePayload = {
-      batch_code: currentBatch.batch_code || currentBatch.code,
+      batch_id: currentBatch.id,
       sample_code: document.getElementById("m-sample-id").value.trim(),
-      weight: document.getElementById("m-weight").value.trim(),
       sampling_date: document.getElementById("m-date").value,
-      lab_name:
-        document.getElementById("m-lab-target").value.trim() ||
-        "Chưa gửi phòng lab",
+      sample_quantity: Number.parseFloat(
+        document.getElementById("m-weight").value,
+      ),
+      sample_unit: "kg",
+      sampling_location: currentBatch.origin || "Chưa cập nhật",
+      sampling_method: "Lấy mẫu kiểm định",
     };
 
     try {
