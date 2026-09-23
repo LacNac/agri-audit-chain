@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tra cứu nguồn gốc — AgriTrace</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./css/lookup.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <a class="brand" href="index.html">
+        <img src="./assets/logo-icon.svg" alt="" class="brand-icon" />
+        <img src="./assets/logo-text.svg" alt="AgriTrace" class="brand-text" />
+      </a>
+      <a class="topbar-link" href="index.html">Về AgriTrace</a>
+    </div>
+
+    <main class="product">
+      <section class="product-media">
+        <img id="product-image" src="" alt="" />
+        <span id="status-badge" class="status-badge">Đang tải…</span>
+      </section>
+
+      <section class="product-main">
+        <p id="batch-code" class="batch-code"></p>
+        <h1 id="product-name">Đang tải thông tin lô hàng…</h1>
+        <p id="product-summary" class="product-summary"></p>
+
+        <div class="quick-facts">
+          <div>
+            <p class="fact-label">Nông trại</p>
+            <p id="farm-name" class="fact-value">—</p>
+          </div>
+          <div>
+            <p class="fact-label">Ngày thu hoạch</p>
+            <p id="harvest-date" class="fact-value">—</p>
+          </div>
+          <div>
+            <p class="fact-label">Vùng trồng</p>
+            <p id="origin-area" class="fact-value">—</p>
+          </div>
+          <div>
+            <p class="fact-label">Khối lượng lô</p>
+            <p id="batch-weight" class="fact-value">—</p>
+          </div>
+        </div>
+
+        <div id="not-found" class="not-found" hidden>
+          <p>
+            Không tìm thấy lô hàng với mã này. Vui lòng kiểm tra lại mã hoặc
+            quét lại tem QR.
+          </p>
+        </div>
+      </section>
+
+      <nav class="tabs" aria-label="Thông tin lô hàng">
+        <button class="tab-btn active" data-tab="journey">
+          Hành trình lô hàng
+        </button>
+        <button class="tab-btn" data-tab="audit">
+          Kiểm định &amp; bằng chứng
+        </button>
+        <button class="tab-btn" data-tab="report">Phiếu kiểm nghiệm</button>
+      </nav>
+
+      <section class="tab-panel" id="panel-journey">
+        <ol id="journey-list" class="journey-list">
+          <!-- các mốc hành trình được JS chèn vào đây -->
+        </ol>
+      </section>
+
+      <section class="tab-panel" id="panel-audit" hidden>
+        <div class="audit-grid">
+          <div class="audit-item">
+            <p class="audit-label">Đơn vị kiểm định</p>
+            <p id="auditor-name" class="audit-value">—</p>
+          </div>
+          <div class="audit-item">
+            <p class="audit-label">Ngày phê duyệt</p>
+            <p id="audit-date" class="audit-value">—</p>
+          </div>
+          <div class="audit-item audit-hash">
+            <p class="audit-label">Mã băm SHA-256 báo cáo</p>
+            <p id="report-hash" class="audit-value hash">—</p>
+          </div>
+          <div class="audit-item">
+            <p class="audit-label">Trace ID</p>
+            <p id="trace-id" class="audit-value">—</p>
+          </div>
+        </div>
+        <p class="audit-note">
+          Mã băm trên được hệ thống tự động tạo khi tiếp nhận báo cáo kiểm
+          nghiệm. Nếu tài liệu gốc bị thay đổi sau đó, mã băm sẽ không còn khớp
+          — đây là cơ sở để xác minh báo cáo chưa bị chỉnh sửa.
+        </p>
+      </section>
+
+      <section class="tab-panel" id="panel-report" hidden>
+        <div id="report-list" class="report-list">
+          <p class="report-empty">
+            Chưa có phiếu kiểm nghiệm được công khai cho lô hàng này.
+          </p>
+        </div>
+      </section>
+
+      <section class="qr-block">
+        <div class="qr-image">
+          <img id="qr-image" src="" alt="Mã QR của lô hàng" />
+        </div>
+        <div class="qr-meta">
+          <p class="qr-heading">Mã QR lô hàng</p>
+          <p>Mã lô: <strong id="qr-batch-code">—</strong></p>
+          <p>Cập nhật lần cuối: <span id="last-updated">—</span></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p class="footer-claim">
+        Bạn đang xem hồ sơ số được xác thực bởi AgriTrace
+      </p>
+      <p class="footer-tagline">
+        Minh bạch thông tin · Truy xuất nguồn gốc · An tâm lựa chọn
+      </p>
+      <a class="footer-link" href="index.html">Tìm hiểu thêm về AgriTrace →</a>
+    </footer>
+
+    <script>
+      // ————————————————————————————————————————————
+      // 1. Đọc mã Batch Code từ URL: lookup.html?code=ABC123
+      // ————————————————————————————————————————————
+      const params = new URLSearchParams(window.location.search);
+      const batchCode = params.get("code");
+
+      // ————————————————————————————————————————————
+      // 2. Dữ liệu mẫu để xem trước giao diện khi CHƯA nối API thật.
+      //    Khi Backend đã có API, xoá khối MOCK_DATA này và dùng
+      //    đúng đoạn fetch() thật ở dưới.
+      // ————————————————————————————————————————————
+      const MOCK_DATA = {
+        status: "AUDITED", // hoặc 'UNVERIFIED' / 'REJECTED'
+        batchCode: "AGT-2026-0042",
+        productName: "Xoài Cát Hòa Lộc",
+        summary: "Xoài chín cây, thu hoạch thủ công, không dùng thuốc chín ép.",
+        image: "../assets/fruit.svg",
+        farmName: "Nông trại Ba Thức, Cái Bè",
+        harvestDate: "15/09/2026",
+        originArea: "Cái Bè, Tiền Giang",
+        weight: "180 kg",
+        journey: [
+          {
+            title: "Lô hàng được tạo",
+            date: "15/09/2026",
+            desc: "Nông dân khai báo lô hàng sau thu hoạch.",
+          },
+          {
+            title: "Mẫu gửi kiểm nghiệm",
+            date: "16/09/2026",
+            desc: "Mẫu đại diện được gửi đến phòng thí nghiệm.",
+          },
+          {
+            title: "Kiểm định viên phê duyệt",
+            date: "19/09/2026",
+            desc: "Hồ sơ được xác minh và chuyển sang trạng thái đã kiểm định.",
+          },
+          {
+            title: "Mã QR được kích hoạt",
+            date: "19/09/2026",
+            desc: "Lô hàng sẵn sàng để truy xuất công khai.",
+          },
+        ],
+        auditorName: "Trung tâm Kiểm định Nông sản An Giang",
+        auditDate: "19/09/2026",
+        reportHash: "3f9c1a...e02b8d",
+        traceId: "TRC-9F21-AGT",
+        reports: [{ name: "Phiếu kiểm nghiệm vi sinh.pdf", url: "#" }],
+        qrImage: "",
+        lastUpdated: "19/09/2026",
+      };
+
+      // ————————————————————————————————————————————
+      // 3. Hàm đổ dữ liệu vào giao diện
+      // ————————————————————————————————————————————
+      function renderBatch(data) {
+        document.getElementById("product-image").src = data.image || "";
+        document.getElementById("batch-code").textContent =
+          "Mã lô: " + data.batchCode;
+        document.getElementById("product-name").textContent = data.productName;
+        document.getElementById("product-summary").textContent =
+          data.summary || "";
+
+        document.getElementById("farm-name").textContent = data.farmName || "—";
+        document.getElementById("harvest-date").textContent =
+          data.harvestDate || "—";
+        document.getElementById("origin-area").textContent =
+          data.originArea || "—";
+        document.getElementById("batch-weight").textContent =
+          data.weight || "—";
+
+        const badge = document.getElementById("status-badge");
+        const statusMap = {
+          AUDITED: { text: "Đã kiểm định", cls: "status-audited" },
+          UNVERIFIED: { text: "Chưa kiểm định", cls: "status-pending" },
+          REJECTED: { text: "Bị từ chối", cls: "status-rejected" },
+        };
+        const s = statusMap[data.status] || statusMap.UNVERIFIED;
+        badge.textContent = s.text;
+        badge.className = "status-badge " + s.cls;
+
+        const journeyList = document.getElementById("journey-list");
+        journeyList.innerHTML = "";
+        (data.journey || []).forEach((step) => {
+          const li = document.createElement("li");
+          li.innerHTML = `
+          <div class="journey-dot" aria-hidden="true"></div>
+          <div>
+            <p class="journey-title">${step.title}</p>
+            <p class="journey-date">${step.date}</p>
+            <p class="journey-desc">${step.desc}</p>
+          </div>`;
+          journeyList.appendChild(li);
+        });
+
+        document.getElementById("auditor-name").textContent =
+          data.auditorName || "—";
+        document.getElementById("audit-date").textContent =
+          data.auditDate || "—";
+        document.getElementById("report-hash").textContent =
+          data.reportHash || "—";
+        document.getElementById("trace-id").textContent = data.traceId || "—";
+
+        const reportList = document.getElementById("report-list");
+        if (data.reports && data.reports.length) {
+          reportList.innerHTML = data.reports
+            .map(
+              (r) =>
+                `<a class="report-item" href="${r.url}" target="_blank" rel="noopener">📄 ${r.name}</a>`,
+            )
+            .join("");
+        }
+
+        document.getElementById("qr-image").src = data.qrImage || "";
+        document.getElementById("qr-batch-code").textContent = data.batchCode;
+        document.getElementById("last-updated").textContent =
+          data.lastUpdated || "—";
+      }
+
+      function showNotFound() {
+        document.getElementById("product-name").textContent =
+          "Không tìm thấy lô hàng";
+        document.getElementById("not-found").hidden = false;
+      }
+
+      // ————————————————————————————————————————————
+      // 4. Gọi API thật (theo đúng route trong tài liệu SRS mục 4.7.6:
+      //    GET /api/v1/public/trace/{batch_code})
+      //    Khi Backend sẵn sàng, bỏ comment đoạn dưới và xoá dòng
+      //    renderBatch(MOCK_DATA) ở cuối file.
+      // ————————————————————————————————————————————
+      /*
+    fetch(`/api/v1/public/trace/${batchCode}`)
+      .then(res => {
+        if (!res.ok) throw new Error('not found');
+        return res.json();
+      })
+      .then(data => renderBatch(data))
+      .catch(() => showNotFound());
+    */
+
+      // Tạm thời hiển thị dữ liệu mẫu để xem giao diện:
+      renderBatch(MOCK_DATA);
+
+      // ————————————————————————————————————————————
+      // 5. Chuyển tab
+      // ————————————————————————————————————————————
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab-btn")
+            .forEach((b) => b.classList.remove("active"));
+          document
+            .querySelectorAll(".tab-panel")
+            .forEach((p) => (p.hidden = true));
+          btn.classList.add("active");
+          document.getElementById("panel-" + btn.dataset.tab).hidden = false;
+        });
+      });
+    </script>
+  </body>
+</html>

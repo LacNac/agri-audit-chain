@@ -41,8 +41,8 @@ const ICONS = {
 
 function renderLogo() {
   return `<div class="logo" onclick="navigate('overview')">
-    <img src="assets/logo-icon.svg" class="logo-icon" alt="AgriTrace">
-    <img src="assets/logo-text.svg" class="logo-text" alt="AgriTrace">
+    <img src="../assets/logo-icon.svg" class="logo-icon" alt="AgriTrace">
+    <img src="../assets/logo-text.svg" class="logo-text" alt="AgriTrace">
   </div>`;
 }
 
@@ -278,7 +278,7 @@ async function initFarmer() {
     !session?.access_token ||
     String(session.role || "").toUpperCase() !== "FARMER"
   ) {
-    window.location.href = "./login.html";
+    window.location.href = "../login.html";
     return;
   }
 
@@ -309,7 +309,7 @@ async function initFarmer() {
 
     if (profileResponse.status === 401 || batchesResponse.status === 401) {
       clearCurrentSession();
-      window.location.href = "./login.html";
+      window.location.href = "../login.html";
       return;
     }
 
@@ -741,7 +741,7 @@ function renderDetailModal(id) {
       </div>
       <div class="section-label">Biên bản kiểm định</div>
       ${b.reportPdfUrl ? `<div style="width:100%;max-height:62vh;overflow-y:auto;overflow-x:hidden;border:1px solid var(--border);border-radius:10px;background:#f5f5f5;"><object data="${esc(b.reportPdfUrl)}" type="application/pdf" style="display:block;width:100%;min-height:760px;border:0;"><a href="${esc(b.reportPdfUrl)}" target="_blank" rel="noopener">Mở file PDF</a></object></div>` : `<div class="file-chip">${ICONS.file} ${esc(b.report || "Chưa có biên bản")}</div>`}
-      ${b.trace?.id ? `<a class="file-chip" href="./public/trace.html?trace=${encodeURIComponent(b.trace.id)}" target="_blank" rel="noopener">${ICONS.search} Mở hồ sơ truy xuất</a>` : ""}
+      ${b.trace?.id ? `<a class="file-chip" href="../public/trace.html?trace=${encodeURIComponent(b.trace.id)}" target="_blank" rel="noopener">${ICONS.search} Mở hồ sơ truy xuất</a>` : ""}
       `
           : ``
       }
@@ -1145,7 +1145,7 @@ function submitEditProfile() {
 function doLogout() {
   if (confirm("Bạn có chắc chắn muốn đăng xuất khỏi AgriTrace?")) {
     clearCurrentSession();
-    window.location.href = "./login.html";
+    window.location.href = "../login.html";
   }
 }
 function reLogin() {

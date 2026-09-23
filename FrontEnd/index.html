@@ -11,16 +11,13 @@
     <!-- NAVBAR -->
     <nav class="navbar">
       <div class="logo-group">
-        <img src="./assets/logotachnen.png" alt="Biểu tượng AgriTrace" class="logo-icon" />
+        <img
+          src="./assets/logotachnen.png"
+          alt="Biểu tượng AgriTrace"
+          class="logo-icon"
+        />
         <img src="./assets/texttachnen.png" alt="AgriTrace" class="logo-text" />
       </div>
-
-      <ul class="nav-menu">
-        <li><a class="active" href="#">Trang chủ</a></li>
-        <li><a href="#trace-search">Tra cứu</a></li>
-        <li><a href="#about">Về chúng tôi</a></li>
-        <li><a href="#contact">Liên hệ</a></li>
-      </ul>
 
       <div class="nav-login">
         <a href="login.html">Đăng nhập</a>
@@ -69,7 +66,11 @@
                 <circle cx="11" cy="11" r="7"></circle>
                 <path d="m20 20-4-4"></path>
               </svg>
-              <input id="trace-code" type="search" placeholder="Nhập Batch Code hoặc Trace ID (ví dụ: BAT-2026-001)" />
+              <input
+                id="trace-code"
+                type="search"
+                placeholder="Nhập Batch Code hoặc Trace ID (ví dụ: BAT-2026-001)"
+              />
               <button type="button">Tra cứu</button>
             </div>
           </form>
@@ -78,14 +79,23 @@
           </p>
         </div>
         <div class="hero-image">
-          <img src="./assets/fruit.svg" alt="Nông sản Việt" class="fruit" />
+          <img src="./assets/fruit.png" alt="Nông sản Việt" class="fruit" />
         </div>
       </section>
 
       <!-- FLOATING ACTION BUTTONS -->
       <div class="floating-actions">
         <button class="fab-btn qr-btn" title="Quét mã QR">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <rect x="3" y="3" width="7" height="7" rx="1.5" />
             <rect x="14" y="3" width="7" height="7" rx="1.5" />
             <rect x="3" y="14" width="7" height="7" rx="1.5" />
@@ -94,12 +104,17 @@
         </button>
 
         <button class="fab-btn bot-btn" title="Trợ lý AI">
-          <img src="https://api.dicebear.com/7.x/bottts/svg?seed=AgriBotPurple" alt="Bot Support" />
+          <img
+            src="https://api.dicebear.com/7.x/bottts/svg?seed=AgriBotPurple"
+            alt="Bot Support"
+          />
         </button>
 
         <a href="#contact" class="fab-btn call-btn" title="Gọi tư vấn">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.24 1.01l-2.21 2.2z" />
+            <path
+              d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.24 1.01l-2.21 2.2z"
+            />
           </svg>
         </a>
       </div>
@@ -109,23 +124,35 @@
     <section class="about-strip" id="about">
       <p class="section-kicker">AGRI<span>TRACE</span></p>
       <h2>Minh bạch hơn từ trang trại đến bàn ăn.</h2>
-      <p>Mỗi lô nông sản có một hồ sơ số rõ ràng, có thể kiểm chứng và truy xuất bất cứ lúc nào.</p>
+      <p>
+        Mỗi lô nông sản có một hồ sơ số rõ ràng, có thể kiểm chứng và truy xuất
+        bất cứ lúc nào.
+      </p>
 
       <div class="about-features">
         <div class="feature-card">
           <div class="feature-icon">🌱</div>
           <h3>Dành cho Nông dân</h3>
-          <p>Tạo lô hàng nhanh chóng, quản lý nhật ký thu hoạch và tự động tạo mã QR định danh cho từng lô sản phẩm.</p>
+          <p>
+            Tạo lô hàng nhanh chóng, quản lý nhật ký thu hoạch và tự động tạo mã
+            QR định danh cho từng lô sản phẩm.
+          </p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🔍</div>
           <h3>Dành cho Kiểm định viên</h3>
-          <p>Thẩm định báo cáo Lab, xác thực toàn vẹn dữ liệu qua mã băm SHA-256 trước khi cấp chứng nhận lưu hành.</p>
+          <p>
+            Thẩm định báo cáo Lab, xác thực toàn vẹn dữ liệu qua mã băm SHA-256
+            trước khi cấp chứng nhận lưu hành.
+          </p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">📱</div>
           <h3>Dành cho Người tiêu dùng</h3>
-          <p>Quét mã QR bằng điện thoại để xem toàn bộ nguồn gốc xuất xứ, chứng nhận VietGAP/GlobalGAP và lịch sử thu hoạch.</p>
+          <p>
+            Quét mã QR bằng điện thoại để xem toàn bộ nguồn gốc xuất xứ, chứng
+            nhận VietGAP/GlobalGAP và lịch sử thu hoạch.
+          </p>
         </div>
       </div>
     </section>
@@ -137,7 +164,8 @@
           <p class="section-kicker">KẾT NỐI VỚI CHÚNG TÔI</p>
           <h2>Liên hệ AgriTrace</h2>
           <p class="contact-desc">
-            Bạn cần hỗ trợ về giải pháp số hóa nông sản, hợp tác triển khai hoặc giải đáp thắc mắc? Hãy gửi tin nhắn cho chúng tôi.
+            Bạn cần hỗ trợ về giải pháp số hóa nông sản, hợp tác triển khai hoặc
+            giải đáp thắc mắc? Hãy gửi tin nhắn cho chúng tôi.
           </p>
           <ul class="contact-details">
             <li>
@@ -164,21 +192,43 @@
           </ul>
         </div>
 
-        <form class="contact-form" onsubmit="event.preventDefault(); alert('Cảm ơn bạn đã gửi liên hệ! Chúng tôi sẽ phản hồi sớm nhất.');">
+        <form
+          class="contact-form"
+          onsubmit="
+            event.preventDefault();
+            alert('Cảm ơn bạn đã gửi liên hệ! Chúng tôi sẽ phản hồi sớm nhất.');
+          "
+        >
           <h3>Gửi tin nhắn tư vấn</h3>
           <div class="form-group">
             <label for="c-name">Họ và tên (*)</label>
-            <input type="text" id="c-name" placeholder="Nguyễn Văn A" required />
+            <input
+              type="text"
+              id="c-name"
+              placeholder="Nguyễn Văn A"
+              required
+            />
           </div>
           <div class="form-group">
             <label for="c-email">Email / Số điện thoại (*)</label>
-            <input type="text" id="c-email" placeholder="0987xxxxxx hoặc email@domain.com" required />
+            <input
+              type="text"
+              id="c-email"
+              placeholder="0987xxxxxx hoặc email@domain.com"
+              required
+            />
           </div>
           <div class="form-group">
             <label for="c-message">Nội dung cần hỗ trợ</label>
-            <textarea id="c-message" rows="4" placeholder="Nhập nội dung câu hỏi hoặc yêu cầu tư vấn..."></textarea>
+            <textarea
+              id="c-message"
+              rows="4"
+              placeholder="Nhập nội dung câu hỏi hoặc yêu cầu tư vấn..."
+            ></textarea>
           </div>
-          <button type="submit" class="button button-primary">Gửi liên hệ ngay</button>
+          <button type="submit" class="button button-primary">
+            Gửi liên hệ ngay
+          </button>
         </form>
       </div>
     </section>
@@ -188,11 +238,20 @@
       <div class="footer-container">
         <div class="footer-col brand-col">
           <div class="footer-brand">
-            <img src="./assets/logotachnen.png" alt="AgriTrace Icon" class="footer-logo-icon" />
-            <img src="./assets/texttachnen.png" alt="AgriTrace" class="footer-logo-text" />
+            <img
+              src="./assets/logotachnen.png"
+              alt="AgriTrace Icon"
+              class="footer-logo-icon"
+            />
+            <img
+              src="./assets/texttachnen.png"
+              alt="AgriTrace"
+              class="footer-logo-text"
+            />
           </div>
           <p class="brand-desc">
-            Nền tảng hồ sơ số và truy xuất nguồn gốc nông sản minh bạch, kết nối người nông dân, nhà kiểm định và người tiêu dùng.
+            Nền tảng hồ sơ số và truy xuất nguồn gốc nông sản minh bạch, kết nối
+            người nông dân, nhà kiểm định và người tiêu dùng.
           </p>
         </div>
 
@@ -200,9 +259,9 @@
           <h4 class="footer-title">Hệ thống</h4>
           <ul class="footer-links">
             <li><a href="#trace-search">Tra cứu QR Code</a></li>
-            <li><a href="./farmer.html">Cổng Nông dân</a></li>
+            <li><a href="./farmer/farmer.html">Cổng Nông dân</a></li>
             <li><a href="#">Cổng Kiểm định (Auditor)</a></li>
-            <li><a href="./admin.html">Quản trị hệ thống</a></li>
+            <li><a href="./admin/admin.html">Quản trị hệ thống</a></li>
           </ul>
         </div>
 
@@ -228,7 +287,9 @@
 
       <div class="footer-bottom">
         <div class="footer-bottom-container">
-          <p class="copyright-text">© 2026 AgriTrace Platform. All rights reserved.</p>
+          <p class="copyright-text">
+            © 2026 AgriTrace Platform. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>
