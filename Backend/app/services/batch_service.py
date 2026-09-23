@@ -130,12 +130,28 @@ def delete_batch(db: sqlite3.Connection, batch_id: int, farmer_id: int):
     if batch["farmer_id"] != farmer_id:
         raise HTTPException(status_code=403, detail="Bạn không có quyền xóa batch này")
 
-    if batch["status"] == "UNVERIFIED":
+    if batch["status"] in {"UNVERIFIED", "REJECTED"}:
         db.execute("DELETE FROM batches WHERE id = ?", (batch_id,))
         db.commit()
         return {"batch_id": batch_id, "deleted": True}
 
-    if batch["status"] == "REJECTED":
-        raise HTTPException(status_code=403, detail="Batch REJECTED không được phép xóa")
-
     raise HTTPException(status_code=403, detail="Batch ở trạng thái AUDITED, không được sửa hoặc xóa")
+
+
+def submit_batch(db: sqlite3.Connection, batch_id: int, farmer_id: int, resubmit: bool = False):
+    batch = get_batch_by_id(db, batch_id)
+    if batch["farmer_id"] != farmer_id:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền gửi batch này")
+    expected_status = "REJECTED" if resubmit else "UNVERIFIED"
+    if batch["status"] != expected_status:
+        raise HTTPException(status_code=400, detail=f"Batch phải ở trạng thái {expected_status}")
+    record_audit_trail(
+        db,
+        user_id=farmer_id,
+        action="RESUBMIT_BATCH" if resubmit else "SUBMIT_BATCH",
+        entity_type="batch",
+        entity_id=batch_id,
+        old_value={"status": batch["status"]},
+        new_value={"status": batch["status"]},
+    )
+    return {"batch_id": batch_id, "status": batch["status"], "submitted": True}

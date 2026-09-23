@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from ..core.security import hash_password
 from ..dependencies.auth import get_current_user, get_db
 from ..dependencies.rbac import require_roles
-from ..schema.user import AuditorCreate, UserStatusUpdate
+from ..schema.user import AuditorCreate, UserCreate, UserRoleUpdate, UserStatusUpdate, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -61,6 +61,60 @@ def list_users(db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
         "role": row[3],
         "status": row[4],
     } for row in rows]
+
+
+@router.get("/{user_id}")
+def get_user(user_id: int, db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
+    row = db.execute(
+        "SELECT id, username, full_name, email, phone, role, status, created_at FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+    return dict(zip(("id", "username", "full_name", "email", "phone", "role", "status", "created_at"), row))
+
+
+@router.post("", status_code=201)
+def create_user(data: UserCreate, db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
+    role = data.role.upper()
+    if role not in {"ADMIN", "FARMER", "AUDITOR", "PUBLIC"}:
+        raise HTTPException(status_code=400, detail="Role không hợp lệ")
+    try:
+        cursor = db.execute(
+            "INSERT INTO users (username, password_hash, full_name, email, phone, role, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
+            (data.username, hash_password(data.password), data.full_name, data.email, data.phone, role),
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Username hoặc email đã tồn tại")
+    return get_user(cursor.lastrowid, db, user)
+
+
+@router.patch("/{user_id}")
+def update_user(user_id: int, data: UserUpdate, db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
+    updates = data.model_dump(exclude_none=True)
+    if "role" in updates:
+        updates["role"] = updates["role"].upper()
+        if updates["role"] not in {"ADMIN", "FARMER", "AUDITOR", "PUBLIC"}:
+            raise HTTPException(status_code=400, detail="Role không hợp lệ")
+    if not updates:
+        return get_user(user_id, db, user)
+    if not db.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone():
+        raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+    assignments = ", ".join(f"{field} = ?" for field in updates)
+    try:
+        db.execute(f"UPDATE users SET {assignments} WHERE id = ?", [*updates.values(), user_id])
+        db.commit()
+    except sqlite3.IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Email đã tồn tại")
+    return get_user(user_id, db, user)
+
+
+@router.patch("/{user_id}/role")
+def update_user_role(user_id: int, data: UserRoleUpdate, db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
+    return update_user(user_id, UserUpdate(role=data.role), db, user)
 
 
 @router.post("/auditors", status_code=201)

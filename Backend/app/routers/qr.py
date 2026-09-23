@@ -12,12 +12,12 @@ router = APIRouter(prefix="/qr", tags=["qr"])
 
 
 @router.post("")
-def create_qr(batch_id: int, db=Depends(get_db), user=Depends(require_roles("ADMIN", "AUDITOR", "FARMER"))):
+def create_qr(batch_id: int, db=Depends(get_db), user=Depends(require_roles("AUDITOR"))):
     return create_qr_record(db, batch_id=batch_id, user_id=user["id"])
 
 
 @router.get("/{batch_id}/image")
-def get_qr_image(batch_id: int, db=Depends(get_db), user=Depends(require_roles("ADMIN", "AUDITOR", "FARMER"))):
+def get_qr_image(batch_id: int, db=Depends(get_db), user=Depends(require_roles("AUDITOR"))):
     result = create_qr_record(db, batch_id=batch_id, user_id=user["id"])
     target_url = f"http://127.0.0.1:5500{result['public_url']}"
     image = qrcode.make(target_url)

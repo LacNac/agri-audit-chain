@@ -1,5 +1,14 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+def _required_text(value: str) -> str:
+    if value is None:
+        return None
+    value = value.strip()
+    if not value:
+        raise ValueError("Giá trị không được để trống hoặc chỉ chứa khoảng trắng")
+    return value
 
 
 class UserPublic(BaseModel):
@@ -20,6 +29,8 @@ class UserCreate(BaseModel):
     phone: Optional[str] = None
     role: str = "farmer"
 
+    _trim_required_text = field_validator("username", "password", "full_name", "email", mode="before")(_required_text)
+
 
 class AuditorCreate(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=100)
@@ -27,6 +38,21 @@ class AuditorCreate(BaseModel):
     password: str = Field(..., min_length=6)
     phone: Optional[str] = None
 
+    _trim_required_text = field_validator("full_name", "email", "password", mode="before")(_required_text)
+
 
 class UserStatusUpdate(BaseModel):
     status: str = Field(..., pattern="^(active|locked)$")
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = Field(default=None, min_length=2, max_length=100)
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    role: Optional[str] = None
+
+    _trim_optional_text = field_validator("full_name", "email", "phone", "role", mode="before")(_required_text)
+
+
+class UserRoleUpdate(BaseModel):
+    role: str = Field(..., pattern="^(ADMIN|FARMER|AUDITOR|PUBLIC)$")

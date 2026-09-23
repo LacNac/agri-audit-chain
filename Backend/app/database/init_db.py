@@ -158,6 +158,18 @@ def ensure_database_schema() -> None:
                 FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE CASCADE,
                 FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE SET NULL
             );
+
+            CREATE TABLE IF NOT EXISTS integrity_proofs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                report_id INTEGER NOT NULL UNIQUE,
+                batch_id INTEGER NOT NULL,
+                file_hash TEXT NOT NULL,
+                previous_proof TEXT,
+                proof_hash TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (report_id) REFERENCES lab_reports(id) ON DELETE CASCADE,
+                FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE CASCADE
+            );
             """
         )
 
@@ -176,6 +188,11 @@ def ensure_database_schema() -> None:
 
         default_permissions = [
             ("AUTH_LOGIN", "Login", "User login"),
+            ("USER_VIEW", "View users", "View user accounts"),
+            ("USER_CREATE", "Create users", "Create user accounts"),
+            ("USER_UPDATE", "Update users", "Update user accounts"),
+            ("ROLE_VIEW", "View roles", "View roles and permissions"),
+            ("ROLE_UPDATE", "Update roles", "Assign user roles"),
             ("BATCH_CREATE", "Create Batch", "Create new batch"),
             ("BATCH_VIEW_OWN", "View own batches", "View own produced batches"),
             ("BATCH_VIEW_ALL", "View all batches", "View all batches for auditor/admin"),
@@ -189,6 +206,8 @@ def ensure_database_schema() -> None:
             ("AUDIT_APPROVE", "Approve batch", "Approve audited batch"),
             ("AUDIT_REJECT", "Reject batch", "Reject batch"),
             ("AUDIT_VIEW_HISTORY", "View audit history", "View audit trail"),
+            ("HASH_VERIFY", "Verify report hash", "Verify report file integrity"),
+            ("PROOF_VIEW", "View integrity proof", "View proof of integrity"),
             ("QR_GENERATE", "Generate QR", "Generate QR for audited batch"),
             ("PUBLIC_TRACE_VIEW", "Public trace view", "Public traceability access"),
             ("DASHBOARD_VIEW", "Dashboard view", "Admin dashboard access"),
@@ -210,9 +229,9 @@ def seed_default_role_permissions() -> None:
     conn.execute("PRAGMA foreign_keys = ON")
     try:
         role_permission_map = {
-            "ADMIN": ["AUTH_LOGIN", "BATCH_CREATE", "BATCH_VIEW_OWN", "BATCH_VIEW_ALL", "BATCH_UPDATE_OWN", "BATCH_DELETE_OWN", "SAMPLE_CREATE", "SAMPLE_VIEW_OWN", "SAMPLE_VIEW_ALL", "AUDIT_VIEW", "AUDIT_UPLOAD_REPORT", "AUDIT_APPROVE", "AUDIT_REJECT", "AUDIT_VIEW_HISTORY", "QR_GENERATE", "PUBLIC_TRACE_VIEW", "DASHBOARD_VIEW"],
-            "FARMER": ["AUTH_LOGIN", "BATCH_CREATE", "BATCH_VIEW_OWN", "BATCH_UPDATE_OWN", "BATCH_DELETE_OWN", "SAMPLE_VIEW_OWN", "QR_GENERATE"],
-            "AUDITOR": ["AUTH_LOGIN", "BATCH_VIEW_ALL", "SAMPLE_CREATE", "SAMPLE_VIEW_ALL", "AUDIT_VIEW", "AUDIT_UPLOAD_REPORT", "AUDIT_APPROVE", "AUDIT_REJECT", "AUDIT_VIEW_HISTORY"],
+            "ADMIN": ["AUTH_LOGIN", "USER_VIEW", "USER_CREATE", "USER_UPDATE", "ROLE_VIEW", "ROLE_UPDATE", "DASHBOARD_VIEW", "AUDIT_VIEW_HISTORY"],
+            "FARMER": ["AUTH_LOGIN", "BATCH_CREATE", "BATCH_VIEW_OWN", "BATCH_UPDATE_OWN", "BATCH_DELETE_OWN", "SAMPLE_VIEW_OWN"],
+            "AUDITOR": ["AUTH_LOGIN", "BATCH_VIEW_ALL", "SAMPLE_CREATE", "SAMPLE_VIEW_ALL", "AUDIT_VIEW", "AUDIT_UPLOAD_REPORT", "AUDIT_APPROVE", "AUDIT_REJECT", "AUDIT_VIEW_HISTORY", "HASH_VERIFY", "PROOF_VIEW", "QR_GENERATE"],
             "PUBLIC": ["PUBLIC_TRACE_VIEW"],
         }
 
@@ -221,6 +240,7 @@ def seed_default_role_permissions() -> None:
             if not role_row:
                 continue
             role_id = role_row[0]
+            conn.execute("DELETE FROM role_permissions WHERE role_id = ?", (role_id,))
 
             for permission_code in permission_codes:
                 perm_row = conn.execute("SELECT id FROM permissions WHERE code = ?", (permission_code,)).fetchone()

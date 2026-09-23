@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from ..dependencies.auth import get_db
 from ..dependencies.rbac import require_permission
-from ..schema.audit import AuditDecision, LabReportCreate, LabReportOut
-from ..services.audit_service import approve_batch, create_report, reject_batch
+from ..schema.audit import AuditDecision, LabReportOut
+from ..services.audit_service import approve_batch, create_report, get_report, list_reports_by_batch, reject_batch, verify_report_integrity
 
 router = APIRouter(prefix="/auditor", tags=["auditor"])
 
@@ -158,8 +158,13 @@ async def create_lab_report_with_file(
     file: UploadFile = File(...),
     file_path: str | None = Form(None),
     db=Depends(get_db),
-    user=Depends(require_permission("AUDIT_VIEW")),
+    user=Depends(require_permission("AUDIT_UPLOAD_REPORT")),
 ):
+    lab_name = lab_name.strip()
+    lab_code = lab_code.strip()
+    result = result.strip()
+    if len(lab_name) < 2 or len(lab_code) < 2 or len(result) < 2:
+        raise HTTPException(status_code=422, detail="lab_name, lab_code và result không được để trống hoặc chỉ chứa khoảng trắng")
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Chỉ chấp nhận file PDF")
 
@@ -194,25 +199,19 @@ async def create_lab_report_with_file(
     )
 
 
-@router.post("/report", response_model=LabReportOut)
-def create_lab_report_legacy(payload: LabReportCreate, db=Depends(get_db), user=Depends(require_permission("AUDIT_VIEW"))):
-    if payload.file_hash:
-        raise HTTPException(status_code=400, detail="Hash PDF không được nhập thủ công; hệ thống tự tính từ file upload")
-    result = create_report(db, payload.model_dump(exclude_none=True), file_bytes=b"")
-    return LabReportOut(
-        id=result["id"],
-        report_code=result["report_code"],
-        sample_id=payload.sample_id,
-        batch_id=payload.batch_id,
-        lab_name=payload.lab_name,
-        lab_code=payload.lab_code,
-        report_date=payload.report_date,
-        result=payload.result,
-        file_name=payload.file_name,
-        file_hash=result["file_hash"],
-        file_path=payload.file_path,
-        status=result["status"],
-    )
+@router.get("/reports/{report_id}")
+def read_report(report_id: int, db=Depends(get_db), user=Depends(require_permission("AUDIT_VIEW"))):
+    return get_report(db, report_id)
+
+
+@router.get("/batches/{batch_id}/reports")
+def read_batch_reports(batch_id: int, db=Depends(get_db), user=Depends(require_permission("AUDIT_VIEW"))):
+    return list_reports_by_batch(db, batch_id)
+
+
+@router.get("/reports/{report_id}/integrity")
+def read_report_integrity(report_id: int, db=Depends(get_db), user=Depends(require_permission("HASH_VERIFY"))):
+    return verify_report_integrity(db, report_id)
 
 
 @router.post("/batches/{batch_id}/approve")

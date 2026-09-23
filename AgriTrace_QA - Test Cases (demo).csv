@@ -67,7 +67,7 @@ TC-BATCH-14,Batch,Kiểm tra Farmer được sửa Batch ở trạng thái REJEC
 thông tin cần chỉnh sửa","1. Farmer mở Batch REJECTED
 2. Chỉnh sửa thông tin
 3. Lưu",Farmer được phép sửa Batch để xử lý lỗi và gửi lại kiểm định,,NOT RUN,
-TC-BATCH-15,Batch,Kiểm tra Farmer không được xóa Batch ở trạng thái REJECTED,Batch trạng thái REJECTED,Batch REJECTED,1. Farmer chọn xóa Batch,Hệ thống không cho phép xóa Batch REJECTED,,NOT RUN,
+TC-BATCH-15,Batch,Kiểm tra Farmer được xóa Batch ở trạng thái REJECTED,Batch trạng thái REJECTED,Batch REJECTED,1. Farmer chọn xóa Batch,Hệ thống cho phép xóa Batch REJECTED,,NOT RUN,
 TC-BATCH-16,Batch,Batch đã được Auditor Approve,Batch trạng thái AUDITED,"1. Farmer mở Batch
 2. Chọn Edit","1. Farmer mở Batch
 2. Chọn Edit",Hệ thống không cho phép sửa Batch đã AUDITED,,NOT RUN,
@@ -76,13 +76,11 @@ TC-SAMPLE-01,Sample,Tạo Sample liên kết với Batch,Có Batch hợp lệ,Sa
 TC-SAMPLE-02,Sample,Sample tham chiếu Batch không tồn tại,Không có Batch tương ứng,Batch ID không tồn tại,Tạo Sample,Hệ thống từ chối và báo lỗi,,NOT RUN,
 TC-SAMPLE-03,Sample,Kiểm tra Sample thuộc đúng Batch,Có Sample đã tạo,Sample ID + Batch ID,Xem thông tin Sample,Sample hiển thị đúng Batch liên kết,,NOT RUN,
 TC-SAMPLE-04,Sample,Thiếu thông tin bắt buộc khi tạo Sample,Có Batch,Sample thiếu required field,Submit Sample,Hệ thống validation và không tạo dữ liệu không hợp lệ,,NOT RUN,
-TC-SAMPLE-05,Sample,Kiểm tra tạo nhiều Sample thuộc cùng một Batch,Batch đã tồn tại trong hệ thống,"Batch ID: BATCH-001
-Sample 1: SAMPLE-001
-Sample 2: SAMPLE-002
-Sample 3: SAMPLE-003","1. Farmer/Auditor tạo Sample cho Batch-001
-2. Tạo thêm Sample khác thuộc cùng Batch
-3. Kiểm tra danh sách Sample của Batch","Hệ thống cho phép nhiều Sample thuộc cùng một Batch; 
-mỗi Sample có Sample ID riêng và liên kết đúng với Batch",,NOT RUN,
+TC-SAMPLE-05,Sample,Kiểm tra chỉ Auditor tạo một Sample thuộc một Batch,Batch đã tồn tại trong hệ thống,"Batch ID: BATCH-001
+Sample ID: SAMPLE-001","1. Farmer thử tạo Sample cho Batch-001
+2. Auditor tạo Sample cho Batch-001
+3. Farmer thử sửa/xóa Sample
+4. Auditor kiểm tra Sample","Farmer bị từ chối tạo/sửa/xóa Sample; Auditor tạo và quản lý được Sample; mỗi Batch chỉ có một Sample",,NOT RUN,
 TC-SAMPLE-06,Sample,Kiểm tra không tạo Sample khi thiếu thông tin bắt buộc,Batch tồn tại trong hệ thống,"Thiếu một trong các thông tin:
 - Sampling Date
 - Sample Quantity

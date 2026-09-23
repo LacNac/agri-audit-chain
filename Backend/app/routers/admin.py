@@ -161,3 +161,15 @@ def list_admin_batches(db=Depends(get_db), user=Depends(require_roles("ADMIN")))
 @router.get("/audit-trails")
 def list_admin_audit_trails(db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
     return _all_audit_trails(db)
+
+
+@router.get("/roles")
+def list_roles(db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
+    rows = db.execute("SELECT id, code, name, description FROM roles ORDER BY code").fetchall()
+    return [dict(zip(("id", "code", "name", "description"), row)) for row in rows]
+
+
+@router.get("/permissions")
+def list_permissions(db=Depends(get_db), user=Depends(require_roles("ADMIN"))):
+    rows = db.execute("SELECT id, code, name, description FROM permissions ORDER BY code").fetchall()
+    return [dict(zip(("id", "code", "name", "description"), row)) for row in rows]

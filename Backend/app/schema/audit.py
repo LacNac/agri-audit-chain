@@ -1,19 +1,13 @@
 from datetime import date
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
-class LabReportCreate(BaseModel):
-    sample_id: int
-    batch_id: int
-    lab_name: str = Field(..., min_length=2, max_length=200)
-    lab_code: str = Field(..., min_length=2, max_length=100)
-    report_date: Optional[date] = None
-    result: str = Field(..., min_length=2, max_length=100)
-    file_name: Optional[str] = None
-    file_path: Optional[str] = None
-    status: str = "PENDING"
-    file_hash: Optional[str] = Field(default=None, exclude=True)
+def _required_text(value: str) -> str:
+    value = value.strip()
+    if not value:
+        raise ValueError("Giá trị không được để trống hoặc chỉ chứa khoảng trắng")
+    return value
 
 
 class LabReportOut(BaseModel):
@@ -33,3 +27,5 @@ class LabReportOut(BaseModel):
 
 class AuditDecision(BaseModel):
     reason: str = Field(..., min_length=1)
+
+    _trim_reason = field_validator("reason", mode="before")(_required_text)

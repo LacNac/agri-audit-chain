@@ -146,6 +146,26 @@ def list_samples(db: sqlite3.Connection, user: dict[str, Any]):
     return [_serialize_sample(row, columns) for row in rows]
 
 
+def delete_sample(db: sqlite3.Connection, sample_id: int, user_id: int | None = None):
+    row = db.execute(
+        "SELECT id, batch_id, sample_code FROM samples WHERE id = ?", (sample_id,)
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Sample không tồn tại")
+
+    db.execute("DELETE FROM samples WHERE id = ?", (sample_id,))
+    db.commit()
+    record_audit_trail(
+        db,
+        user_id=user_id,
+        action="DELETE_SAMPLE",
+        entity_type="sample",
+        entity_id=sample_id,
+        old_value={"batch_id": row[1], "sample_code": row[2]},
+    )
+    return {"sample_id": sample_id, "deleted": True}
+
+
 def get_sample_by_id(db: sqlite3.Connection, sample_id: str | int):
     try:
         numeric_id = int(sample_id)
