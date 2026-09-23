@@ -386,7 +386,6 @@ async function openBatchDetail(batchIdOrCode) {
           <div class="form-field">
             <label>Sample</label>
             <select id="r-sample-select">
-            <select id="r-sample-select">
               ${
                 samplesList
                   .map(function (s) {
@@ -400,7 +399,6 @@ async function openBatchDetail(batchIdOrCode) {
                   })
                   .join("") || "<option>— Chưa có Sample —</option>"
               }
-            </select>
             </select>
           </div>
           <div class="form-field">
@@ -515,9 +513,21 @@ function bindDetailEvents() {
       const fileInput = document.getElementById("mock-file-input");
       const file = fileInput.files[0];
       const labName = document.getElementById("r-lab-name").value.trim();
+      const sampleSelect = document.getElementById("r-sample-select");
+      const sampleId = sampleSelect?.value;
 
       if (!file) return alert("Vui lòng chọn file PDF kết quả kiểm định.");
       if (!labName) return alert("Vui lòng điền tên phòng lab.");
+      if (
+        !sampleId ||
+        !samplesListForBatch(currentBatch).some(
+          (sample) => String(sample.id) === String(sampleId),
+        )
+      ) {
+        return alert(
+          "Batch phải có Sample hợp lệ trước khi upload Laboratory Test Report.",
+        );
+      }
 
       const formData = new FormData();
       formData.append("file", file);
@@ -533,10 +543,7 @@ function bindDetailEvents() {
         "result",
         document.getElementById("r-result-select").value,
       );
-      formData.append(
-        "sample_id",
-        document.getElementById("r-sample-select").value,
-      );
+      formData.append("sample_id", sampleId);
       formData.append(
         "report_date",
         document.getElementById("r-report-date").value,
@@ -626,6 +633,12 @@ function bindDetailEvents() {
         alert(`Lỗi: ${err.message}`);
       }
     });
+}
+
+function samplesListForBatch(batch) {
+  return (batch?.samples || []).filter(
+    (sample) => String(sample.batch_id) === String(batch.id),
+  );
 }
 
 function closeDetail() {
