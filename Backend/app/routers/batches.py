@@ -1,4 +1,6 @@
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from ..dependencies.auth import get_current_user, get_db
 from ..dependencies.rbac import require_roles
 from ..schema.batch import BatchCreate, BatchOut, BatchStatusUpdate, BatchUpdate
@@ -6,6 +8,7 @@ from ..services.batch_service import create_batch, delete_batch, get_batch_by_id
 from ..services.qr_service import create_qr_record
 
 router = APIRouter(prefix="/batches", tags=["batches"])
+UPLOADS_DIR = Path(__file__).resolve().parents[2] / "uploads"
 
 
 @router.post("", response_model=BatchOut)
@@ -22,6 +25,27 @@ def get_all_batches(db=Depends(get_db), user=Depends(get_current_user)):
     else:
         farmer_id = None
     return [BatchOut(**item) for item in list_batches(db, farmer_id=farmer_id)]
+
+
+@router.get("/{batch_id}/report-file")
+def get_batch_report_file(batch_id: int, db=Depends(get_db), user=Depends(get_current_user)):
+    batch = get_batch_by_id(db, batch_id)
+    if user["role"] == "FARMER" and batch["farmer_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền xem report này")
+
+    report = db.execute(
+        "SELECT file_name, file_path FROM lab_reports WHERE batch_id = ? ORDER BY id DESC LIMIT 1",
+        (batch_id,),
+    ).fetchone()
+    if not report:
+        raise HTTPException(status_code=404, detail="Batch chưa có report")
+
+    file_name, file_path = report
+    requested_name = Path(file_path or file_name or "").name
+    report_path = (UPLOADS_DIR / requested_name).resolve()
+    if report_path.parent != UPLOADS_DIR.resolve() or not report_path.is_file():
+        raise HTTPException(status_code=404, detail="File report không tồn tại")
+    return FileResponse(report_path, media_type="application/pdf", filename=file_name or requested_name)
 
 
 @router.get("/{batch_id}", response_model=BatchOut)

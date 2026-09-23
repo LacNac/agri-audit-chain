@@ -117,6 +117,8 @@ def update_batch(db: sqlite3.Connection, batch_id: int, payload: dict[str, Any],
     assignments = ", ".join(f"{key} = ?" for key in updates)
     values = list(updates.values()) + [batch_id]
     db.execute(f"UPDATE batches SET {assignments} WHERE id = ?", values)
+    if batch["status"] == "REJECTED":
+        db.execute("UPDATE batches SET status = 'UNVERIFIED' WHERE id = ?", (batch_id,))
     db.commit()
     record_audit_trail(db, user_id=farmer_id, action="UPDATE_BATCH", entity_type="batch", entity_id=batch_id, old_value={k: previous.get(k) for k in updates}, new_value={k: updates[k] for k in updates})
     return get_batch_by_id(db, batch_id)

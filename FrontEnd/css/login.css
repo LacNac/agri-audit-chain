@@ -110,7 +110,6 @@ select {
 .sidebar {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   gap: 5px;
   padding: 56px 48px 40px;
   background: var(--white);

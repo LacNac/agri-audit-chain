@@ -12,235 +12,240 @@ const CARD_IDS = {
   "login-dn": "card-login-dn",
 };
 
-const authManager = {
-  saveSession(user) {
-    const serializedUser = JSON.stringify(user);
-    sessionStorage.setItem("currentUser", serializedUser);
-    localStorage.setItem("currentUser", serializedUser);
-  },
-};
-
 function showCard(name) {
   const targetId = CARD_IDS[name];
   if (!targetId) return;
 
   Object.values(CARD_IDS).forEach((id) => {
-    const card = document.getElementById(id);
-    if (card) card.hidden = id !== targetId;
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.hidden = id !== targetId;
   });
+
+  const panel = document.querySelector(".panel");
+  if (panel)
+    panel.scrollTo({
+      top: 0,
+      behavior: "instant" in window ? "instant" : "auto",
+    });
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-document.addEventListener("click", (event) => {
-  const trigger = event.target.closest("[data-goto]");
+// Bắt tất cả phần tử có [data-goto] (nút, thẻ a, logo...)
+document.addEventListener("click", (e) => {
+  const trigger = e.target.closest("[data-goto]");
   if (!trigger) return;
-  event.preventDefault();
+  e.preventDefault();
   showCard(trigger.getAttribute("data-goto"));
 });
 
-document.querySelectorAll("[data-toggle]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const input = document.getElementById(button.dataset.toggle);
+// Hiện / ẩn mật khẩu
+document.querySelectorAll("[data-toggle]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const input = document.getElementById(btn.getAttribute("data-toggle"));
     if (!input) return;
-    input.type = input.type === "password" ? "text" : "password";
-    button.textContent = input.type === "password" ? "Hiện" : "Ẩn";
+    const isHidden = input.type === "password";
+    input.type = isHidden ? "text" : "password";
+    btn.textContent = isHidden ? "Ẩn" : "Hiện";
   });
 });
 
+// ================================================================
+// ĐĂNG KÝ — gom dữ liệu bước 1 + bước 2, gọi API /auth/register
+// ================================================================
 let registerData = {};
+
 const formStep1 = document.getElementById("form-register-1");
+if (formStep1) {
+  formStep1.addEventListener("submit", (e) => {
+    e.preventDefault();
+
+    const password = document.getElementById("r1-pass").value;
+    const password2 = document.getElementById("r1-pass2").value;
+
+    if (password !== password2) {
+      alert("Mật khẩu xác nhận không khớp!");
+      return;
+    }
+    if (password.length < 6) {
+      alert("Mật khẩu phải có tối thiểu 6 ký tự!");
+      return;
+    }
+
+    registerData.full_name = document.getElementById("r1-name").value.trim();
+    registerData.phone = document.getElementById("r1-phone").value.trim();
+    registerData.email = document.getElementById("r1-email").value.trim();
+    registerData.password = password;
+
+    showCard("register-2");
+  });
+}
+
 const formStep2 = document.getElementById("form-register-2");
+if (formStep2) {
+  formStep2.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-formStep1?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const password = document.getElementById("r1-pass").value;
-  const confirmation = document.getElementById("r1-pass2").value;
+    registerData.business_type = document.getElementById("r2-type").value;
+    registerData.product_type = document
+      .getElementById("r2-category")
+      .value.trim();
+    registerData.business_name = document
+      .getElementById("r2-company")
+      .value.trim();
+    registerData.tax_code = document.getElementById("r2-tax").value.trim();
 
-  if (password !== confirmation) {
-    alert("Mật khẩu xác nhận không khớp!");
-    return;
-  }
+    const submitBtn = formStep2.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Đang xử lý...";
 
-  registerData = {
-    full_name: document.getElementById("r1-name").value.trim(),
-    phone: document.getElementById("r1-phone").value.trim(),
-    email: document.getElementById("r1-email").value.trim(),
-    password,
-  };
-  showCard("register-2");
-});
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(registerData),
+      });
 
-async function submitAuthForm(form, endpoint, identifierId, passwordId) {
-  const button = form.querySelector('button[type="submit"]');
-  const identifierInput = form.querySelector(`#${identifierId}`);
-  const passwordInput = form.querySelector(`#${passwordId}`);
+      const data = await res.json();
 
-  if (!button || !identifierInput || !passwordInput) {
-    alert("Không tìm thấy đầy đủ trường đăng nhập trên trang.");
-    return;
-  }
+      if (!res.ok) {
+        throw new Error(data.detail || "Đăng ký thất bại");
+      }
 
-  const originalText = button.textContent;
-  button.disabled = true;
-  button.textContent = "Đang xử lý...";
-
-  try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        identifier: identifierInput.value.trim(),
-        password: passwordInput.value,
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || "Đăng nhập thất bại");
-
-    authManager.saveSession(data);
-
-    if (String(data.role || "").toUpperCase() === "ADMIN") {
-      window.location.href = "./admin.html";
-      return;
-    }
-
-    if (String(data.role || "").toUpperCase() === "AUDITOR") {
-      window.location.href = "./auditor.html";
-      return;
-    }
-
-    if (String(data.role || "").toUpperCase() === "FARMER") {
-      window.location.href = "./farmer.html";
-      return;
-    }
-
-    alert(`Xin chào ${data.full_name}!`);
-    form.reset();
-  } catch (error) {
-    alert(`Lỗi: ${error.message}`);
-  } finally {
-    button.disabled = false;
-    button.textContent = originalText;
-  }
-}
-
-function formatApiError(detail, fallbackMessage) {
-  if (Array.isArray(detail)) {
-    return detail
-      .map((item) => {
-        const field = Array.isArray(item.loc)
-          ? item.loc[item.loc.length - 1]
-          : "Dữ liệu";
-        const messages = {
-          full_name: "Họ và tên",
-          phone: "Số điện thoại",
-          email: "Email",
-          password: "Mật khẩu",
-          business_name: "Tên doanh nghiệp",
-          business_type: "Loại hình hoạt động",
-          product_type: "Chủng loại sản phẩm",
-          tax_code: "Mã số thuế",
-        };
-        return `${messages[field] || field}: ${item.msg || "Dữ liệu không hợp lệ"}`;
-      })
-      .join("; ");
-  }
-  return typeof detail === "string" ? detail : fallbackMessage;
-}
-
-formStep2?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  registerData.business_type = document.getElementById("r2-type").value;
-  registerData.product_type = document
-    .getElementById("r2-category")
-    .value.trim();
-  registerData.business_name = document
-    .getElementById("r2-company")
-    .value.trim();
-  registerData.tax_code = document.getElementById("r2-tax").value.trim();
-
-  const button = formStep2.querySelector('button[type="submit"]');
-  const originalText = button.textContent;
-  button.disabled = true;
-  button.textContent = "Đang xử lý...";
-
-  try {
-    const response = await fetch(`${API_BASE}/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(registerData),
-    });
-    const data = await response.json();
-    if (!response.ok)
-      throw new Error(formatApiError(data.detail, "Đăng ký thất bại"));
-
-    alert(`Đăng ký thành công! Chào mừng ${data.username}`);
-    registerData = {};
-    formStep1.reset();
-    formStep2.reset();
-    showCard("landing");
-  } catch (error) {
-    alert(`Lỗi: ${error.message}`);
-  } finally {
-    button.disabled = false;
-    button.textContent = originalText;
-  }
-});
-
-document
-  .getElementById("form-login-dn")
-  ?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    submitAuthForm(event.currentTarget, "/auth/login", "dn-email", "dn-pass");
-  });
-
-document
-  .getElementById("form-login-kd")
-  ?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    submitAuthForm(
-      event.currentTarget,
-      "/auth/login-auditor",
-      "kd-email",
-      "kd-pass",
-    );
-  });
-
-document.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll("form").forEach((form) => {
-    const button = form.querySelector('button[type="submit"]');
-    if (!button) return;
-
-    const updateButtonState = () => {
-      button.disabled = !form.checkValidity();
-      button.classList.toggle("is-ready", !button.disabled);
-    };
-
-    form.addEventListener("input", updateButtonState);
-    form.addEventListener("change", updateButtonState);
-    updateButtonState();
-  });
-});
-
-document.addEventListener("DOMContentLoaded", () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const mode = urlParams.get("mode");
-  const role = urlParams.get("role");
-
-  if (mode === "register" || (role === "auditor" && mode !== "login")) {
-    // Bấm "Tạo tài khoản" -> Chuyển thẳng sang form Đăng ký bước 1
-    showCard("register-1");
-  } else if (mode === "login") {
-    if (role === "auditor") {
-      // Chỉ khi URL là login.html?mode=login&role=auditor mới vào kiểm định
-      showCard("login-kd");
-    } else if (role === "farmer" || role === "dn") {
-      // Chỉ khi URL có đích danh doanh nghiệp mới vào login-dn
-      showCard("login-dn");
-    } else {
-      // Bấm nút Đăng nhập chung từ trang chủ -> Hiện màn hình chọn vai trò (Landing)
+      alert(`Đăng ký thành công! Chào mừng ${data.username}`);
+      registerData = {};
+      formStep1.reset();
+      formStep2.reset();
       showCard("landing");
+    } catch (err) {
+      alert("Lỗi: " + err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
     }
-  } else {
-    // Mặc định không có tham số gì
-    showCard("landing");
-  }
+  });
+}
+
+// ================================================================
+// ĐĂNG NHẬP — Doanh nghiệp (email)
+// ================================================================
+const formLoginDn = document.getElementById("form-login-dn");
+if (formLoginDn) {
+  formLoginDn.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const identifier = document.getElementById("dn-email").value.trim();
+    const password = document.getElementById("dn-pass").value;
+
+    const submitBtn = formLoginDn.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Đang đăng nhập...";
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
+
+      const role = String(data.role || "").toUpperCase();
+      sessionStorage.setItem("currentUser", JSON.stringify(data));
+      localStorage.setItem("currentUser", JSON.stringify(data));
+
+      if (role === "FARMER") {
+        window.location.href = "./farmer/farmer.html";
+      } else if (role === "ADMIN") {
+        window.location.href = "./admin/admin.html";
+      } else if (role === "AUDITOR") {
+        window.location.href = "./auditor/auditor.html";
+      } else {
+        throw new Error("Vai trò tài khoản không hợp lệ");
+      }
+    } catch (err) {
+      alert("Lỗi: " + err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    }
+  });
+}
+
+// ================================================================
+// ĐĂNG NHẬP — Kiểm định (ID = username)
+// ================================================================
+const formLoginKd = document.getElementById("form-login-kd");
+if (formLoginKd) {
+  formLoginKd.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const identifier = document.getElementById("kd-email").value.trim();
+    const password = document.getElementById("kd-pass").value;
+
+    const submitBtn = formLoginKd.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Đang đăng nhập...";
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/login-auditor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
+
+      const role = String(data.role || "").toUpperCase();
+      sessionStorage.setItem("currentUser", JSON.stringify(data));
+      localStorage.setItem("currentUser", JSON.stringify(data));
+
+      if (role === "AUDITOR") {
+        window.location.href = "./auditor/auditor.html";
+      } else if (role === "ADMIN") {
+        window.location.href = "./admin/admin.html";
+      } else if (role === "FARMER") {
+        window.location.href = "./farmer/farmer.html";
+      } else {
+        throw new Error("Vai trò tài khoản không hợp lệ");
+      }
+    } catch (err) {
+      alert("Lỗi: " + err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    }
+  });
+}
+
+// ==========================================
+// TỰ ĐỘNG ĐỔI MÀU NÚT KHI ĐIỀN ĐỦ THÔNG TIN
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+  const forms = document.querySelectorAll("form");
+
+  forms.forEach((form) => {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (!submitBtn) return;
+
+    function validateForm() {
+      const isValid = form.checkValidity();
+      if (isValid) {
+        submitBtn.removeAttribute("disabled");
+        submitBtn.classList.add("is-ready");
+      } else {
+        submitBtn.setAttribute("disabled", "disabled");
+        submitBtn.classList.remove("is-ready");
+      }
+    }
+
+    form.addEventListener("input", validateForm);
+    form.addEventListener("change", validateForm);
+    validateForm();
+  });
 });

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auditor Gatekeeper | AgriTrace</title>
+    <link rel="stylesheet" href="../css/auditor.css" />
+  </head>
+  <body>
+    <div class="auditor-shell">
+      <aside class="sidebar">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">A</span>
+          <span
+            ><strong>AgriTrace</strong><small>Auditor Gatekeeper</small></span
+          >
+        </a>
+        <nav class="nav" aria-label="Điều hướng Auditor">
+          <button class="nav-item active" data-view="queue-view">
+            Hàng chờ kiểm định
+          </button>
+          <button class="nav-item" data-view="reports-view">
+            Tài liệu kiểm nghiệm
+          </button>
+        </nav>
+        <div class="sidebar-footer">
+          <span id="auditor-name">Auditor</span>
+          <button id="logout-button" type="button">Đăng xuất</button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">AUDITOR WORKSPACE</p>
+            <h1>Kiểm định lô hàng</h1>
+            <p class="header-copy">
+              Đối chiếu Batch, Sample và Laboratory Test Report trước khi phê
+              duyệt.
+            </p>
+          </div>
+          <button
+            id="refresh-button"
+            class="button button-secondary"
+            type="button"
+          >
+            Làm mới
+          </button>
+        </header>
+
+        <section id="queue-view" class="view">
+          <div class="metric-row">
+            <div class="metric">
+              <span>Chờ kiểm định</span><strong id="pending-count">0</strong>
+            </div>
+            <div class="metric metric-rejected">
+              <span>Cần xử lý lại</span><strong id="rejected-count">0</strong>
+            </div>
+            <div class="metric metric-reports">
+              <span>Có báo cáo</span><strong id="reported-count">0</strong>
+            </div>
+          </div>
+          <div class="workspace-grid">
+            <section class="panel queue-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">REVIEW QUEUE</p>
+                  <h2>Lô hàng cần kiểm tra</h2>
+                </div>
+                <span id="queue-status" class="status-note"></span>
+              </div>
+              <div id="queue-list" class="queue-list">
+                <p class="empty-state">Đang tải hàng chờ...</p>
+              </div>
+            </section>
+            <section id="detail-panel" class="panel detail-panel">
+              <div class="empty-state detail-empty">
+                Chọn một lô hàng để xem hồ sơ kiểm định.
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="reports-view" class="view hidden">
+          <div class="panel report-guide">
+            <p class="eyebrow">LAB REPORT</p>
+            <h2>Upload báo cáo kiểm nghiệm</h2>
+            <p>
+              Chọn một batch trong hàng chờ, liên kết đúng Sample và tải file
+              PDF. Backend sẽ tự tạo SHA-256.
+            </p>
+            <button
+              class="button button-primary"
+              type="button"
+              data-view="queue-view"
+            >
+              Mở hàng chờ
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="../js/auditor.js"></script>
+  </body>
+</html>

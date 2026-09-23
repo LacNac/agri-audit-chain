@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
@@ -30,7 +30,11 @@
 
       body {
         margin: 0;
-        font-family: "Be Vietnam Pro", -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family:
+          "Be Vietnam Pro",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
         background: var(--bg-gradient);
         min-height: 100vh;
         display: grid;
@@ -176,8 +180,16 @@
       <div class="brand-header">
         <!-- Thay thế bằng 2 logo SVG của dự án trong assets -->
         <div class="brand-logo-wrap">
-          <img src="./assets/logo-icon.svg" alt="AgriTrace Icon" class="brand-icon" />
-          <img src="./assets/logo-text.svg" alt="AgriTrace" class="brand-text-logo" />
+          <img
+            src="../assets/logo-icon.svg"
+            alt="AgriTrace Icon"
+            class="brand-icon"
+          />
+          <img
+            src="../assets/logo-text.svg"
+            alt="AgriTrace"
+            class="brand-text-logo"
+          />
         </div>
         <p class="brand-subtitle">Cổng Quản Trị Hệ Thống (Admin)</p>
       </div>
@@ -208,13 +220,21 @@
               required
               autocomplete="current-password"
             />
-            <button type="button" id="togglePasswordBtn" class="toggle-password">Hiện</button>
+            <button
+              type="button"
+              id="togglePasswordBtn"
+              class="toggle-password"
+            >
+              Hiện
+            </button>
           </div>
         </div>
 
         <p id="errorMessage" class="error-message" aria-live="polite"></p>
 
-        <button type="submit" id="submitBtn" class="submit-btn">Đăng nhập Admin</button>
+        <button type="submit" id="submitBtn" class="submit-btn">
+          Đăng nhập Admin
+        </button>
       </form>
 
       <div class="footer-note">
@@ -222,6 +242,6 @@
       </div>
     </div>
 
-    <script src="./js/admin_login.js"></script>
+    <script src="../js/admin_login.js"></script>
   </body>
 </html>

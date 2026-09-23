@@ -3,237 +3,294 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AgriTrace — Nền tảng hồ sơ số nông sản</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
-      rel="stylesheet"
-    />
+    <title>AgriTrace - Nền Tảng Hồ Sơ Số Nông Sản</title>
     <link rel="stylesheet" href="./css/index.css" />
+    <link rel="stylesheet" href="./css/footer.css" />
   </head>
   <body>
+    <!-- NAVBAR -->
     <nav class="navbar">
-      <a class="brand" href="index.html">
-        <img src="./assets/logo-icon.svg" alt="" class="brand-icon" />
-        <img src="./assets/logo-text.svg" alt="AgriTrace" class="brand-text" />
-      </a>
+      <div class="logo-group">
+        <img
+          src="./assets/logotachnen.png"
+          alt="Biểu tượng AgriTrace"
+          class="logo-icon"
+        />
+        <img src="./assets/texttachnen.png" alt="AgriTrace" class="logo-text" />
+      </div>
 
-      <div class="navaction">
-        <!-- Nút Đăng nhập -->
-        <a class="nav-login" href="login.html?mode=login">Đăng nhập</a>
-
-        <!-- Nút Tạo tài khoản / Đăng ký -->
-        <a class="btn-purple" href="login.html?mode=register"
-          >Tạo tài khoản miễn phí →</a
+      <div class="nav-login">
+        <a href="login.html">Đăng nhập</a>
+        <a class="nav-cta" href="login.html"
+          >Tạo tài khoản miễn phí <span aria-hidden="true">→</span></a
         >
       </div>
     </nav>
 
-    <header class="hero-custom">
-      <div class="hero-content">
-        <p class="hero-tagline">NỀN TẢNG HỒ SƠ SỐ NÔNG SẢN</p>
-        <h1 class="hero-heading">
-          MỖI NÔNG SẢN.<br />
-          MỘT DANH TÍNH<br />
-          SỐ.
-        </h1>
-        <p class="hero-desc">
-          Số hóa quy trình canh tác, chuỗi cung ứng và kiểm định chất lượng
-          thành hồ sơ số minh bạch, giúp nông sản Việt tự tin vươn xa.
-        </p>
+    <div class="ticks"></div>
+    <section id="spacer"></section>
 
-        <div class="hero-buttons">
-          <a class="btn-yellow" href="trace.html">Quét mã truy xuất</a>
-          <a class="btn-outline" href="trace.html">Tìm kiếm mã nông sản</a>
+    <main class="introduce">
+      <!-- HERO SECTION -->
+      <section class="hero">
+        <div class="trace">
+          <p class="up">NỀN TẢNG HỒ SƠ SỐ NÔNG SẢN</p>
+          <h1 class="hero-title">
+            MỖI NÔNG SẢN. <br />
+            <span class="purple-text">MỘT DANH TÍNH SỐ.</span>
+          </h1>
+          <p class="down">
+            Số hóa quy trình canh tác, chuỗi cung ứng và kiểm định chất lượng
+            thành hồ sơ số minh bạch, giúp nông sản Việt tự tin vươn xa.
+          </p>
+          <div class="check">
+            <a class="button button-primary" href="#trace-search"
+              >Quét mã truy xuất</a
+            >
+            <a class="button button-secondary" href="#trace-search"
+              >Tìm kiếm mã nông sản</a
+            >
+          </div>
+          <form class="trace-search" id="trace-search" role="search">
+            <label for="trace-code">Tra cứu mã nông sản</label>
+            <div class="search-control">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m20 20-4-4"></path>
+              </svg>
+              <input
+                id="trace-code"
+                type="search"
+                placeholder="Nhập Batch Code hoặc Trace ID (ví dụ: BAT-2026-001)"
+              />
+              <button type="button">Tra cứu</button>
+            </div>
+          </form>
+          <p class="trust-text">
+            Chuỗi khối an toàn • Mã QR định danh • Dữ liệu bất biến
+          </p>
         </div>
-      </div>
+        <div class="hero-image">
+          <img src="./assets/fruit.png" alt="Nông sản Việt" class="fruit" />
+        </div>
+      </section>
 
-      <div class="hero-visual">
-        <img src="./assets/fruit.svg" alt="Hình ảnh nông sản rau củ quả tươi" />
-      </div>
-    </header>
+      <!-- FLOATING ACTION BUTTONS -->
+      <div class="floating-actions">
+        <button class="fab-btn qr-btn" title="Quét mã QR">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+        </button>
 
-    <!-- Giữ nguyên toàn bộ các phần phía sau -->
-    <section class="problem">
-      <div class="problem-inner">
-        <h2>
-          Nông sản đến tay người dùng, nhưng câu chuyện phía sau lại không đi
-          cùng
-        </h2>
-        <p>
-          Phần lớn thông tin về một lô nông sản — ai trồng, kiểm nghiệm ở đâu,
-          ai xác nhận đạt chuẩn — vẫn nằm rải rác trong sổ tay, email hay file
-          rời rạc. Không có gì đảm bảo báo cáo kiểm nghiệm chưa từng bị chỉnh
-          sửa, và người tiêu dùng gần như không có cách nào tự kiểm chứng những
-          gì được ghi trên bao bì.
-        </p>
-      </div>
-    </section>
+        <button class="fab-btn bot-btn" title="Trợ lý AI">
+          <img
+            src="https://api.dicebear.com/7.x/bottts/svg?seed=AgriBotPurple"
+            alt="Bot Support"
+          />
+        </button>
 
-    <section class="journey">
-      <h2>Hành trình của một hồ sơ số</h2>
-      <p class="section-lede">
-        Từ lúc lô hàng được tạo đến khi mã QR xuất hiện trên bao bì, dữ liệu đi
-        qua từng bước kiểm soát sau:
+        <a href="#contact" class="fab-btn call-btn" title="Gọi tư vấn">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.24 1.01l-2.21 2.2z"
+            />
+          </svg>
+        </a>
+      </div>
+    </main>
+
+    <!-- SECTION: VỀ CHÚNG TÔI (#about) -->
+    <section class="about-strip" id="about">
+      <p class="section-kicker">AGRI<span>TRACE</span></p>
+      <h2>Minh bạch hơn từ trang trại đến bàn ăn.</h2>
+      <p>
+        Mỗi lô nông sản có một hồ sơ số rõ ràng, có thể kiểm chứng và truy xuất
+        bất cứ lúc nào.
       </p>
 
-      <ol class="journey-steps">
-        <li>
-          <span class="step-index">1</span>
-          <div>
-            <h3>Lô hàng được tạo</h3>
-            <p>
-              Nông dân khai báo lô hàng, hệ thống cấp một mã định danh duy nhất.
-              Trạng thái mặc định: <strong>chưa kiểm định</strong>.
-            </p>
-          </div>
-        </li>
-        <li>
-          <span class="step-index">2</span>
-          <div>
-            <h3>Mẫu được gửi kiểm nghiệm</h3>
-            <p>
-              Một mẫu đại diện của lô hàng được lấy và gửi đến phòng thí nghiệm
-              để đánh giá chất lượng.
-            </p>
-          </div>
-        </li>
-        <li>
-          <span class="step-index">3</span>
-          <div>
-            <h3>Báo cáo được niêm phong số</h3>
-            <p>
-              Khi báo cáo kiểm nghiệm được tải lên, hệ thống tự động tính mã băm
-              SHA-256 — bất kỳ thay đổi nào trên tài liệu sau đó đều để lại dấu
-              vết.
-            </p>
-          </div>
-        </li>
-        <li>
-          <span class="step-index">4</span>
-          <div>
-            <h3>Kiểm định viên xác minh</h3>
-            <p>
-              Một kiểm định viên độc lập đối chiếu lô hàng, mẫu và báo cáo, sau
-              đó phê duyệt hoặc từ chối kèm lý do cụ thể.
-            </p>
-          </div>
-        </li>
-        <li>
-          <span class="step-index">5</span>
-          <div>
-            <h3>Mã QR được kích hoạt</h3>
-            <p>
-              Chỉ những lô hàng đã được xác minh mới nhận mã QR chính thức — gắn
-              liền với đúng một hồ sơ, không thể tái sử dụng cho lô khác.
-            </p>
-          </div>
-        </li>
-      </ol>
-    </section>
-
-    <section class="pillars">
-      <h2>Bốn nguyên tắc vận hành</h2>
-      <div class="pillar-grid">
-        <article class="pillar-card">
-          <h3>Kiểm định độc lập</h3>
+      <div class="about-features">
+        <div class="feature-card">
+          <div class="feature-icon">🌱</div>
+          <h3>Dành cho Nông dân</h3>
           <p>
-            Không một lô hàng nào tự công nhận chính mình. Chỉ kiểm định viên có
-            thẩm quyền mới được phê duyệt trạng thái đã kiểm định.
-          </p>
-        </article>
-        <article class="pillar-card">
-          <h3>Toàn vẹn dữ liệu</h3>
-          <p>
-            Mỗi báo cáo kiểm nghiệm được gắn một mã băm SHA-256 tại thời điểm
-            tiếp nhận, làm bằng chứng cho việc tài liệu chưa bị thay đổi.
-          </p>
-        </article>
-        <article class="pillar-card">
-          <h3>Phân quyền rõ ràng</h3>
-          <p>
-            Mỗi vai trò — nông dân, kiểm định viên, quản trị viên — chỉ được
-            thực hiện đúng phần việc của mình, kiểm soát ở tầng hệ thống chứ
-            không chỉ trên giao diện.
-          </p>
-        </article>
-        <article class="pillar-card">
-          <h3>Truy xuất công khai</h3>
-          <p>
-            Người tiêu dùng quét mã QR và xem ngay thông tin nguồn gốc, không
-            cần tài khoản, không cần trung gian.
-          </p>
-        </article>
-      </div>
-    </section>
-
-    <section class="stakeholders">
-      <h2>Ai đang dùng AgriTrace</h2>
-      <div class="stakeholder-row">
-        <div class="stakeholder">
-          <p class="stakeholder-role">Nông dân</p>
-          <p>Khai báo lô hàng và theo dõi tiến trình kiểm định của mình.</p>
-        </div>
-        <div class="stakeholder">
-          <p class="stakeholder-role">Kiểm định viên</p>
-          <p>
-            Đối chiếu hồ sơ, xác minh tính toàn vẹn và ra quyết định phê duyệt.
+            Tạo lô hàng nhanh chóng, quản lý nhật ký thu hoạch và tự động tạo mã
+            QR định danh cho từng lô sản phẩm.
           </p>
         </div>
-        <div class="stakeholder">
-          <p class="stakeholder-role">Quản trị viên</p>
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <h3>Dành cho Kiểm định viên</h3>
           <p>
-            Quản lý tài khoản, phân quyền và giám sát hoạt động toàn hệ thống.
+            Thẩm định báo cáo Lab, xác thực toàn vẹn dữ liệu qua mã băm SHA-256
+            trước khi cấp chứng nhận lưu hành.
           </p>
         </div>
-        <div class="stakeholder">
-          <p class="stakeholder-role">Người tiêu dùng</p>
-          <p>Quét mã QR trên bao bì để xem nguồn gốc, không cần đăng nhập.</p>
+        <div class="feature-card">
+          <div class="feature-icon">📱</div>
+          <h3>Dành cho Người tiêu dùng</h3>
+          <p>
+            Quét mã QR bằng điện thoại để xem toàn bộ nguồn gốc xuất xứ, chứng
+            nhận VietGAP/GlobalGAP và lịch sử thu hoạch.
+          </p>
         </div>
       </div>
     </section>
 
-    <section class="cta-band">
-      <div class="cta-inner">
-        <h2>Bạn là nông dân, đơn vị kiểm định hay quản trị hệ thống?</h2>
-        <p>Đăng nhập để bắt đầu tạo, kiểm định hoặc quản lý hồ sơ lô hàng.</p>
-        <a class="button button-primary" href="login.html"
-          >Đăng nhập vào hệ thống</a
+    <!-- SECTION: LIÊN HỆ (#contact) -->
+    <section class="contact-section" id="contact">
+      <div class="contact-container">
+        <div class="contact-info">
+          <p class="section-kicker">KẾT NỐI VỚI CHÚNG TÔI</p>
+          <h2>Liên hệ AgriTrace</h2>
+          <p class="contact-desc">
+            Bạn cần hỗ trợ về giải pháp số hóa nông sản, hợp tác triển khai hoặc
+            giải đáp thắc mắc? Hãy gửi tin nhắn cho chúng tôi.
+          </p>
+          <ul class="contact-details">
+            <li>
+              <span class="c-icon">📍</span>
+              <div>
+                <strong>Địa chỉ:</strong>
+                <p>Khu Công nghệ cao Hòa Lạc, Huyện Thạch Thất, TP. Hà Nội</p>
+              </div>
+            </li>
+            <li>
+              <span class="c-icon">✉️</span>
+              <div>
+                <strong>Email:</strong>
+                <p>support@agritrace.vn</p>
+              </div>
+            </li>
+            <li>
+              <span class="c-icon">📞</span>
+              <div>
+                <strong>Hotline:</strong>
+                <p>1900 xxxx (8:00 - 17:30 T2 - T7)</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <form
+          class="contact-form"
+          onsubmit="
+            event.preventDefault();
+            alert('Cảm ơn bạn đã gửi liên hệ! Chúng tôi sẽ phản hồi sớm nhất.');
+          "
         >
+          <h3>Gửi tin nhắn tư vấn</h3>
+          <div class="form-group">
+            <label for="c-name">Họ và tên (*)</label>
+            <input
+              type="text"
+              id="c-name"
+              placeholder="Nguyễn Văn A"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="c-email">Email / Số điện thoại (*)</label>
+            <input
+              type="text"
+              id="c-email"
+              placeholder="0987xxxxxx hoặc email@domain.com"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="c-message">Nội dung cần hỗ trợ</label>
+            <textarea
+              id="c-message"
+              rows="4"
+              placeholder="Nhập nội dung câu hỏi hoặc yêu cầu tư vấn..."
+            ></textarea>
+          </div>
+          <button type="submit" class="button button-primary">
+            Gửi liên hệ ngay
+          </button>
+        </form>
       </div>
     </section>
 
-    <footer class="site-footer">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <p class="footer-logo">AgriTrace</p>
-          <p>
-            Nền tảng hồ sơ số cho kiểm định và truy xuất nguồn gốc nông sản.
+    <!-- FOOTER -->
+    <footer class="agri-footer">
+      <div class="footer-container">
+        <div class="footer-col brand-col">
+          <div class="footer-brand">
+            <img
+              src="./assets/logotachnen.png"
+              alt="AgriTrace Icon"
+              class="footer-logo-icon"
+            />
+            <img
+              src="./assets/texttachnen.png"
+              alt="AgriTrace"
+              class="footer-logo-text"
+            />
+          </div>
+          <p class="brand-desc">
+            Nền tảng hồ sơ số và truy xuất nguồn gốc nông sản minh bạch, kết nối
+            người nông dân, nhà kiểm định và người tiêu dùng.
           </p>
         </div>
+
         <div class="footer-col">
-          <p class="footer-heading">Sản phẩm</p>
-          <a href="trace.html">Tra cứu nguồn gốc</a>
-          <a href="index.html">Về AgriTrace</a>
-          <a href="login.html">Đăng nhập</a>
+          <h4 class="footer-title">Hệ thống</h4>
+          <ul class="footer-links">
+            <li><a href="#trace-search">Tra cứu QR Code</a></li>
+            <li><a href="./farmer/farmer.html">Cổng Nông dân</a></li>
+            <li><a href="#">Cổng Kiểm định (Auditor)</a></li>
+            <li><a href="./admin/admin.html">Quản trị hệ thống</a></li>
+          </ul>
         </div>
+
         <div class="footer-col">
-          <p class="footer-heading">Vai trò</p>
-          <a href="login.html">Nông dân</a>
-          <a href="login.html">Kiểm định viên</a>
-          <a href="login.html">Quản trị viên</a>
+          <h4 class="footer-title">Tiêu chuẩn & Pháp lý</h4>
+          <ul class="footer-links">
+            <li><a href="#">Quy trình kiểm định</a></li>
+            <li><a href="#">Xác thực mã SHA-256</a></li>
+            <li><a href="#">Điều khoản sử dụng</a></li>
+            <li><a href="#">Chính sách bảo mật</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4 class="footer-title">Liên hệ hỗ trợ</h4>
+          <ul class="footer-contact">
+            <li>📍 Huyện Thạch Thất, TP. Hà Nội</li>
+            <li>✉️ support@agritrace.vn</li>
+            <li>📞 Hotline: 1900 xxxx</li>
+          </ul>
         </div>
       </div>
-      <div class="footer-note">
-        <p>
-          AgriTrace là sản phẩm học thuật, được phát triển trong khuôn khổ
-          Chuyên đề thực tế tại Khoa Công nghệ thông tin — Trường Công nghệ, Đại
-          học Kinh tế Quốc dân, phối hợp cùng Công ty Cổ phần Công nghệ SotaTek
-          Việt Nam. Dữ liệu và tính năng trên trang chỉ phục vụ mục đích minh
-          họa và học tập.
-        </p>
-        <p class="footer-copyright">© 2026 AgriTrace · Nhóm 4</p>
+
+      <div class="footer-bottom">
+        <div class="footer-bottom-container">
+          <p class="copyright-text">
+            © 2026 AgriTrace Platform. All rights reserved.
+          </p>
+        </div>
       </div>
     </footer>
   </body>
