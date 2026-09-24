@@ -281,7 +281,7 @@ function renderBatchTable(statusFilter) {
     const code = b.batch_code || b.code;
     const name = b.product_name || b.product;
     const date = b.audit_date || b.created_at || b.createdDate || "—";
-    const farmer = b.farmer_name || b.farmer || "—";
+    const farmer = b.producer_name || b.farmer_name || b.farmer || "—";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -345,7 +345,7 @@ async function openBatchDetail(batchIdOrCode) {
   const created = currentBatch.created_at || currentBatch.createdDate || "—";
   const origin = currentBatch.origin || "Việt Nam";
   const status = (currentBatch.status || "").toUpperCase();
-  const latestReport = currentBatch.reports?.[0];
+  const latestReport = currentBatch.reports?.[0] || currentBatch.report || null;
 
   let statusBadge = '<span class="status-badge amber">Chờ kiểm định</span>';
   if (status === "AUDITED")
@@ -376,29 +376,35 @@ async function openBatchDetail(batchIdOrCode) {
   if (status === "UNVERIFIED" || status === "PENDING") {
     dynamicBody = `
       <div class="link-row">
-        <span>📄 Báo cáo kiểm nghiệm: <strong id="report-name">${currentBatch.report ? currentBatch.report.file_name || currentBatch.report.fileName : "chưa có"}</strong></span>
-        <button type="button" class="btn-action-blue" onclick="document.getElementById('mock-file-input').click()">+ Upload báo cáo</button>
+        <span>📄 Báo cáo kiểm nghiệm: <strong id="report-name">${latestReport ? latestReport.file_name || latestReport.fileName : "chưa có"}</strong></span>
+        ${latestReport ? '<button type="button" class="btn-gray-pill" id="btn-view-report">Xem file</button>' : ""}
       </div>
 
-      <div class="report-form">
+      ${latestReport ? `
+        <div class="link-row" style="background:#f8fafc;">
+          <span>Phòng lab: <strong>${latestReport.lab_name || "—"}</strong></span>
+          <span>Mã phòng lab: <strong>${latestReport.lab_code || "—"}</strong></span>
+        </div>
+      ` : ""}
+
+      <div class="report-form" style="${latestReport ? "display:none;" : ""}">
         <h4 style="margin:0 0 12px; font-size:13px;">Upload report mới</h4>
         <div class="form-grid">
           <div class="form-field">
             <label>Sample</label>
             <select id="r-sample-select">
-              ${
-                samplesList
-                  .map(function (s) {
-                    return (
-                      '<option value="' +
-                      (s.id || s.sample_code) +
-                      '">' +
-                      (s.sample_code || s.id) +
-                      "</option>"
-                    );
-                  })
-                  .join("") || "<option>— Chưa có Sample —</option>"
-              }
+              ${samplesList
+        .map(function (s) {
+          return (
+            '<option value="' +
+            (s.id || s.sample_code) +
+            '">' +
+            (s.sample_code || s.id) +
+            "</option>"
+          );
+        })
+        .join("") || "<option>— Chưa có Sample —</option>"
+      }
             </select>
           </div>
           <div class="form-field">
@@ -428,15 +434,19 @@ async function openBatchDetail(batchIdOrCode) {
       <textarea id="txt-reject-reason" class="reason-box" placeholder="Nhập lí do trước khi từ chối..."></textarea>
 
       <div class="decision-row">
-        <button type="button" class="btn-approve" id="btn-action-approve" ${currentBatch.report ? "" : "disabled"}>APPROVE</button>
+        <button type="button" class="btn-approve" id="btn-action-approve" ${latestReport ? "" : "disabled"}>APPROVE</button>
         <button type="button" class="btn-reject" id="btn-action-reject">REJECT</button>
       </div>
     `;
   } else if (status === "AUDITED") {
     dynamicBody = `
       <div class="link-row" style="background:#f1f5f9;">
-            <span>📄 Báo cáo kiểm nghiệm &nbsp;<a href="#" style="text-decoration:underline; font-weight:600;">${latestReport?.file_name || "Chưa có báo cáo"}</a></span>
-        <button type="button" class="btn-gray-pill">Xem file</button>
+        <span>📄 Báo cáo kiểm nghiệm: <strong>${latestReport?.file_name || "Chưa có báo cáo"}</strong></span>
+        ${latestReport ? '<button type="button" class="btn-gray-pill" id="btn-view-report">Xem file</button>' : ""}
+      </div>
+      <div class="link-row" style="background:#f8fafc;">
+        <span>Phòng lab: <strong>${latestReport?.lab_name || "—"}</strong></span>
+        <span>Mã phòng lab: <strong>${latestReport?.lab_code || "—"}</strong></span>
       </div>
 
       <div class="criteria-box">
@@ -459,7 +469,7 @@ async function openBatchDetail(batchIdOrCode) {
     dynamicBody = `
       <div class="reject-alert">
         <div class="reject-alert-title">⚠ Lý do từ chối ghi nhận trong Database</div>
-        <p class="reject-alert-body">${currentBatch.reject_reason || currentBatch.rejectReason || "Không đạt chuẩn kiểm định chất lượng."}</p>
+        <p class="reject-alert-body">${currentBatch.reason || currentBatch.reject_reason || currentBatch.rejectReason || "Không đạt chuẩn kiểm định chất lượng."}</p>
         <p class="reject-alert-meta">Auditor phụ trách: ${currentBatch.auditor_name || currentAuditorName}</p>
       </div>
     `;
@@ -495,10 +505,31 @@ async function openBatchDetail(batchIdOrCode) {
 /* ========================================================
    6. GỌI API: UPLOAD REPORT, APPROVE, REJECT
    ======================================================== */
+async function openLabReportFile() {
+  const reportWindow = window.open("about:blank", "_blank");
+  try {
+    const batchId = currentBatch.id || currentBatch.batch_id;
+    const res = await fetch(`${API_BASE}/batches/${batchId}/report-file`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Không thể tải file report.");
+    const fileUrl = URL.createObjectURL(await res.blob());
+    if (reportWindow) reportWindow.location.href = fileUrl;
+    else window.location.href = fileUrl;
+  } catch (err) {
+    if (reportWindow) reportWindow.close();
+    alert(`Lỗi: ${err.message}`);
+  }
+}
+
 function bindDetailEvents() {
   document
     .getElementById("btn-close-detail")
     ?.addEventListener("click", closeDetail);
+
+  document
+    .getElementById("btn-view-report")
+    ?.addEventListener("click", openLabReportFile);
 
   document
     .getElementById("btn-open-create-sample")
@@ -573,6 +604,8 @@ function bindDetailEvents() {
         document.getElementById("hash-val-text").textContent = data.file_hash;
         document.getElementById("btn-action-approve").disabled = false;
         currentBatch.report = data;
+        currentBatch.reports = [data, ...(currentBatch.reports || []).filter((report) => report.id !== data.id)];
+        await openBatchDetail(currentBatch.id);
       } catch (err) {
         alert(`Lỗi: ${err.message}`);
       }
@@ -590,6 +623,7 @@ function bindDetailEvents() {
           {
             method: "POST",
             headers: getAuthHeaders(),
+            body: JSON.stringify({ reason: "Auditor approved" }),
           },
         );
         const data = await res.json();

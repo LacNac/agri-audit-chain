@@ -268,7 +268,11 @@ function mapBatch(batch) {
     report: batch.report || "",
     qrImageUrl: null,
     reportPdfUrl: null,
-    rejectReason: batch.rejectReason || "Chưa có lý do từ chối được ghi nhận.",
+    rejectReason:
+      batch.reason ||
+      batch.reject_reason ||
+      batch.rejectReason ||
+      "Chưa có lý do từ chối được ghi nhận.",
   };
 }
 
@@ -345,16 +349,16 @@ function esc(s) {
   return s === undefined || s === null
     ? ""
     : String(s).replace(
-        /[&<>"']/g,
-        (m) =>
-          ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#39;",
-          })[m],
-      );
+      /[&<>"']/g,
+      (m) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[m],
+    );
 }
 function initials(name) {
   return name
@@ -551,9 +555,9 @@ function setFilter(f) {
 function renderBatchRowsTable(list) {
   const rows = list.length
     ? list
-        .map((b) => {
-          const s = statusMeta(b.status);
-          return `
+      .map((b) => {
+        const s = statusMeta(b.status);
+        return `
     <tr onclick="openDetailModal('${b.id}')">
       <td class="mono-id">${esc(b.id)}</td>
       <td>${esc(b.product)}</td>
@@ -561,8 +565,8 @@ function renderBatchRowsTable(list) {
       <td class="cell-soft">${esc(b.quantity)}</td>
       <td><span class="badge ${s.cls}">${s.label}</span></td>
     </tr>`;
-        })
-        .join("")
+      })
+      .join("")
     : `<tr class="empty-row"><td colspan="5">Không tìm thấy lô hàng phù hợp.</td></tr>`;
 
   return `
@@ -593,14 +597,13 @@ function renderProfilePage() {
       <button class="btn btn-primary" onclick="openEditProfile()">Chỉnh sửa Hồ sơ</button>
     </div>
 
-    ${
-      missing.length
-        ? `
+    ${missing.length
+      ? `
     <div class="complete-banner">
       <span>Hồ sơ của bạn còn thiếu ${missing.length} thông tin bắt buộc. Vui lòng bổ sung để sử dụng đầy đủ tính năng.</span>
       <button class="btn btn-secondary" style="background:#fff;" onclick="openEditProfile()">Bổ sung ngay</button>
     </div>`
-        : ``
+      : ``
     }
 
     <div class="profile-hero">
@@ -733,9 +736,8 @@ function renderDetailModal(id) {
         </div>
       </div>
 
-      ${
-        b.status === "approved"
-          ? `
+      ${b.status === "approved"
+      ? `
       <div class="divider"></div>
       <div class="section-label">QR &amp; Truy xuất nguồn gốc</div>
       <div class="trace-box" style="margin-bottom:16px;">
@@ -753,12 +755,11 @@ function renderDetailModal(id) {
       ${b.reportPdfUrl ? `<div style="width:100%;max-height:62vh;overflow-y:auto;overflow-x:hidden;border:1px solid var(--border);border-radius:10px;background:#f5f5f5;"><object data="${esc(b.reportPdfUrl)}" type="application/pdf" style="display:block;width:100%;min-height:760px;border:0;"><a href="${esc(b.reportPdfUrl)}" target="_blank" rel="noopener">Mở file PDF</a></object></div>` : `<div class="file-chip">${ICONS.file} ${esc(b.report || "Chưa có biên bản")}</div>`}
       ${b.trace?.id ? `<a class="file-chip" href="../public/trace.html?trace=${encodeURIComponent(b.trace.id)}" target="_blank" rel="noopener">${ICONS.search} Mở hồ sơ truy xuất</a>` : ""}
       `
-          : ``
-      }
+      : ``
+    }
 
-      ${
-        b.status === "rejected"
-          ? `
+      ${b.status === "rejected"
+      ? `
       <div class="divider"></div>
       <div class="section-label">Lý do từ chối</div>
       <div class="reject-box" style="margin-bottom:16px;">
@@ -771,8 +772,8 @@ function renderDetailModal(id) {
         <button class="btn btn-primary" onclick="openEditBatch('${esc(b.id)}');stop(event)">Sửa thông tin và gửi kiểm định lại</button>
       </div>
       `
-          : ``
-      }
+      : ``
+    }
     </div>
   </div>`;
 }
@@ -994,7 +995,7 @@ function renderCreateModal() {
     </div>
   </div>`;
 }
-function submitCreateBatch() {
+async function submitCreateBatch() {
   const f = state.createForm;
   const errors = {};
   if (!f.productName.trim()) errors.productName = "Vui lòng nhập tên sản phẩm";
@@ -1009,28 +1010,41 @@ function submitCreateBatch() {
     return;
   }
 
-  const num = String(Math.floor(1000 + Math.random() * 9000));
-  const id = `BATCH-2026-${num}`;
-  const dateParts = f.harvestDate.split("-");
-  const displayDate =
-    dateParts.length === 3
-      ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`
-      : f.harvestDate;
-  state.batches.unshift({
-    id,
-    product: f.productName,
-    harvestDate: displayDate,
-    quantity: `${f.quantity} ${f.unit}`,
-    status: "pending",
-    origin: f.origin,
-    note: f.note || "N/A",
-    sample: { id: "—", desc: "Chưa gửi mẫu kiểm định" },
-  });
-  state.modal = null;
-  state.page = "batches";
-  state.filter = "all";
-  render();
-  showToast(`Đã tạo lô hàng ${id} thành công`);
+  const session = getCurrentSession();
+  try {
+    const response = await fetch(`${API_BASE}/batches`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        product_name: f.productName.trim(),
+        product_type: f.category,
+        origin: f.origin,
+        quantity: Number(f.quantity),
+        unit: f.unit,
+        production_date: f.harvestDate,
+        note: f.note.trim() || null,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = Array.isArray(data.detail)
+        ? data.detail.map((item) => item.msg).join(", ")
+        : data.detail;
+      throw new Error(detail || "Không thể tạo lô hàng");
+    }
+
+    state.batches.unshift(mapBatch(data));
+    state.modal = null;
+    state.page = "batches";
+    state.filter = "all";
+    render();
+    showToast(`Đã tạo lô hàng ${data.batch_code} thành công`);
+  } catch (error) {
+    showToast(error.message);
+  }
 }
 
 /* ---- edit profile modal ---- */
