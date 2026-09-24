@@ -30,7 +30,7 @@ def audit_trail(conn, user_id, action, entity_type, entity_id, created_at, old=N
 
 
 def reset_seed_data(conn):
-    for table in ("trace_records", "packages", "audit_trails", "lab_reports", "samples", "batches", "businesses"):
+    for table in ("integrity_proofs", "trace_records", "packages", "audit_trails", "lab_reports", "samples", "batches", "businesses"):
         conn.execute(f"DELETE FROM {table}")
 
 
@@ -109,6 +109,11 @@ def seed_test_data():
             sample_ids[code] = cur.lastrowid
             audit_trail(conn, auditor_1[0], "CREATE_SAMPLE", "sample", cur.lastrowid, sampling_date + " 10:00:00", new={"batch_id": batch_ids[code], "sample_code": sample_code, "status": status})
 
+        uploads_dir = Path(__file__).resolve().parents[1] / "uploads"
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+        for old_file in uploads_dir.glob("seed_lab_report_*.pdf"):
+            old_file.unlink()
+
         report_specs = {
             "004": ("PASS", "APPROVED", auditor_1, "2026-08-24", "2026-08-26"),
             "005": ("FAIL", "REJECTED", auditor_1, "2026-08-29", "2026-09-01"),
@@ -119,8 +124,10 @@ def seed_test_data():
         }
         for code, (result, status, uploader, report_date, _) in report_specs.items():
             report_code = f"LTR-HN-2026-{code}"
-            file_name = f"lab_report_{code}.pdf"
-            file_hash = report_hash(report_code)
+            file_name = f"seed_lab_report_{code}.pdf"
+            file_bytes = f"%PDF-1.4\nAgriTrace seed laboratory report {report_code}\n%%EOF\n".encode()
+            (uploads_dir / file_name).write_bytes(file_bytes)
+            file_hash = hashlib.sha256(file_bytes).hexdigest()
             cur = conn.execute(
                 """
                 INSERT INTO lab_reports
@@ -129,6 +136,17 @@ def seed_test_data():
                 VALUES (?, ?, ?, 'ABC Agricultural Testing Laboratory', 'LAB-ABC-001', ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (report_code, sample_ids[code], batch_ids[code], report_date, result, file_name, file_hash, f"/uploads/{file_name}", status, report_date + " 14:00:00"),
+            )
+            previous_proof = conn.execute(
+                "SELECT proof_hash FROM integrity_proofs ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+            previous_proof = previous_proof[0] if previous_proof else ""
+            proof_hash = hashlib.sha256(
+                f"{previous_proof}:{cur.lastrowid}:{batch_ids[code]}:{file_hash}".encode()
+            ).hexdigest()
+            conn.execute(
+                "INSERT INTO integrity_proofs (report_id, batch_id, file_hash, previous_proof, proof_hash) VALUES (?, ?, ?, ?, ?)",
+                (cur.lastrowid, batch_ids[code], file_hash, previous_proof or None, proof_hash),
             )
             audit_trail(conn, uploader[0], "UPLOAD_LAB_REPORT", "lab_report", cur.lastrowid, report_date + " 14:00:00", new={"report_code": report_code, "batch_id": batch_ids[code], "sample_id": sample_ids[code], "file_hash": file_hash, "status": status})
 

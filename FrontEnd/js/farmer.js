@@ -190,7 +190,7 @@ async function loadQrImage(batch) {
 
 async function loadReportPdf(batch) {
   const session = getCurrentSession();
-  if (!session?.access_token || !batch?.batchId) return;
+  if (!session?.access_token || !batch?.batchId || !batch.report) return;
   const response = await fetch(
     `${API_BASE}/batches/${batch.batchId}/report-file`,
     {
@@ -209,7 +209,7 @@ async function generateQr(id) {
   if (!batch || !session?.access_token) return;
 
   try {
-    const response = await fetch(`${API_BASE}/qr?batch_id=${batch.batchId}`, {
+    const response = await fetch(`${API_BASE}/batches/${batch.batchId}/qr`, {
       method: "POST",
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
@@ -684,8 +684,18 @@ async function openDetailModal(id) {
         : null;
       batch.report = trace.laboratory_result_summary?.latest_report_code || "";
     }
-    if (batch.trace) await loadQrImage(batch);
-    await loadReportPdf(batch);
+    if (batch.trace) {
+      try {
+        await loadQrImage(batch);
+      } catch (error) {
+        console.warn("Không thể tải ảnh QR:", error.message);
+      }
+    }
+    try {
+      await loadReportPdf(batch);
+    } catch (error) {
+      console.warn("Không thể tải file report:", error.message);
+    }
     if (state.modal?.type === "detail" && state.modal.id === id) render();
   } catch (error) {
     console.error("Không thể tải thông tin truy xuất:", error);

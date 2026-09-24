@@ -99,7 +99,10 @@ def resubmit_rejected_batch(batch_id: int, db=Depends(get_db), user=Depends(requ
 
 
 @router.post("/{batch_id}/qr")
-def create_batch_qr(batch_id: int, db=Depends(get_db), user=Depends(require_roles("AUDITOR"))):
+def create_batch_qr(batch_id: int, db=Depends(get_db), user=Depends(require_roles("FARMER"))):
+    batch = get_batch_by_id(db, batch_id)
+    if batch["farmer_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền tạo QR cho batch này")
     return create_qr_record(db, batch_id=batch_id, user_id=user["id"])
 
 

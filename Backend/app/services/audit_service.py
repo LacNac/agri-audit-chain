@@ -47,6 +47,12 @@ def create_report(db: sqlite3.Connection, payload: dict, file_bytes: bytes | Non
     if not sample_exists:
         raise HTTPException(status_code=400, detail="Sample không thuộc batch này")
 
+    batch_status = cursor.execute(
+        "SELECT status FROM batches WHERE id = ?", (payload["batch_id"],)
+    ).fetchone()[0]
+    if batch_status == "AUDITED":
+        raise HTTPException(status_code=403, detail="Batch đã AUDITED, không được bổ sung hoặc thay thế report")
+
     report_code = generate_report_code()
     file_hash = calculate_sha256(file_bytes)
     file_name = payload.get("file_name") or f"{report_code}.pdf"

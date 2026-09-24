@@ -2,7 +2,7 @@ import sqlite3
 import json
 from pathlib import Path
 
-from ..core.security import hash_password
+from app.core.security import hash_password
 
 DB_PATH = Path(__file__).resolve().parent / "db.db"
 
@@ -230,7 +230,7 @@ def seed_default_role_permissions() -> None:
     try:
         role_permission_map = {
             "ADMIN": ["AUTH_LOGIN", "USER_VIEW", "USER_CREATE", "USER_UPDATE", "ROLE_VIEW", "ROLE_UPDATE", "DASHBOARD_VIEW", "AUDIT_VIEW_HISTORY"],
-            "FARMER": ["AUTH_LOGIN", "BATCH_CREATE", "BATCH_VIEW_OWN", "BATCH_UPDATE_OWN", "BATCH_DELETE_OWN", "SAMPLE_VIEW_OWN"],
+            "FARMER": ["AUTH_LOGIN", "BATCH_CREATE", "BATCH_VIEW_OWN", "BATCH_UPDATE_OWN", "BATCH_DELETE_OWN", "SAMPLE_VIEW_OWN", "QR_GENERATE"],
             "AUDITOR": ["AUTH_LOGIN", "BATCH_VIEW_ALL", "SAMPLE_CREATE", "SAMPLE_VIEW_ALL", "AUDIT_VIEW", "AUDIT_UPLOAD_REPORT", "AUDIT_APPROVE", "AUDIT_REJECT", "AUDIT_VIEW_HISTORY", "HASH_VERIFY", "PROOF_VIEW", "QR_GENERATE"],
             "PUBLIC": ["PUBLIC_TRACE_VIEW"],
         }
@@ -627,3 +627,7 @@ def initialize_database() -> None:
     seed_default_role_permissions()
     seed_default_users()
     drop_legacy_tables()
+
+if __name__ == "__main__":
+    initialize_database()
+    print(f"Database initialized: {DB_PATH}")
