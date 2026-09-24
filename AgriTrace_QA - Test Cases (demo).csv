@@ -67,7 +67,7 @@ TC-BATCH-14,Batch,Kiểm tra Farmer được sửa Batch ở trạng thái REJEC
 thông tin cần chỉnh sửa","1. Farmer mở Batch REJECTED
 2. Chỉnh sửa thông tin
 3. Lưu",Farmer được phép sửa Batch để xử lý lỗi và gửi lại kiểm định,,NOT RUN,
-TC-BATCH-15,Batch,Kiểm tra Farmer không được xóa Batch ở trạng thái REJECTED,Batch trạng thái REJECTED,Batch REJECTED,1. Farmer chọn xóa Batch,Hệ thống không cho phép xóa Batch REJECTED,,NOT RUN,
+TC-BATCH-15,Batch,Kiểm tra Farmer được xóa Batch ở trạng thái REJECTED,Batch trạng thái REJECTED,Batch REJECTED,1. Farmer chọn xóa Batch,Hệ thống cho phép xóa Batch REJECTED,,NOT RUN,
 TC-BATCH-16,Batch,Batch đã được Auditor Approve,Batch trạng thái AUDITED,"1. Farmer mở Batch
 2. Chọn Edit","1. Farmer mở Batch
 2. Chọn Edit",Hệ thống không cho phép sửa Batch đã AUDITED,,NOT RUN,
@@ -76,13 +76,11 @@ TC-SAMPLE-01,Sample,Tạo Sample liên kết với Batch,Có Batch hợp lệ,Sa
 TC-SAMPLE-02,Sample,Sample tham chiếu Batch không tồn tại,Không có Batch tương ứng,Batch ID không tồn tại,Tạo Sample,Hệ thống từ chối và báo lỗi,,NOT RUN,
 TC-SAMPLE-03,Sample,Kiểm tra Sample thuộc đúng Batch,Có Sample đã tạo,Sample ID + Batch ID,Xem thông tin Sample,Sample hiển thị đúng Batch liên kết,,NOT RUN,
 TC-SAMPLE-04,Sample,Thiếu thông tin bắt buộc khi tạo Sample,Có Batch,Sample thiếu required field,Submit Sample,Hệ thống validation và không tạo dữ liệu không hợp lệ,,NOT RUN,
-TC-SAMPLE-05,Sample,Kiểm tra tạo nhiều Sample thuộc cùng một Batch,Batch đã tồn tại trong hệ thống,"Batch ID: BATCH-001
-Sample 1: SAMPLE-001
-Sample 2: SAMPLE-002
-Sample 3: SAMPLE-003","1. Farmer/Auditor tạo Sample cho Batch-001
-2. Tạo thêm Sample khác thuộc cùng Batch
-3. Kiểm tra danh sách Sample của Batch","Hệ thống cho phép nhiều Sample thuộc cùng một Batch; 
-mỗi Sample có Sample ID riêng và liên kết đúng với Batch",,NOT RUN,
+TC-SAMPLE-05,Sample,Kiểm tra chỉ Auditor tạo một Sample thuộc một Batch,Batch đã tồn tại trong hệ thống,"Batch ID: BATCH-001
+Sample ID: SAMPLE-001","1. Farmer thử tạo Sample cho Batch-001
+2. Auditor tạo Sample cho Batch-001
+3. Farmer thử sửa/xóa Sample
+4. Auditor kiểm tra Sample","Farmer bị từ chối tạo/sửa/xóa Sample; Auditor tạo và quản lý được Sample; mỗi Batch chỉ có một Sample",,NOT RUN,
 TC-SAMPLE-06,Sample,Kiểm tra không tạo Sample khi thiếu thông tin bắt buộc,Batch tồn tại trong hệ thống,"Thiếu một trong các thông tin:
 - Sampling Date
 - Sample Quantity
@@ -102,20 +100,14 @@ TC-LAB-03,Laboratory Test Report,Upload Report thiếu thông tin bắt buộc,C
 TC-LAB-04,Laboratory Test Report,Report tham chiếu Sample không tồn tại,Không có Sample tương ứng,Invalid Sample ID,Upload Report,Backend từ chối request,,NOT RUN,
 TC-LAB-05,Laboratory Test Report,Kiểm tra Report thuộc đúng Batch,Có Report đã liên kết,Report ID,Xem Report từ Batch,Report được hiển thị đúng với Sample/Batch tương ứng,,NOT RUN,
 TC-LAB-06,Laboratory Test Report,Kiểm tra hệ thống tự tạo SHA-256 sau khi upload Report,Auditor upload Laboratory Test Report thành công,File PDF Laboratory Test Report hợp lệ,"1. Auditor upload file PDF
-2. Kiểm tra thông tin Report sau khi upload","Backend tự động tạo SHA-256 cho file Report;
- người dùng không cần nhập SHA-256 thủ công",,NOT RUN,
+2. Kiểm tra thông tin Report sau khi upload","Backend tự động tạo SHA-256 từ nội dung file; file_hash có 64 ký tự; client không được tự nhập hash",,NOT RUN,
 TC-LAB-07,Laboratory Test Report,Kiểm tra thay đổi file Report làm thay đổi SHA-256,Report đã được upload và có SHA-256,File PDF trước và sau khi chỉnh sửa nội dung,"1. Upload file Report ban đầu
-2. Thay đổi nội dung file
-3. Kiểm tra SHA-256","SHA-256 của file sau khi thay đổi phải khác file ban đầu, 
-đảm bảo phát hiện thay đổi dữ liệu",,NOT RUN,
-TC-LAB-08,Laboratory Test Report,Kiểm tra thông tin toàn vẹn của Laboratory Test Report,Report đã upload thành công,"Report gồm:
-- Report ID
-- Sample ID
-- Batch Code
-- File Version
-- SHA-256","1. Mở thông tin Report
-2. Kiểm tra dữ liệu Report","Hệ thống hiển thị đầy đủ thông tin 
-Report và mã SHA-256 tương ứng",,NOT RUN,
+2. Gọi API verify integrity khi file nguyên vẹn
+3. Thay đổi nội dung file
+4. Gọi lại API verify integrity","Hash thực tế sau thay đổi khác hash ban đầu; API trả hash_valid=false, proof_valid=false và valid=false; hệ thống không cho Approve",,NOT RUN,
+TC-LAB-08,Laboratory Test Report,Kiểm tra thông tin toàn vẹn của Laboratory Test Report,Report đã upload thành công,"Report ID, Sample ID, Batch ID/Code, file_name, file_path, SHA-256, Proof hash","1. Mở chi tiết Report
+2. Gọi API GET /auditor/reports/{report_id}
+3. Đối chiếu dữ liệu Report và Integrity","API trả đúng liên kết Sample-Batch, file_hash, proof_hash; API integrity trả actual_hash, hash_valid, proof_valid và valid",,NOT RUN,
 TC-AUDIT-01,Auditor ,AUDITOR xem Batch đang chờ kiểm định,Có Batch UNVERIFIED và đủ dữ liệu,Batch,AUDITOR mở danh sách/chi tiết Batch,AUDITOR xem được Batch cần kiểm định,,NOT RUN,
 TC-AUDIT-02,Auditor ,AUDITOR approve Batch hợp lệ,Batch có dữ liệu kiểm định hợp lệ,Batch + Report,AUDITOR thực hiện Approve,Batch chuyển sang AUDITED,,NOT RUN,
 TC-AUDIT-03,Auditor ,AUDITOR reject Batch không đạt,Batch không đáp ứng điều kiện kiểm định,Batch,AUDITOR thực hiện Reject,Batch bị từ chối và lưu kết quả Audit,,NOT RUN,

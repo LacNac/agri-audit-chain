@@ -2,15 +2,63 @@ const API_BASE = "http://127.0.0.1:8000";
 
 function getCurrentUser() {
   try {
-    return JSON.parse(sessionStorage.getItem("currentUser") || "{}");
+    const serializedUser =
+      sessionStorage.getItem("currentUser") ||
+      localStorage.getItem("currentUser") ||
+      "{}";
+    const user = JSON.parse(serializedUser);
+    if (user.access_token && !sessionStorage.getItem("currentUser")) {
+      sessionStorage.setItem("currentUser", serializedUser);
+    }
+    return user;
   } catch (error) {
     return {};
   }
 }
 
-function logout() {
+let isLoggingOut = false;
+
+function clearAdminSession() {
   sessionStorage.removeItem("currentUser");
-  window.location.href = "./login.html";
+  localStorage.removeItem("currentUser");
+}
+
+function logout(requireConfirmation = true) {
+  if (
+    requireConfirmation &&
+    !window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi trang Admin?")
+  ) {
+    return false;
+  }
+
+  isLoggingOut = true;
+  clearAdminSession();
+  window.location.href = "./admin_login.html";
+  return true;
+}
+
+function protectAdminExit() {
+  window.history.pushState({ adminDashboard: true }, "", window.location.href);
+
+  window.addEventListener("popstate", () => {
+    if (isLoggingOut) return;
+    if (logout()) return;
+    window.history.pushState(
+      { adminDashboard: true },
+      "",
+      window.location.href,
+    );
+  });
+
+  window.addEventListener("beforeunload", (event) => {
+    if (isLoggingOut) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+
+  window.addEventListener("pagehide", () => {
+    if (!isLoggingOut) clearAdminSession();
+  });
 }
 
 function renderList(elementId, items, emptyMessage = "Không có dữ liệu") {
@@ -25,7 +73,12 @@ function renderList(elementId, items, emptyMessage = "Không có dữ liệu") {
   list.innerHTML = items
     .map((item) => {
       const status = (item.status || "UNVERIFIED").toUpperCase();
-      const tagClass = status === "AUDITED" ? "audited" : status === "REJECTED" ? "rejected" : "unverified";
+      const tagClass =
+        status === "AUDITED"
+          ? "audited"
+          : status === "REJECTED"
+            ? "rejected"
+            : "unverified";
       return `
         <li class="batch-item">
           <div>
@@ -48,6 +101,91 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function setTextContent(elementId, value) {
+  const element = document.getElementById(elementId);
+  if (element) element.textContent = value;
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(
+    value.replace(" ", "T") + (value.endsWith("Z") ? "" : "Z"),
+  );
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("vi-VN");
+}
+
+function renderBatches(items) {
+  const tableBody = document.getElementById("batches-table-body");
+  if (!tableBody) return;
+  if (!items || items.length === 0) {
+    tableBody.innerHTML =
+      '<tr><td colspan="6" class="empty">Chưa có lô hàng</td></tr>';
+    return;
+  }
+
+  tableBody.innerHTML = items
+    .map((item) => {
+      const status = String(item.status || "UNVERIFIED").toUpperCase();
+      const tagClass =
+        status === "AUDITED"
+          ? "audited"
+          : status === "REJECTED"
+            ? "rejected"
+            : "unverified";
+      return `<tr>
+      <td class="batch-code">${escapeHtml(item.batch_code)}</td>
+      <td>${escapeHtml(item.product_name)}</td>
+      <td>${escapeHtml(item.producer_name)}</td>
+      <td class="table-muted">${escapeHtml(formatDateTime(item.created_at))}</td>
+      <td><span class="tag ${tagClass}">${escapeHtml(status)}</span></td>
+      <td><button class="table-action" type="button" data-batch-id="${item.id}">Chi tiết</button></td>
+    </tr>`;
+    })
+    .join("");
+}
+
+function renderAuditTrails(items) {
+  const tableBody = document.getElementById("audit-table-body");
+  if (!tableBody) return;
+  if (!items || items.length === 0) {
+    tableBody.innerHTML =
+      '<tr><td colspan="5" class="empty">Chưa có lịch sử audit</td></tr>';
+    return;
+  }
+
+  tableBody.innerHTML = items
+    .map(
+      (item) => `<tr>
+    <td class="table-muted">${escapeHtml(formatDateTime(item.created_at))}</td>
+    <td>${escapeHtml(item.user_name)}</td>
+    <td><span class="tag">${escapeHtml(item.role)}</span></td>
+    <td class="audit-action">${escapeHtml(item.action)}</td>
+    <td class="audit-entity">${escapeHtml(item.entity_type)} #${escapeHtml(item.entity_id)}</td>
+  </tr>`,
+    )
+    .join("");
+}
+
+async function loadBatches(token) {
+  const response = await fetch(`${API_BASE}/admin/batches`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok)
+    throw new Error(data.detail || "Không thể tải danh sách lô hàng");
+  renderBatches(data);
+}
+
+async function loadAuditTrails(token) {
+  const response = await fetch(`${API_BASE}/admin/audit-trails`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok)
+    throw new Error(data.detail || "Không thể tải nhật ký hoạt động");
+  renderAuditTrails(data);
+}
+
 async function loadUsers(token) {
   const response = await fetch(`${API_BASE}/users`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -60,10 +198,12 @@ async function loadUsers(token) {
   const users = await response.json();
   const tableBody = document.getElementById("users-table-body");
   if (!tableBody) return;
-  tableBody.innerHTML = users.map((item) => {
-    const status = String(item.status || "active").toLowerCase();
-    const isLocked = status === "locked";
-    return `
+  tableBody.innerHTML =
+    users
+      .map((item) => {
+        const status = String(item.status || "active").toLowerCase();
+        const isLocked = status === "locked";
+        return `
       <tr>
         <td>${escapeHtml(item.name)}</td>
         <td>${escapeHtml(item.email)}</td>
@@ -71,7 +211,9 @@ async function loadUsers(token) {
         <td><span class="user-status ${isLocked ? "locked" : "active"}">${isLocked ? "Đã khóa" : "Đang hoạt động"}</span></td>
         <td><button class="status-btn ${isLocked ? "unlock" : "lock"}" data-user-id="${item.id}" data-next-status="${isLocked ? "active" : "locked"}">${isLocked ? "Mở khóa" : "Khóa"}</button></td>
       </tr>`;
-  }).join("") || '<tr><td colspan="5" class="empty">Chưa có người dùng</td></tr>';
+      })
+      .join("") ||
+    '<tr><td colspan="5" class="empty">Chưa có người dùng</td></tr>';
 }
 
 async function updateUserStatus(userId, status, token) {
@@ -84,14 +226,15 @@ async function updateUserStatus(userId, status, token) {
     body: JSON.stringify({ status }),
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || "Không thể cập nhật trạng thái");
+  if (!response.ok)
+    throw new Error(data.detail || "Không thể cập nhật trạng thái");
 }
 
 async function loadDashboard() {
   const currentUser = getCurrentUser();
   const token = currentUser.access_token;
 
-  if (!token || currentUser.role !== "ADMIN") {
+  if (!token || String(currentUser.role || "").toUpperCase() !== "ADMIN") {
     window.location.href = "./login.html";
     return;
   }
@@ -100,83 +243,163 @@ async function loadDashboard() {
     const response = await fetch(`${API_BASE}/admin/dashboard`, {
       method: "GET",
       headers: {
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || "Không thể tải dashboard");
+      const error = new Error(errorData.detail || "Không thể tải dashboard");
+      error.status = response.status;
+      throw error;
     }
 
     const data = await response.json();
     const summary = data.summary || {};
 
-    document.getElementById("users-count").textContent = summary.users ?? 0;
-    document.getElementById("farmers-count").textContent = summary.farmers ?? 0;
-    document.getElementById("auditors-count").textContent = summary.auditors ?? 0;
-    document.getElementById("batches-count").textContent = summary.batches ?? 0;
-    document.getElementById("audited-count").textContent = summary.audited_batches ?? 0;
-    document.getElementById("rejected-count").textContent = summary.rejected_batches ?? 0;
-    document.getElementById("pending-count").textContent = summary.pending_batches ?? 0;
-
-    renderList("new-batches", data.lists?.new_batches || [], "Không có batch mới");
-    renderList("pending-batches", data.lists?.pending_batches || [], "Không có batch chờ kiểm định");
-    renderList("rejected-batches", data.lists?.rejected_batches || [], "Không có batch bị reject");
+    setTextContent("users-count", summary.users ?? 0);
+    setTextContent("farmers-count", summary.farmers ?? 0);
+    setTextContent("auditors-count", summary.auditors ?? 0);
+    setTextContent("batches-count", summary.batches ?? 0);
+    setTextContent("audited-count", summary.audited_batches ?? 0);
+    setTextContent("rejected-count", summary.rejected_batches ?? 0);
+    setTextContent("pending-count", summary.pending_batches ?? 0);
+    setTextContent("admins-count", summary.admins ?? 0);
     await loadUsers(token);
   } catch (error) {
     alert(error.message);
-    window.location.href = "./login.html";
+    if (error.status === 401 || error.status === 403) {
+      sessionStorage.removeItem("currentUser");
+      localStorage.removeItem("currentUser");
+      window.location.href = "./login.html";
+    }
   }
 }
 
-document.getElementById("users-table-body")?.addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-user-id]");
-  if (!button) return;
+document
+  .getElementById("users-table-body")
+  ?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-user-id]");
+    if (!button) return;
 
-  const currentUser = getCurrentUser();
-  button.disabled = true;
-  try {
-    await updateUserStatus(button.dataset.userId, button.dataset.nextStatus, currentUser.access_token);
-    await loadUsers(currentUser.access_token);
-    await loadDashboard();
-  } catch (error) {
-    alert(error.message);
-    button.disabled = false;
-  }
+    const currentUser = getCurrentUser();
+    button.disabled = true;
+    try {
+      await updateUserStatus(
+        button.dataset.userId,
+        button.dataset.nextStatus,
+        currentUser.access_token,
+      );
+      await loadUsers(currentUser.access_token);
+      await loadDashboard();
+    } catch (error) {
+      alert(error.message);
+      button.disabled = false;
+    }
+  });
+
+document
+  .getElementById("create-auditor-form")
+  ?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector("button[type=submit]");
+    const message = document.getElementById("auditor-form-message");
+    const currentUser = getCurrentUser();
+    button.disabled = true;
+    if (message) message.textContent = "Đang tạo tài khoản...";
+
+    try {
+      const response = await fetch(`${API_BASE}/users/auditors`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${currentUser.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok)
+        throw new Error(data.detail || "Không thể tạo tài khoản Auditor");
+      form.reset();
+      if (message) message.textContent = `Đã tạo tài khoản ${data.username}.`;
+      await loadUsers(currentUser.access_token);
+      await loadDashboard();
+    } catch (error) {
+      if (message) message.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+document
+  .getElementById("batches-table-body")
+  ?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-batch-id]");
+    if (!button) return;
+
+    const token = getCurrentUser().access_token;
+    try {
+      const response = await fetch(
+        `${API_BASE}/batches/${button.dataset.batchId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok)
+        throw new Error(data.detail || "Không thể tải chi tiết lô hàng");
+      alert(
+        `${data.batch_code}\n${data.product_name}\nTrạng thái: ${data.status}`,
+      );
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+
+function showDashboardSection(sectionId) {
+  const sectionIds = [
+    "overview-section",
+    "users-section",
+    "batches-section",
+    "activity-section",
+  ];
+  const titles = {
+    "overview-section": "Tổng quan",
+    "users-section": "Quản lý người dùng",
+    "batches-section": "Quản lý lô hàng",
+    "activity-section": "Nhật ký hoạt động hệ thống",
+  };
+  sectionIds.forEach((id) => {
+    document
+      .getElementById(id)
+      ?.classList.toggle("view-hidden", id !== sectionId);
+  });
+  setTextContent("page-title", titles[sectionId] || "Tổng quan");
+
+  const token = getCurrentUser().access_token;
+  const loadView =
+    sectionId === "batches-section"
+      ? loadBatches(token)
+      : sectionId === "activity-section"
+        ? loadAuditTrails(token)
+        : Promise.resolve();
+  loadView.catch((error) => alert(error.message));
+}
+
+document.querySelectorAll(".sidebar-link").forEach((link) => {
+  link.addEventListener("click", () => {
+    document
+      .querySelectorAll(".sidebar-link")
+      .forEach((item) => item.classList.remove("active"));
+    link.classList.add("active");
+    showDashboardSection(link.dataset.section);
+  });
 });
 
-document.getElementById("create-auditor-form")?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const button = form.querySelector("button[type=submit]");
-  const message = document.getElementById("auditor-form-message");
-  const currentUser = getCurrentUser();
-  button.disabled = true;
-  message.textContent = "Đang tạo tài khoản...";
-
-  try {
-    const response = await fetch(`${API_BASE}/users/auditors`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${currentUser.access_token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(Object.fromEntries(new FormData(form))),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || "Không thể tạo tài khoản Auditor");
-    form.reset();
-    message.textContent = `Đã tạo tài khoản ${data.username}.`;
-    await loadUsers(currentUser.access_token);
-    await loadDashboard();
-  } catch (error) {
-    message.textContent = error.message;
-  } finally {
-    button.disabled = false;
-  }
-});
+showDashboardSection("overview-section");
 
 document.getElementById("logoutBtn")?.addEventListener("click", logout);
+protectAdminExit();
 loadDashboard();

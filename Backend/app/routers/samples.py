@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from ..dependencies.auth import get_current_user, get_db
 from ..dependencies.rbac import require_roles
 from ..schema.sample import SampleCreate, SampleOut
-from ..services.sample_service import create_sample, get_sample_by_id, list_samples, list_samples_by_batch
+from ..services.sample_service import create_sample, delete_sample, get_sample_by_id, list_samples, list_samples_by_batch, update_sample
 
 router = APIRouter()
 
@@ -12,10 +12,35 @@ router = APIRouter()
 def create_new_sample(
     payload: SampleCreate,
     db=Depends(get_db),
-    user=Depends(require_roles("FARMER", "AUDITOR")),
+    user=Depends(require_roles("AUDITOR")),
 ):
-    sample = create_sample(db, payload.batch_id, payload.model_dump(exclude_none=True))
+    sample = create_sample(db, payload.batch_id, payload.model_dump(exclude_none=True), user_id=user["id"])
     return SampleOut(**sample)
+
+
+@router.put("/samples/{sample_id}", response_model=SampleOut)
+def update_existing_sample(
+    sample_id: int,
+    payload: SampleCreate,
+    db=Depends(get_db),
+    user=Depends(require_roles("AUDITOR")),
+):
+    sample = update_sample(
+        db,
+        sample_id,
+        payload.model_dump(exclude_none=True),
+        user_id=user["id"],
+    )
+    return SampleOut(**sample)
+
+
+@router.delete("/samples/{sample_id}")
+def delete_existing_sample(
+    sample_id: int,
+    db=Depends(get_db),
+    user=Depends(require_roles("AUDITOR")),
+):
+    return delete_sample(db, sample_id, user_id=user["id"])
 
 
 @router.get("/samples", response_model=list[SampleOut])

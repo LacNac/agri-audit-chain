@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hồ sơ Kiểm định viên — AgriTrace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/auditor.css" />
+    <style>
+      /* CSS trang trí riêng cho trang Profile */
+      .profile-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        max-width: 960px;
+      }
+      .profile-header {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        padding-bottom: 28px;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 28px;
+      }
+      .profile-avatar-large {
+        width: 88px;
+        height: 88px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid var(--purple-soft);
+        box-shadow: 0 4px 12px rgba(92, 51, 207, 0.15);
+      }
+      .profile-name-box h2 {
+        font-size: 24px;
+        margin: 0 0 6px;
+        color: #111827;
+      }
+      .auditor-badge-id {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #ede9fe;
+        color: var(--primary-purple);
+        font-weight: 700;
+        font-size: 13px;
+        padding: 4px 12px;
+        border-radius: 6px;
+      }
+      .profile-sections-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px;
+        margin-bottom: 32px;
+      }
+      .profile-block {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+      }
+      .profile-block h3 {
+        font-size: 15px;
+        color: #1e293b;
+        margin: 0 0 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .info-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 12px;
+      }
+      .info-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+      }
+      .info-label {
+        color: #64748b;
+      }
+      .info-value {
+        font-weight: 600;
+        color: #1e293b;
+        text-align: right;
+      }
+      .stat-row-profile {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+      .stat-box-auditor {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+      }
+      .stat-box-auditor .num {
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--primary-purple);
+        font-family: var(--font-display);
+      }
+      .stat-box-auditor .lbl {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 4px;
+      }
+      .key-box {
+        font-family: monospace;
+        font-size: 12px;
+        background: #ffffff;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+        word-break: break-all;
+        color: #334155;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img src="../assets/logo-icon.svg" alt="" class="brand-icon" />
+          <img
+            src="../assets/logo-text.svg"
+            alt="AgriTrace"
+            class="brand-text"
+          />
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="auditdashboard.html" class="nav-item">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            Chờ duyệt
+          </a>
+          <a href="auditdashboard.html" class="nav-item">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+            Đã duyệt
+          </a>
+          <a href="auditdashboard.html" class="nav-item">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="m15 9-6 6" />
+              <path d="m9 9 6 6" />
+            </svg>
+            Từ chối
+          </a>
+          <a href="auditdashboard.html" class="nav-item">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12a9 9 0 1 0 3-6.7" />
+              <path d="M3 4v5h5" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            Lịch sử
+          </a>
+          <a href="auditdashboard.html" class="nav-item">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M21 8 12 3 3 8l9 5 9-5Z" />
+              <path d="M3 8v9l9 5 9-5V8" />
+              <path d="M12 13v9" />
+            </svg>
+            Quản lý mẫu
+          </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span class="role-pill">Vai trò: Auditor</span>
+          <a
+            href="auditorprofile.html"
+            class="user-row active-profile"
+            style="text-decoration: none; cursor: pointer"
+          >
+            <div class="avatar">
+              <img id="sidebar-user-avatar" src="" alt="Avatar" />
+            </div>
+            <span
+              class="user-name"
+              style="color: var(--primary-purple); text-decoration: underline"
+              id="sidebar-user-name"
+              >Đang tải...</span
+            >
+          </a>
+          <button
+            class="logout-btn"
+            type="button"
+            onclick="window.location.href = '../login.html'"
+          >
+            Log out
+          </button>
+        </div>
+      </aside>
+
+      <!-- NỘI DUNG HỒ SƠ AUDITOR -->
+      <main class="main-content">
+        <div style="margin-bottom: 16px">
+          <a href="auditdashboard.html" class="back-link"
+            >← Quay lại Bảng điều khiển</a
+          >
+        </div>
+
+        <div class="profile-card">
+          <!-- Header Profile -->
+          <div class="profile-header">
+            <img
+              id="profile-avatar"
+              class="profile-avatar-large"
+              src=""
+              alt="Auditor Avatar"
+            />
+            <div class="profile-name-box">
+              <h2 id="profile-name">Đang tải...</h2>
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 10px;
+                  margin-top: 4px;
+                "
+              >
+                <span class="auditor-badge-id" id="profile-code"
+                  >Mã Auditor</span
+                >
+                <span class="status-tag has-report" id="profile-status"
+                  >Đang tải...</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Thống kê nghiệp vụ thực hiện -->
+          <div class="stat-row-profile">
+            <div class="stat-box-auditor">
+              <div class="num" id="stat-approved">0</div>
+              <div class="lbl">Hồ sơ đã Phê duyệt (Approve)</div>
+            </div>
+            <div class="stat-box-auditor">
+              <div class="num" id="stat-rejected">0</div>
+              <div class="lbl">Lô hàng Từ chối (Reject)</div>
+            </div>
+            <div class="stat-box-auditor">
+              <div class="num" id="stat-sealed">0</div>
+              <div class="lbl">Báo cáo niêm phong SHA-256</div>
+            </div>
+          </div>
+
+          <!-- Lưới thông tin chuyên môn theo SRS -->
+          <div class="profile-sections-grid">
+            <!-- Thông tin chứng chỉ & thẩm quyền -->
+            <div class="profile-block">
+              <h3>📋 Thông tin Thẩm quyền & Pháp lý</h3>
+              <ul class="info-list">
+                <li class="info-item">
+                  <span class="info-label">Đơn vị công tác:</span>
+                  <span class="info-value"
+                    >Trung tâm Kiểm định Nông sản Quốc gia</span
+                  >
+                </li>
+                <li class="info-item">
+                  <span class="info-label">Chứng chỉ thẩm định:</span>
+                  <span class="info-value">ISO/IEC 17025:2026</span>
+                </li>
+                <li class="info-item">
+                  <span class="info-label">Phạm vi phê duyệt:</span>
+                  <span class="info-value"
+                    >VietGAP, GlobalGAP, OCOP 4-5 sao</span
+                  >
+                </li>
+                <li class="info-item">
+                  <span class="info-label">Ngày cấp quyền:</span>
+                  <span class="info-value">15/01/2026</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Thông tin bảo mật chữ ký số -->
+            <div class="profile-block">
+              <h3>🔐 Khóa định danh & Bằng chứng toàn vẹn</h3>
+              <ul class="info-list">
+                <li class="info-item">
+                  <span class="info-label">Cơ chế xác thực:</span>
+                  <span class="info-value">JWT RBAC + Proof of Integrity</span>
+                </li>
+                <li class="info-item">
+                  <span class="info-label"
+                    >Public Key Fingerprint (Audit):</span
+                  >
+                </li>
+              </ul>
+              <div class="key-box">0x89A2...F4C1 (SHA-256 Verifier Node)</div>
+              <p style="font-size: 11px; color: #64748b; margin: 8px 0 0">
+                * Mọi quyết định Approve/Reject của Auditor đều được ghi nhận
+                vào chuỗi Audit Trail không thể thu hồi.
+              </p>
+            </div>
+          </div>
+
+          <!-- Thông tin liên hệ -->
+          <div class="profile-block">
+            <h3>📬 Thông tin Liên hệ & Tài khoản</h3>
+            <div
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px"
+            >
+              <ul class="info-list">
+                <li class="info-item">
+                  <span class="info-label">Email cơ quan:</span
+                  ><span class="info-value" id="profile-email"
+                    >Đang tải...</span
+                  >
+                </li>
+                <li class="info-item">
+                  <span class="info-label">Số điện thoại:</span
+                  ><span class="info-value" id="profile-phone"
+                    >Đang tải...</span
+                  >
+                </li>
+              </ul>
+              <ul class="info-list">
+                <li class="info-item">
+                  <span class="info-label">Địa bàn quản lý:</span
+                  ><span class="info-value"
+                    >Đồng bằng Sông Cửu Long & Tây Nguyên</span
+                  >
+                </li>
+                <li class="info-item">
+                  <span class="info-label">Phiên đăng nhập:</span
+                  ><span class="info-value">127.0.0.1 (Hợp lệ)</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+  <script src="../js/auditorprofile.js"></script>
+</html>

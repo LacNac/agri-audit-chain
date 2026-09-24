@@ -8,7 +8,7 @@ from app.routers.users import get_current_user_profile, list_users
 from app.services.auth_service import register_user_with_business, login_user
 from app.services.batch_service import create_batch, update_batch, delete_batch
 from app.services.sample_service import create_sample, get_sample_by_id, list_samples_by_batch
-from app.services.audit_service import create_report, approve_batch
+from app.services.audit_service import create_report, approve_batch, verify_report_integrity
 from app.services.audit_trail_service import record_audit_trail, list_audit_trails
 from app.services.qr_service import create_qr_record
 from app.routers.public import trace_batch
@@ -89,6 +89,29 @@ def test_login_returns_uppercase_role_and_valid_jwt():
     assert result["role"] == "FARMER"
     assert claim["role"] == "FARMER"
     assert claim["sub"] == str(result["user_id"])
+
+
+def test_login_role_boundaries_keep_admin_and_auditor_separate():
+    db = make_db()
+    password_hash = hash_password("Secret@123")
+    db.executemany(
+        "INSERT INTO users (username, password_hash, full_name, email, phone, role, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
+        [
+            ("admin01", password_hash, "System Admin", "admin@example.com", "0901111111", "ADMIN"),
+            ("auditor01", password_hash, "System Auditor", "auditor@example.com", "0902222222", "AUDITOR"),
+            ("farmer01", password_hash, "Farmer", "farmer@example.com", "0903333333", "FARMER"),
+        ],
+    )
+
+    with pytest.raises(HTTPException):
+        login_user(db, LoginRequest(identifier="admin@example.com", password="Secret@123"), expected_roles=["FARMER"])
+    with pytest.raises(HTTPException):
+        login_user(db, LoginRequest(identifier="admin@example.com", password="Secret@123"), expected_roles=["AUDITOR"])
+    with pytest.raises(HTTPException):
+        login_user(db, LoginRequest(identifier="auditor@example.com", password="Secret@123"), expected_roles=["ADMIN"])
+
+    assert login_user(db, LoginRequest(identifier="admin@example.com", password="Secret@123"), expected_roles=["ADMIN"])["role"] == "ADMIN"
+    assert login_user(db, LoginRequest(identifier="auditor@example.com", password="Secret@123"), expected_roles=["AUDITOR"])["role"] == "AUDITOR"
 
 
 def test_get_current_user_profile_returns_business_info():
@@ -219,6 +242,8 @@ def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_i
     )
 
     assert result["file_hash"] == __import__("hashlib").sha256(pdf_bytes).hexdigest()
+    assert result["proof_hash"]
+    assert verify_report_integrity(db, result["id"])["valid"] is True
 
     db.execute(
         "INSERT INTO lab_reports (report_code, sample_id, batch_id, lab_name, lab_code, report_date, result, file_name, file_hash, file_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')",
@@ -228,12 +253,10 @@ def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_i
     with pytest.raises(HTTPException, match="Batch chưa đủ thông tin để kiểm định"):
         approve_batch(db, 1, user_id=7, reason="Approved")
 
+    db.execute("DELETE FROM lab_reports WHERE report_code = ?", ("REPORT-FAIL",))
+    db.commit()
     db.execute(
         "UPDATE samples SET status = 'READY' WHERE id = 1"
-    )
-    db.execute(
-        "INSERT INTO lab_reports (report_code, sample_id, batch_id, lab_name, lab_code, report_date, result, file_name, file_hash, file_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')",
-        ("REPORT-OK", 1, 1, "SGS Lab", "LAB-SGS-01", "2026-09-10", "PASS", "report.pdf", __import__("hashlib").sha256(pdf_bytes).hexdigest(), "/tmp/report.pdf"),
     )
 
     approved = approve_batch(db, 1, user_id=7, reason="Approved")
@@ -300,7 +323,7 @@ def test_qr_traceability_requires_audited_batch_and_public_summary_is_redacted()
     assert "audit_log" not in str(public)
 
 
-def test_sample_creation_requires_valid_batch_and_records_history():
+def test_sample_creation_requires_valid_batch_and_records_audit_trail():
     db = sqlite3.connect(":memory:")
     db.execute(
         "CREATE TABLE batches (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_code TEXT NOT NULL UNIQUE, product_name TEXT NOT NULL, product_type TEXT, producer_name TEXT, origin TEXT, quantity REAL, unit TEXT, production_date DATE, expiry_date DATE, status TEXT NOT NULL DEFAULT 'UNVERIFIED', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, farmer_id INTEGER, note TEXT)"
@@ -313,7 +336,7 @@ def test_sample_creation_requires_valid_batch_and_records_history():
         "CREATE TABLE samples (id INTEGER PRIMARY KEY AUTOINCREMENT, sample_code TEXT NOT NULL UNIQUE, batch_id INTEGER NOT NULL, sampling_date DATE, sample_quantity REAL, sample_unit TEXT, sampling_location TEXT, sampling_method TEXT, status TEXT NOT NULL DEFAULT 'PENDING', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
     )
     db.execute(
-        "CREATE TABLE sample_history (id INTEGER PRIMARY KEY AUTOINCREMENT, sample_id INTEGER NOT NULL, action TEXT NOT NULL, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+        "CREATE TABLE audit_trails (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id INTEGER NOT NULL, old_value TEXT, new_value TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
     )
 
     result = create_sample(
@@ -332,8 +355,11 @@ def test_sample_creation_requires_valid_batch_and_records_history():
 
     assert result["sample_code"] == "Sample-001"
     assert result["batch_id"] == 1
-    history = db.execute("SELECT action, sample_id FROM sample_history WHERE sample_id = ?", (result["id"],)).fetchone()
-    assert history[0] == "created"
+    history = db.execute(
+        "SELECT action, entity_type, entity_id FROM audit_trails WHERE entity_id = ?",
+        (result["id"],),
+    ).fetchone()
+    assert history == ("CREATE_SAMPLE", "sample", result["id"])
 
     with pytest.raises(HTTPException):
         create_sample(
@@ -362,9 +388,6 @@ def test_batch_samples_list_and_lookup_return_sample_rows():
     )
     db.execute(
         "CREATE TABLE samples (id INTEGER PRIMARY KEY AUTOINCREMENT, sample_code TEXT NOT NULL UNIQUE, batch_id INTEGER NOT NULL, sampling_date DATE, sample_quantity REAL, sample_unit TEXT, sampling_location TEXT, sampling_method TEXT, status TEXT NOT NULL DEFAULT 'PENDING', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
-    )
-    db.execute(
-        "CREATE TABLE sample_history (id INTEGER PRIMARY KEY AUTOINCREMENT, sample_id INTEGER NOT NULL, action TEXT NOT NULL, details TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
     )
     db.execute(
         "INSERT INTO samples (sample_code, batch_id, sampling_date, sample_quantity, sample_unit, sampling_location, sampling_method, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

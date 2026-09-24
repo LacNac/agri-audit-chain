@@ -2,50 +2,32 @@
 // AgriTrace — điều hướng giữa các màn hình (SPA đơn giản, không reload)
 // ===================================================================
 
-const API_BASE = "http://127.0.0.1:8001";
+const API_BASE = "http://127.0.0.1:8000";
 
-const CARDS = {
-  "landing": "card-landing",
+const CARD_IDS = {
+  landing: "card-landing",
   "register-1": "card-register-1",
   "register-2": "card-register-2",
   "login-kd": "card-login-kd",
   "login-dn": "card-login-dn",
 };
 
-const authManager = {
-  saveSession(user) {
-    sessionStorage.setItem("currentUser", JSON.stringify(user));
-  },
-};
-
-function handleSuccessfulLogin(data) {
-  authManager.saveSession(data);
-
-  if (data.role === "ADMIN") {
-    window.location.href = "./admin.html";
-    return;
-  }
-
-  if (data.role === "AUDITOR") {
-    alert("Tài khoản auditor đang được hỗ trợ ở màn hình riêng.");
-    return;
-  }
-
-  window.location.href = "./index.html";
-}
-
 function showCard(name) {
-  const targetId = CARDS[name];
+  const targetId = CARD_IDS[name];
   if (!targetId) return;
 
-  Object.values(CARDS).forEach((id) => {
+  Object.values(CARD_IDS).forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.hidden = id !== targetId;
   });
 
   const panel = document.querySelector(".panel");
-  if (panel) panel.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+  if (panel)
+    panel.scrollTo({
+      top: 0,
+      behavior: "instant" in window ? "instant" : "auto",
+    });
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -105,8 +87,12 @@ if (formStep2) {
     e.preventDefault();
 
     registerData.business_type = document.getElementById("r2-type").value;
-    registerData.product_type = document.getElementById("r2-category").value.trim();
-    registerData.business_name = document.getElementById("r2-company").value.trim();
+    registerData.product_type = document
+      .getElementById("r2-category")
+      .value.trim();
+    registerData.business_name = document
+      .getElementById("r2-company")
+      .value.trim();
     registerData.tax_code = document.getElementById("r2-tax").value.trim();
 
     const submitBtn = formStep2.querySelector('button[type="submit"]');
@@ -132,7 +118,6 @@ if (formStep2) {
       formStep1.reset();
       formStep2.reset();
       showCard("landing");
-
     } catch (err) {
       alert("Lỗi: " + err.message);
     } finally {
@@ -168,9 +153,19 @@ if (formLoginDn) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
-      handleSuccessfulLogin(data);
-      formLoginDn.reset();
+      const role = String(data.role || "").toUpperCase();
+      sessionStorage.setItem("currentUser", JSON.stringify(data));
+      localStorage.setItem("currentUser", JSON.stringify(data));
 
+      if (role === "FARMER") {
+        window.location.href = "./farmer/farmer.html";
+      } else if (role === "ADMIN") {
+        window.location.href = "./admin/admin.html";
+      } else if (role === "AUDITOR") {
+        window.location.href = "./auditor/auditdashboard.html";
+      } else {
+        throw new Error("Vai trò tài khoản không hợp lệ");
+      }
     } catch (err) {
       alert("Lỗi: " + err.message);
     } finally {
@@ -188,7 +183,7 @@ if (formLoginKd) {
   formLoginKd.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const identifier = document.getElementById("kd-id").value.trim();
+    const identifier = document.getElementById("kd-email").value.trim();
     const password = document.getElementById("kd-pass").value;
 
     const submitBtn = formLoginKd.querySelector('button[type="submit"]');
@@ -206,9 +201,19 @@ if (formLoginKd) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
-      handleSuccessfulLogin(data);
-      formLoginKd.reset();
+      const role = String(data.role || "").toUpperCase();
+      sessionStorage.setItem("currentUser", JSON.stringify(data));
+      localStorage.setItem("currentUser", JSON.stringify(data));
 
+      if (role === "AUDITOR") {
+        window.location.href = "./auditor/auditdashboard.html";
+      } else if (role === "ADMIN") {
+        window.location.href = "./admin/admin.html";
+      } else if (role === "FARMER") {
+        window.location.href = "./farmer/farmer.html";
+      } else {
+        throw new Error("Vai trò tài khoản không hợp lệ");
+      }
     } catch (err) {
       alert("Lỗi: " + err.message);
     } finally {
@@ -218,30 +223,29 @@ if (formLoginKd) {
   });
 }
 
-
 // ==========================================
 // TỰ ĐỘNG ĐỔI MÀU NÚT KHI ĐIỀN ĐỦ THÔNG TIN
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-  const forms = document.querySelectorAll('form');
+document.addEventListener("DOMContentLoaded", () => {
+  const forms = document.querySelectorAll("form");
 
-  forms.forEach(form => {
+  forms.forEach((form) => {
     const submitBtn = form.querySelector('button[type="submit"]');
     if (!submitBtn) return;
 
     function validateForm() {
       const isValid = form.checkValidity();
       if (isValid) {
-        submitBtn.removeAttribute('disabled');
-        submitBtn.classList.add('is-ready');
+        submitBtn.removeAttribute("disabled");
+        submitBtn.classList.add("is-ready");
       } else {
-        submitBtn.setAttribute('disabled', 'disabled');
-        submitBtn.classList.remove('is-ready');
+        submitBtn.setAttribute("disabled", "disabled");
+        submitBtn.classList.remove("is-ready");
       }
     }
 
-    form.addEventListener('input', validateForm);
-    form.addEventListener('change', validateForm);
+    form.addEventListener("input", validateForm);
+    form.addEventListener("change", validateForm);
     validateForm();
   });
-})
+});

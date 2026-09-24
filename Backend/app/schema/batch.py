@@ -1,6 +1,15 @@
 from datetime import date
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+def _required_text(value: str) -> str:
+    if value is None:
+        return None
+    value = value.strip()
+    if not value:
+        raise ValueError("Giá trị không được để trống hoặc chỉ chứa khoảng trắng")
+    return value
 
 
 class BatchCreate(BaseModel):
@@ -15,6 +24,8 @@ class BatchCreate(BaseModel):
     producer_name: Optional[str] = None
     farmer_id: Optional[int] = Field(default=None, exclude=True)
 
+    _trim_required_text = field_validator("product_name", "product_type", "origin", "unit", mode="before")( _required_text)
+
 
 class BatchUpdate(BaseModel):
     product_name: Optional[str] = Field(default=None, min_length=2, max_length=200)
@@ -25,6 +36,8 @@ class BatchUpdate(BaseModel):
     production_date: Optional[date] = None
     expiry_date: Optional[date] = None
     note: Optional[str] = None
+
+    _trim_optional_text = field_validator("product_name", "product_type", "origin", "unit", mode="before")( _required_text)
 
 
 class BatchOut(BaseModel):

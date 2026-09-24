@@ -26,11 +26,16 @@ def create_qr_record(db: sqlite3.Connection, batch_id: int, user_id: int | None 
     ).fetchone()
     if existing:
         trace_id, public_url = existing
+        expected_url = f"/FrontEnd/public/trace.html?trace={trace_id}"
+        if public_url != expected_url:
+            db.execute("UPDATE trace_records SET public_url = ? WHERE batch_id = ?", (expected_url, batch_id))
+            db.commit()
+            public_url = expected_url
         return {"batch_id": batch_id, "trace_id": trace_id, "public_url": public_url, "created": False}
 
     if trace_id is None:
         trace_id = generate_qr_code(batch_id, batch_code)
-    public_url = f"/public/trace/{batch_code}"
+    public_url = f"/FrontEnd/public/trace.html?trace={trace_id}"
 
     cursor = db.cursor()
     cursor.execute(

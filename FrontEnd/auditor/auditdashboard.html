@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgriTrace — Phân hệ Auditor Gatekeeper</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/auditor.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <!-- ============ SIDEBAR ============ -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img src="../assets/logo-icon.svg" alt="" class="brand-icon" />
+          <img
+            src="../assets/logo-text.svg"
+            alt="AgriTrace"
+            class="brand-text"
+          />
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-tab="pending">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            Chờ duyệt
+          </button>
+          <button class="nav-item" data-tab="approved">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+            Đã duyệt
+          </button>
+          <button class="nav-item" data-tab="rejected">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="m15 9-6 6" />
+              <path d="m9 9 6 6" />
+            </svg>
+            Từ chối
+          </button>
+          <button class="nav-item" data-tab="history">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12a9 9 0 1 0 3-6.7" />
+              <path d="M3 4v5h5" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            Lịch sử
+          </button>
+          <button class="nav-item" data-tab="samples">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M21 8 12 3 3 8l9 5 9-5Z" />
+              <path d="M3 8v9l9 5 9-5V8" />
+              <path d="M12 13v9" />
+            </svg>
+            Quản lý mẫu
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span class="role-pill">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M12 2a5 5 0 1 0 5 5 5 5 0 0 0-5-5zm0 12c-5.33 0-8 2.67-8 4v2h16v-2c0-1.33-2.67-4-8-4z"
+              />
+            </svg>
+            Vai trò: Auditor
+          </span>
+          <a
+            href="auditorprofile.html"
+            class="user-row"
+            style="text-decoration: none; color: inherit; cursor: pointer"
+          >
+            <div class="avatar">
+              <img id="sidebar-user-avatar" src="" alt="Avatar" />
+            </div>
+            <span
+              id="sidebar-user-name"
+              class="user-name"
+              style="transition: color 0.2s"
+              onmouseover="this.style.color = '#5c33cf'"
+              onmouseout="this.style.color = 'inherit'"
+            >
+              Đang tải...
+            </span>
+          </a>
+          <a class="logout-btn" href="../index.html">
+            Log out
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </a>
+        </div>
+      </aside>
+
+      <!-- ============ MAIN CONTENT AREA ============ -->
+      <main class="main-content">
+        <h1 class="page-title" id="page-heading">Danh sách chờ duyệt</h1>
+
+        <div class="content-card">
+          <!-- FORM LỌC CHUNG CHO BATCHES -->
+          <form class="filter-grid" id="batch-filter-form">
+            <div class="filter-group">
+              <label for="f-code">Batch code</label>
+              <input id="f-code" type="text" placeholder="Nhập mã lô hàng" />
+            </div>
+            <div class="filter-group">
+              <label for="f-product">Tên sản phẩm</label>
+              <input
+                id="f-product"
+                type="text"
+                placeholder="Nhập tên sản phẩm"
+              />
+            </div>
+            <div class="filter-group">
+              <label for="f-date" id="lbl-date">Ngày gửi kiểm định</label>
+              <input
+                id="f-date"
+                type="text"
+                placeholder="Chọn ngày"
+                onfocus="this.type = 'date'"
+                onblur="if (!this.value) this.type = 'text';"
+              />
+            </div>
+            <div class="filter-group full-width">
+              <label for="f-farmer">Nông dân</label>
+              <input
+                id="f-farmer"
+                type="text"
+                placeholder="Nhập tên nông dân"
+              />
+            </div>
+          </form>
+
+          <!-- FORM LỌC RIÊNG CHO TAB QUẢN LÝ MẪU -->
+          <form
+            class="filter-grid"
+            id="sample-filter-form"
+            style="display: none"
+          >
+            <div class="filter-group">
+              <label for="sf-id">Sample ID</label>
+              <input id="sf-id" type="text" placeholder="Nhập mã mẫu" />
+            </div>
+            <div class="filter-group">
+              <label for="sf-batch">Batch code liên kết</label>
+              <input id="sf-batch" type="text" placeholder="Nhập mã lô hàng" />
+            </div>
+            <div class="filter-group">
+              <label for="sf-status">Trạng thái</label>
+              <select id="sf-status">
+                <option value="">Chọn trạng thái</option>
+                <option value="WAITING_LAB">Chờ gửi lab</option>
+                <option value="WAITING_RESULT">Đang chờ kết quả</option>
+                <option value="HAS_REPORT">Đã có báo cáo</option>
+              </select>
+            </div>
+          </form>
+
+          <!-- THANH CÔNG CỤ TOOLBAR -->
+          <div class="table-toolbar">
+            <div class="toolbar-stat" id="stat-container">
+              <!-- Render động: ô đếm batch hoặc 3 pill thống kê mẫu -->
+            </div>
+            <div class="toolbar-actions">
+              <button type="button" class="btn btn-outline" id="btn-refresh">
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M21 12a9 9 0 1 1-3-6.7" />
+                  <path d="M21 3v6h-6" />
+                </svg>
+                Làm mới
+              </button>
+              <button type="button" class="btn btn-purple" id="btn-search">
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-4-4" />
+                </svg>
+                Tìm kiếm
+              </button>
+            </div>
+          </div>
+
+          <!-- BẢNG DỮ LIỆU -->
+          <table class="data-table">
+            <thead id="table-head">
+              <!-- Render động từ JS -->
+            </thead>
+            <tbody id="table-body">
+              <!-- Render động từ JS -->
+            </tbody>
+          </table>
+
+          <!-- PHÂN TRANG -->
+          <div class="pagination">
+            <button class="page-nav">&lt;</button>
+            <button class="page-num active">1</button>
+            <button class="page-num">2</button>
+            <button class="page-num">3</button>
+            <span class="page-dots">...</span>
+            <button class="page-num">54</button>
+            <button class="page-nav">&gt;</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- ============ DETAIL OVERLAY (Xem chi tiết lô hàng hoặc mẫu) ============ -->
+    <div class="overlay" id="detail-overlay" hidden>
+      <div class="detail-card" id="detail-card-content">
+        <!-- Nội dung chi tiết render động theo Batch hoặc Sample -->
+      </div>
+    </div>
+
+    <!-- ============ MODAL TẠO SAMPLE MỚI (Dành cho Auditor) ============ -->
+    <div class="modal-backdrop" id="create-sample-modal" hidden>
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Tạo Sample mới (Chưa gửi lab)</h3>
+          <button class="modal-close" id="btn-close-modal">&times;</button>
+        </div>
+        <form class="modal-body" id="create-sample-form">
+          <p class="modal-desc">
+            Khởi tạo mẫu kiểm định liên kết trực tiếp với lô hàng hiện tại.
+          </p>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Mã lô hàng liên kết</label>
+              <input
+                type="text"
+                id="m-batch-code"
+                readonly
+                class="input-readonly"
+              />
+            </div>
+            <div class="form-field">
+              <label>Tên sản phẩm</label>
+              <input
+                type="text"
+                id="m-product-name"
+                readonly
+                class="input-readonly"
+              />
+            </div>
+            <div class="form-field">
+              <label>Nông dân phụ trách</label>
+              <input
+                type="text"
+                id="m-farmer"
+                readonly
+                class="input-readonly"
+              />
+            </div>
+            <div class="form-field">
+              <label>Nguồn gốc / Vùng trồng</label>
+              <input
+                type="text"
+                id="m-origin"
+                readonly
+                class="input-readonly"
+              />
+            </div>
+            <div class="form-field">
+              <label for="m-sample-id"
+                >Mã Sample ID <span class="req">*</span></label
+              >
+              <input
+                type="text"
+                id="m-sample-id"
+                required
+                placeholder="VD: SMP-HN-2026-009"
+              />
+            </div>
+            <div class="form-field">
+              <label for="m-weight"
+                >Khối lượng mẫu lấy <span class="req">*</span></label
+              >
+              <input
+                type="text"
+                id="m-weight"
+                required
+                placeholder="VD: 1 kg hoặc 500 gr"
+              />
+            </div>
+            <div class="form-field">
+              <label for="m-date"
+                >Ngày lấy mẫu <span class="req">*</span></label
+              >
+              <input type="date" id="m-date" required />
+            </div>
+            <div class="form-field">
+              <label for="m-lab-target">Phòng Lab dự kiến chuyển đến</label>
+              <input
+                type="text"
+                id="m-lab-target"
+                placeholder="VD: TT Kiểm định Nông sản An Giang"
+              />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" id="btn-cancel-modal">
+              Hủy bỏ
+            </button>
+            <button type="submit" class="btn btn-purple">Lưu và tạo mẫu</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="../js/auditor.js"></script>
+  </body>
+</html>
