@@ -86,6 +86,7 @@ def ensure_database_schema() -> None:
                 status TEXT NOT NULL DEFAULT 'UNVERIFIED',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 farmer_id INTEGER,
+                reason TEXT,
                 FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE SET NULL
             );
 
@@ -386,6 +387,34 @@ def ensure_batch_columns() -> None:
             conn.execute("ALTER TABLE batches ADD COLUMN product_type TEXT")
         if "note" not in columns:
             conn.execute("ALTER TABLE batches ADD COLUMN note TEXT")
+        if "reason" not in columns:
+            conn.execute("ALTER TABLE batches ADD COLUMN reason TEXT")
+
+        rejected_batches = conn.execute(
+            "SELECT id FROM batches WHERE status = 'REJECTED' AND (reason IS NULL OR reason = '')"
+        ).fetchall()
+        for (batch_id,) in rejected_batches:
+            audit_row = conn.execute(
+                """
+                SELECT new_value
+                FROM audit_trails
+                WHERE entity_type = 'batch' AND entity_id = ? AND action = 'REJECT_BATCH'
+                ORDER BY id DESC LIMIT 1
+                """,
+                (batch_id,),
+            ).fetchone()
+            if not audit_row or not audit_row[0]:
+                continue
+            try:
+                audit_data = json.loads(audit_row[0])
+            except (TypeError, json.JSONDecodeError):
+                continue
+            rejection_reason = audit_data.get("reason")
+            if rejection_reason:
+                conn.execute(
+                    "UPDATE batches SET reason = ? WHERE id = ?",
+                    (rejection_reason, batch_id),
+                )
         conn.commit()
     finally:
         conn.close()
@@ -419,6 +448,7 @@ def migrate_batch_status_schema() -> None:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 farmer_id INTEGER,
                 note TEXT,
+                reason TEXT,
                 FOREIGN KEY (farmer_id) REFERENCES users(id) ON DELETE SET NULL
             )
             """
@@ -428,7 +458,7 @@ def migrate_batch_status_schema() -> None:
             INSERT INTO batches_new
             (id, batch_code, product_name, product_type, producer_name, origin,
              quantity, unit, production_date, expiry_date, status, created_at,
-             farmer_id, note)
+             farmer_id, note, reason)
             SELECT id, batch_code, product_name, product_type,
                    COALESCE(producer_name, 'Chưa xác định'),
                    COALESCE(origin, 'Chưa xác định'),
@@ -439,7 +469,7 @@ def migrate_batch_status_schema() -> None:
                        WHEN 'failed' THEN 'REJECTED'
                        ELSE 'UNVERIFIED'
                    END,
-                   created_at, farmer_id, note
+                   created_at, farmer_id, note, NULL
             FROM batches_legacy
             """
         )

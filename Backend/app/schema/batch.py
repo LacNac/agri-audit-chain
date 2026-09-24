@@ -54,6 +54,7 @@ class BatchOut(BaseModel):
     status: str
     farmer_id: Optional[int] = None
     note: Optional[str] = None
+    reason: Optional[str] = None
 
 
 class BatchStatusUpdate(BaseModel):

@@ -232,9 +232,10 @@ def reject_batch(db: sqlite3.Connection, batch_id: int, user_id: int, reason: st
         raise HTTPException(status_code=404, detail="Batch không tồn tại")
 
     batch_id_db, current_status = row
+    rejection_reason = reason.strip()
     db.execute(
-        "UPDATE batches SET status = 'REJECTED' WHERE id = ?",
-        (batch_id,),
+        "UPDATE batches SET status = 'REJECTED', reason = ? WHERE id = ?",
+        (rejection_reason, batch_id),
     )
-    record_audit_trail(db, user_id=user_id, action="REJECT_BATCH", entity_type="batch", entity_id=batch_id_db, old_value={"status": current_status}, new_value={"status": "REJECTED", "reason": reason.strip()})
+    record_audit_trail(db, user_id=user_id, action="REJECT_BATCH", entity_type="batch", entity_id=batch_id_db, old_value={"status": current_status}, new_value={"status": "REJECTED", "reason": rejection_reason})
     return {"batch_id": batch_id_db, "status": "REJECTED"}
