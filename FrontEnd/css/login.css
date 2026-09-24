@@ -452,7 +452,7 @@ select {
 }
 
 .btn-lavender {
-  background: var(--btn-lavender);
+  background: var(--btn-primary-hover);
   color: #fff;
 }
 .btn-lavender:hover {
