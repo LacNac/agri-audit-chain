@@ -31,6 +31,20 @@ function showCard(name) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function setFormMessage(form, message, type = "error") {
+  const messageEl = form?.querySelector(".form-message");
+  if (!messageEl) return;
+  messageEl.textContent = message;
+  messageEl.className = `form-message ${type}`;
+}
+
+function clearFormMessage(form) {
+  const messageEl = form?.querySelector(".form-message");
+  if (!messageEl) return;
+  messageEl.textContent = "";
+  messageEl.className = "form-message";
+}
+
 // Bắt tất cả phần tử có [data-goto] (nút, thẻ a, logo...)
 document.addEventListener("click", (e) => {
   const trigger = e.target.closest("[data-goto]");
@@ -64,11 +78,11 @@ if (formStep1) {
     const password2 = document.getElementById("r1-pass2").value;
 
     if (password !== password2) {
-      alert("Mật khẩu xác nhận không khớp!");
+      setFormMessage(formStep1, "Mật khẩu xác nhận không khớp!");
       return;
     }
     if (password.length < 6) {
-      alert("Mật khẩu phải có tối thiểu 6 ký tự!");
+      setFormMessage(formStep1, "Mật khẩu phải có tối thiểu 6 ký tự!");
       return;
     }
 
@@ -113,13 +127,18 @@ if (formStep2) {
         throw new Error(data.detail || "Đăng ký thất bại");
       }
 
-      alert(`Đăng ký thành công! Chào mừng ${data.username}`);
+      const landingCard = document.getElementById("card-landing");
+      setFormMessage(
+        landingCard,
+        `Đăng ký thành công! Chào mừng ${data.username}`,
+        "success",
+      );
       registerData = {};
       formStep1.reset();
       formStep2.reset();
       showCard("landing");
     } catch (err) {
-      alert("Lỗi: " + err.message);
+      setFormMessage(formStep2, "Lỗi: " + err.message);
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
@@ -167,7 +186,7 @@ if (formLoginDn) {
         throw new Error("Vai trò tài khoản không hợp lệ");
       }
     } catch (err) {
-      alert("Lỗi: " + err.message);
+      setFormMessage(formLoginDn, "Lỗi: " + err.message);
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
@@ -215,7 +234,7 @@ if (formLoginKd) {
         throw new Error("Vai trò tài khoản không hợp lệ");
       }
     } catch (err) {
-      alert("Lỗi: " + err.message);
+      setFormMessage(formLoginKd, "Lỗi: " + err.message);
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
@@ -232,8 +251,66 @@ document.addEventListener("DOMContentLoaded", () => {
   forms.forEach((form) => {
     const submitBtn = form.querySelector('button[type="submit"]');
     if (!submitBtn) return;
+    const fields = form.querySelectorAll("input, select");
+
+    function updateCustomValidity(field) {
+      let message = "";
+
+      if (
+        field.id === "r2-tax" &&
+        !/^(?:\d{10}|\d{13})$/.test(field.value.trim())
+      ) {
+        message = "Mã số thuế phải gồm đúng 10 hoặc 13 chữ số.";
+      } else if (field.id === "r1-pass" && field.value.length < 6) {
+        message = "Mật khẩu phải có tối thiểu 6 ký tự.";
+      } else if (
+        field.id === "r1-pass2" &&
+        field.value &&
+        field.value !== document.getElementById("r1-pass")?.value
+      ) {
+        message = "Mật khẩu xác nhận không khớp.";
+      }
+
+      field.setCustomValidity(message);
+    }
+
+    function getFieldError(field) {
+      if (field.validity.customError) return field.validationMessage;
+      if (field.validity.valueMissing) return "Vui lòng nhập thông tin này.";
+      if (field.validity.typeMismatch) return "Vui lòng nhập đúng định dạng.";
+      if (field.validity.patternMismatch) {
+        if (field.id === "r1-phone") {
+          return "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0.";
+        }
+        return "Thông tin chưa đúng định dạng.";
+      }
+      return "";
+    }
+
+    function getFieldErrorElement(field) {
+      const existingError = document.getElementById(`${field.id}-error`);
+      if (existingError) return existingError;
+
+      const error = document.createElement("span");
+      error.className = "field-error";
+      error.id = `${field.id}-error`;
+      error.setAttribute("aria-live", "polite");
+      field.closest(".field, .checkbox-row")?.append(error);
+      return error;
+    }
+
+    function validateField(field, showError = false) {
+      updateCustomValidity(field);
+      const error = getFieldErrorElement(field);
+      const message = getFieldError(field);
+      const shouldShow = showError || field.dataset.touched === "true";
+
+      if (shouldShow) error.textContent = message;
+      field.setAttribute("aria-invalid", message ? "true" : "false");
+    }
 
     function validateForm() {
+      fields.forEach((field) => updateCustomValidity(field));
       const isValid = form.checkValidity();
       if (isValid) {
         submitBtn.removeAttribute("disabled");
@@ -244,8 +321,18 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    fields.forEach((field) => {
+      field.addEventListener("blur", () => {
+        field.dataset.touched = "true";
+        validateField(field, true);
+      });
+      field.addEventListener("input", () => validateField(field));
+      field.addEventListener("change", () => validateField(field));
+    });
+
     form.addEventListener("input", validateForm);
     form.addEventListener("change", validateForm);
+    form.addEventListener("input", () => clearFormMessage(form));
     validateForm();
   });
 });
