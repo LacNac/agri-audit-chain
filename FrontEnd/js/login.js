@@ -256,7 +256,9 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateCustomValidity(field) {
       let message = "";
 
-      if (
+      if (field.maxLength > -1 && field.value.length > field.maxLength) {
+        message = `Vui lòng nhập tối đa ${field.maxLength} ký tự.`;
+      } else if (
         field.id === "r2-tax" &&
         !/^(?:\d{10}|\d{13})$/.test(field.value.trim())
       ) {
@@ -277,6 +279,9 @@ document.addEventListener("DOMContentLoaded", () => {
     function getFieldError(field) {
       if (field.validity.customError) return field.validationMessage;
       if (field.validity.valueMissing) return "Vui lòng nhập thông tin này.";
+      if (field.validity.tooLong) {
+        return `Vui lòng nhập tối đa ${field.maxLength} ký tự.`;
+      }
       if (field.validity.typeMismatch) return "Vui lòng nhập đúng định dạng.";
       if (field.validity.patternMismatch) {
         if (field.id === "r1-phone") {
