@@ -22,6 +22,7 @@ let currentBatch = null;
 let currentAuditorName = "Auditor";
 let currentPage = 1;
 const ITEMS_PER_PAGE = 5;
+let currentFilteredList = null;
 
 async function loadAuditorIdentity() {
   try {
@@ -104,6 +105,9 @@ document.querySelectorAll(".sidebar-nav .nav-item").forEach((btn) => {
 });
 
 async function switchTab(tab) {
+  currentFilteredList = null;
+  currentPage = 1;
+
   const heading = document.getElementById("page-heading");
   const batchForm = document.getElementById("batch-filter-form");
   const sampleForm = document.getElementById("sample-filter-form");
@@ -254,11 +258,13 @@ async function switchTab(tab) {
 }
 
 /* ========================================================
-   4. RENDER BẢNG BATCH TỪ DỮ LIỆU DATABASE
+   3. RENDER BẢNG BATCH TỪ DỮ LIỆU DATABASE
    ======================================================== */
 function renderBatchTable(statusFilter) {
   const thead = document.getElementById("table-head");
   const tbody = document.getElementById("table-body");
+  if (!thead || !tbody) return;
+
   tbody.innerHTML = "";
 
   thead.innerHTML = `
@@ -270,24 +276,35 @@ function renderBatchTable(statusFilter) {
     </tr>
   `;
 
-  const list = BATCHES.filter(
-    (b) => (b.status || "").toUpperCase() === statusFilter,
-  );
+  // Ưu tiên mảng tìm kiếm nếu có
+  let list = [];
+  if (currentFilteredList !== null) {
+    list = currentFilteredList;
+  } else {
+    list = BATCHES.filter(
+      (b) => (b.status || "").toUpperCase() === statusFilter,
+    );
+  }
 
   if (list.length === 0) {
     tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:32px;">Không có dữ liệu trong cơ sở dữ liệu.</td></tr>`;
+    renderPagination(0, statusFilter);
     return;
   }
 
-  list.forEach((b) => {
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const pageItems = list.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  pageItems.forEach((b) => {
     const code = b.batch_code || b.code;
     const name = b.product_name || b.product;
-    const date = b.audit_date || b.created_at || b.createdDate || "—";
+    const date = b.audit_date || b.production_date || b.created_at || "—";
     const farmer = b.producer_name || b.farmer_name || b.farmer || "—";
 
     const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
     tr.innerHTML = `
-      <td class="code-col">${code}</td>
+      <td class="code-col"><strong>${code}</strong></td>
       <td>${name}</td>
       <td>${date}</td>
       <td>${farmer}</td>
@@ -295,6 +312,70 @@ function renderBatchTable(statusFilter) {
     tr.addEventListener("click", () => openBatchDetail(b.id || code));
     tbody.appendChild(tr);
   });
+
+  renderPagination(list.length, statusFilter);
+}
+
+/* ========================================================
+   4. PHÂN TRANG (PAGINATION)
+   ======================================================== */
+function renderPagination(totalItems, currentStatusFilter) {
+  const container = document.getElementById("pagination");
+  if (!container) return;
+
+  container.innerHTML = "";
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+
+  // 1. Nút Lùi (<)
+  const prevBtn = document.createElement("button");
+  prevBtn.type = "button";
+  prevBtn.className = "page-btn page-nav-btn";
+  prevBtn.innerHTML = "&lt;";
+  prevBtn.disabled = currentPage <= 1;
+  prevBtn.onclick = function () {
+    goToPage(currentPage - 1, currentStatusFilter);
+  };
+  container.appendChild(prevBtn);
+
+  // 2. Các số trang
+  for (let i = 1; i <= totalPages; i++) {
+    if (
+      i === 1 ||
+      i === totalPages ||
+      (i >= currentPage - 1 && i <= currentPage + 1)
+    ) {
+      const numBtn = document.createElement("button");
+      numBtn.type = "button";
+      numBtn.className =
+        "page-number page-num-btn" + (i === currentPage ? " active" : "");
+      numBtn.textContent = i;
+      numBtn.onclick = function () {
+        goToPage(i, currentStatusFilter);
+      };
+      container.appendChild(numBtn);
+    } else if (i === currentPage - 2 || i === currentPage + 2) {
+      const dots = document.createElement("span");
+      dots.className = "page-dots";
+      dots.textContent = "...";
+      container.appendChild(dots);
+    }
+  }
+
+  // 3. Nút Tiến (>)
+  const nextBtn = document.createElement("button");
+  nextBtn.type = "button";
+  nextBtn.className = "page-btn page-nav-btn";
+  nextBtn.innerHTML = "&gt;";
+  nextBtn.disabled = currentPage >= totalPages;
+  nextBtn.onclick = function () {
+    goToPage(currentPage + 1, currentStatusFilter);
+  };
+  container.appendChild(nextBtn);
+}
+
+function goToPage(page, currentStatusFilter) {
+  currentPage = page;
+  renderBatchTable(currentStatusFilter);
 }
 
 /* ========================================================
@@ -623,7 +704,7 @@ function bindDetailEvents() {
       }
     });
 
-  // Phê duyệt Lô hàng qua API (POST /batches/{id}/approve)
+  // Phê duyệt Lô hàng qua API
   document
     .getElementById("btn-action-approve")
     ?.addEventListener("click", async () => {
@@ -651,7 +732,7 @@ function bindDetailEvents() {
       }
     });
 
-  // Từ chối Lô hàng qua API (POST /batches/{id}/reject)
+  // Từ chối Lô hàng qua API
   document
     .getElementById("btn-action-reject")
     ?.addEventListener("click", async () => {
@@ -821,9 +902,10 @@ function renderAuditTimeline(list) {
   });
 }
 
-function renderSampleTable(list) {
+function renderSampleTable(rawList) {
   const thead = document.getElementById("table-head");
   const tbody = document.getElementById("table-body");
+  if (!thead || !tbody) return;
   tbody.innerHTML = "";
 
   thead.innerHTML = `
@@ -835,143 +917,254 @@ function renderSampleTable(list) {
     </tr>
   `;
 
+  // Ưu tiên mảng đã lọc nếu người dùng bấm tìm kiếm
+  const list =
+    currentFilteredSamples !== null
+      ? currentFilteredSamples
+      : rawList || SAMPLES;
+
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:32px;">Không có mẫu nào trong Database.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:32px;">Không tìm thấy mẫu phù hợp.</td></tr>`;
+    renderPagination(0, "samples");
     return;
   }
 
-  list.forEach((s) => {
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const pageItems = list.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  pageItems.forEach((s) => {
     let tag = '<span class="status-tag waiting-lab">Chờ gửi lab</span>';
-    if (s.status === "HAS_REPORT")
+    const st = (s.status || "").toUpperCase();
+    if (st === "HAS_REPORT")
       tag = '<span class="status-tag has-report">Đã có báo cáo</span>';
-    if (s.status === "WAITING_RESULT")
+    if (st === "WAITING_RESULT")
       tag = '<span class="status-tag waiting-result">Đang chờ kết quả</span>';
+
+    // Lấy Batch code xịn bằng hàm quy đổi
+    const bCode = s.batch_code || s.batchCode || getBatchCodeById(s.batch_id);
+    const prodName = s.product_name || s.product || "Nông sản";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="code-col">${s.sample_code || s.id}</td>
-      <td>${s.batch_code || s.batchCode}</td>
-      <td>${s.product_name || s.product || "Nông sản"}</td>
+      <td class="code-col"><strong>${s.sample_code || s.id}</strong></td>
+      <td>${bCode}</td>
+      <td>${prodName}</td>
       <td>${tag}</td>
     `;
     tbody.appendChild(tr);
   });
+
+  renderPagination(list.length, "samples");
 }
 
-function renderPagination(totalItems, currentStatusFilter) {
-  const container = document.getElementById("pagination");
-  if (!container) return;
+/* ========================================================
+   9. TÍNH NĂNG TÌM KIẾM & LÀM MỚI BỘ LỌC
+   ======================================================== */
+function handleSearchBatches() {
+  const codeVal = (document.getElementById("f-code")?.value || "")
+    .trim()
+    .toLowerCase();
+  const productVal = (document.getElementById("f-product")?.value || "")
+    .trim()
+    .toLowerCase();
+  const dateVal = (document.getElementById("f-date")?.value || "").trim();
+  const farmerVal = (document.getElementById("f-farmer")?.value || "")
+    .trim()
+    .toLowerCase();
 
-  container.innerHTML = "";
-  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+  let targetStatus = "UNVERIFIED";
+  if (activeTab === "approved") targetStatus = "AUDITED";
+  else if (activeTab === "rejected") targetStatus = "REJECTED";
 
-  // 1. Nút Lùi (<)
-  const prevBtn = document.createElement("button");
-  prevBtn.type = "button";
-  prevBtn.className = "page-btn page-nav-btn";
-  prevBtn.innerHTML = "&lt;";
-  prevBtn.disabled = currentPage <= 1;
-  prevBtn.onclick = function () {
-    goToPage(currentPage - 1, currentStatusFilter);
-  };
-  container.appendChild(prevBtn);
-
-  // 2. Các số trang
-  for (let i = 1; i <= totalPages; i++) {
-    if (
-      i === 1 ||
-      i === totalPages ||
-      (i >= currentPage - 1 && i <= currentPage + 1)
-    ) {
-      const numBtn = document.createElement("button");
-      numBtn.type = "button";
-      numBtn.className =
-        "page-number page-num-btn" + (i === currentPage ? " active" : "");
-      numBtn.textContent = i;
-      numBtn.onclick = function () {
-        goToPage(i, currentStatusFilter);
-      };
-      container.appendChild(numBtn);
-    } else if (i === currentPage - 2 || i === currentPage + 2) {
-      const dots = document.createElement("span");
-      dots.className = "page-dots";
-      dots.textContent = "...";
-      container.appendChild(dots);
-    }
-  }
-
-  // 3. Nút Tiến (>)
-  const nextBtn = document.createElement("button");
-  nextBtn.type = "button";
-  nextBtn.className = "page-btn page-nav-btn";
-  nextBtn.innerHTML = "&gt;";
-  nextBtn.disabled = currentPage >= totalPages;
-  nextBtn.onclick = function () {
-    goToPage(currentPage + 1, currentStatusFilter);
-  };
-  container.appendChild(nextBtn);
-}
-
-// Hàm chuyển trang khi bấm
-function goToPage(page, currentStatusFilter) {
-  currentPage = page;
-  renderBatchTable(currentStatusFilter);
-}
-
-// Hàm chuyển trang khi bấm
-function goToPage(page, currentStatusFilter) {
-  currentPage = page;
-  renderBatchTable(currentStatusFilter);
-}
-
-function renderBatchTable(statusFilter) {
-  const thead = document.getElementById("table-head");
-  const tbody = document.getElementById("table-body");
-  tbody.innerHTML = "";
-
-  thead.innerHTML = `
-    <tr>
-      <th>Batch code</th>
-      <th>Sản phẩm</th>
-      <th>Ngày ${activeTab === "approved" ? "duyệt" : "tạo hồ sơ"}</th>
-      <th>Nông dân</th>
-    </tr>
-  `;
-
-  // Lọc danh sách theo trạng thái
-  const list = BATCHES.filter(
-    (b) => (b.status || "").toUpperCase() === statusFilter,
+  // Lọc từ mảng BATCHES theo đúng trạng thái của tab hiện tại
+  const tabList = BATCHES.filter(
+    (b) => (b.status || "").toUpperCase() === targetStatus,
   );
 
-  if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:32px;">Không có dữ liệu trong cơ sở dữ liệu.</td></tr>`;
-    renderPagination(0, statusFilter);
-    return;
-  }
+  currentFilteredList = tabList.filter((b) => {
+    const code = (b.batch_code || b.code || "").toLowerCase();
+    const product = (b.product_name || b.product || "").toLowerCase();
+    const date = (
+      b.audit_date ||
+      b.production_date ||
+      b.created_at ||
+      ""
+    ).toLowerCase();
+    const farmer = (
+      b.producer_name ||
+      b.farmer_name ||
+      b.farmer ||
+      ""
+    ).toLowerCase();
 
-  // Cắt danh sách hiển thị cho trang hiện tại
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const pageItems = list.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-  pageItems.forEach((b) => {
-    const code = b.batch_code || b.code;
-    const name = b.product_name || b.product;
-    const date = b.audit_date || b.production_date || b.created_at || "—";
-    const farmer = b.producer_name || b.farmer_name || b.farmer || "—";
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="code-col">${code}</td>
-      <td>${name}</td>
-      <td>${date}</td>
-      <td>${farmer}</td>
-    `;
-    tr.addEventListener("click", () => openBatchDetail(b.id || code));
-    tbody.appendChild(tr);
+    return (
+      (!codeVal || code.includes(codeVal)) &&
+      (!productVal || product.includes(productVal)) &&
+      (!dateVal || date.includes(dateVal)) &&
+      (!farmerVal || farmer.includes(farmerVal))
+    );
   });
 
-  // Vẽ lại thanh phân trang theo tổng số lượng thực tế
-  renderPagination(list.length, statusFilter);
+  currentPage = 1;
+  renderBatchTable(targetStatus);
+
+  const badgeCount = document.querySelector(".box-badge strong");
+  if (badgeCount) badgeCount.textContent = currentFilteredList.length;
+}
+
+async function handleResetFilter() {
+  if (document.getElementById("f-code"))
+    document.getElementById("f-code").value = "";
+  if (document.getElementById("f-product"))
+    document.getElementById("f-product").value = "";
+  if (document.getElementById("f-date"))
+    document.getElementById("f-date").value = "";
+  if (document.getElementById("f-farmer"))
+    document.getElementById("f-farmer").value = "";
+
+  currentFilteredList = null;
+  currentPage = 1;
+
+  await fetchBatchesFromDB();
+
+  let targetStatus = "UNVERIFIED";
+  if (activeTab === "approved") targetStatus = "AUDITED";
+  else if (activeTab === "rejected") targetStatus = "REJECTED";
+
+  renderBatchTable(targetStatus);
+
+  const tabList = BATCHES.filter(
+    (b) => (b.status || "").toUpperCase() === targetStatus,
+  );
+  const badgeCount = document.querySelector(".box-badge strong");
+  if (badgeCount) badgeCount.textContent = tabList.length;
+}
+
+// Lắng nghe sự kiện click và phím Enter
+document.addEventListener("DOMContentLoaded", () => {
+  document
+    .getElementById("btn-search")
+    ?.addEventListener("click", handleSearchBatches);
+  document
+    .getElementById("btn-refresh")
+    ?.addEventListener("click", handleResetFilter);
+  document
+    .getElementById("btn-reset")
+    ?.addEventListener("click", handleResetFilter);
+
+  ["f-code", "f-product", "f-date", "f-farmer"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("keyup", (e) => {
+      if (e.key === "Enter") handleSearchBatches();
+    });
+  });
+});
+
+let currentFilteredSamples = null;
+
+function handleSearchSamples() {
+  // Lấy các input trong form lọc mẫu
+  const sampleInput = document.querySelector(
+    "#sample-filter-form input[placeholder*='Sample'], #sf-sample, #f-sample-code",
+  );
+  const batchInput = document.querySelector(
+    "#sample-filter-form input[placeholder*='lô'], #sf-batch, #f-sample-batch",
+  );
+  const statusSelect = document.querySelector(
+    "#sample-filter-form select, #sf-status",
+  );
+
+  const sampleVal = (sampleInput?.value || "").trim().toLowerCase();
+  const batchVal = (batchInput?.value || "").trim().toLowerCase();
+  const statusVal = (statusSelect?.value || "").trim().toUpperCase();
+
+  currentFilteredSamples = SAMPLES.filter((s) => {
+    const sCode = (s.sample_code || s.id || "").toLowerCase();
+    const bCode = (
+      s.batch_code ||
+      s.batchCode ||
+      s.batch?.batch_code ||
+      (s.batch_id ? `Lô #${s.batch_id}` : "")
+    ).toLowerCase();
+    const st = (s.status || "").toUpperCase();
+
+    const mSample = !sampleVal || sCode.includes(sampleVal);
+    const mBatch = !batchVal || bCode.includes(batchVal);
+    const mStatus = !statusVal || st === statusVal;
+
+    return mSample && mBatch && mStatus;
+  });
+
+  currentPage = 1;
+  renderSampleTable(currentFilteredSamples);
+
+  // Cập nhật lại số đếm các thẻ pill
+  const cLab = currentFilteredSamples.filter(
+    (s) => s.status === "WAITING_LAB",
+  ).length;
+  const cReport = currentFilteredSamples.filter(
+    (s) => s.status === "HAS_REPORT",
+  ).length;
+  const cWait = currentFilteredSamples.filter(
+    (s) => s.status === "WAITING_RESULT",
+  ).length;
+
+  const statPills = document.querySelectorAll(".stat-pill strong");
+  if (statPills.length >= 3) {
+    statPills[0].textContent = cLab;
+    statPills[1].textContent = cReport;
+    statPills[2].textContent = cWait;
+  }
+}
+
+function onSearchClick() {
+  if (activeTab === "samples") {
+    handleSearchSamples();
+  } else {
+    handleSearchBatches();
+  }
+}
+
+async function onResetClick() {
+  if (activeTab === "samples") {
+    // Xóa trắng form mẫu
+    document
+      .querySelectorAll("#sample-filter-form input")
+      .forEach((i) => (i.value = ""));
+    const select = document.querySelector("#sample-filter-form select");
+    if (select) select.selectedIndex = 0;
+
+    currentFilteredSamples = null;
+    currentPage = 1;
+    await fetchSamplesFromDB();
+    renderSampleTable(SAMPLES);
+  } else {
+    handleResetFilter();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document
+    .getElementById("btn-search")
+    ?.addEventListener("click", onSearchClick);
+  document
+    .getElementById("btn-refresh")
+    ?.addEventListener("click", onResetClick);
+  document.getElementById("btn-reset")?.addEventListener("click", onResetClick);
+
+  // Phím Enter
+  document
+    .querySelectorAll(".filter-grid input, #sample-filter-form input")
+    .forEach((input) => {
+      input.addEventListener("keyup", (e) => {
+        if (e.key === "Enter") onSearchClick();
+      });
+    });
+});
+
+function getBatchCodeById(batchId) {
+  if (!batchId) return "—";
+  const found = BATCHES.find((b) => String(b.id) === String(batchId));
+  return found ? found.batch_code || found.code : `Lô #${batchId}`;
 }
 
 // Khởi động trang với dữ liệu từ DB
