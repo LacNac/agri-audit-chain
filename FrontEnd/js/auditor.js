@@ -20,6 +20,8 @@ let AUDIT_HISTORY = [];
 let activeTab = "pending";
 let currentBatch = null;
 let currentAuditorName = "Auditor";
+let currentPage = 1;
+const ITEMS_PER_PAGE = 5;
 
 async function loadAuditorIdentity() {
   try {
@@ -380,12 +382,16 @@ async function openBatchDetail(batchIdOrCode) {
         ${latestReport ? '<button type="button" class="btn-gray-pill" id="btn-view-report">Xem file</button>' : ""}
       </div>
 
-      ${latestReport ? `
+      ${
+        latestReport
+          ? `
         <div class="link-row" style="background:#f8fafc;">
           <span>Phòng lab: <strong>${latestReport.lab_name || "—"}</strong></span>
           <span>Mã phòng lab: <strong>${latestReport.lab_code || "—"}</strong></span>
         </div>
-      ` : ""}
+      `
+          : ""
+      }
 
       <div class="report-form" style="${latestReport ? "display:none;" : ""}">
         <h4 style="margin:0 0 12px; font-size:13px;">Upload report mới</h4>
@@ -393,18 +399,19 @@ async function openBatchDetail(batchIdOrCode) {
           <div class="form-field">
             <label>Sample</label>
             <select id="r-sample-select">
-              ${samplesList
-        .map(function (s) {
-          return (
-            '<option value="' +
-            (s.id || s.sample_code) +
-            '">' +
-            (s.sample_code || s.id) +
-            "</option>"
-          );
-        })
-        .join("") || "<option>— Chưa có Sample —</option>"
-      }
+              ${
+                samplesList
+                  .map(function (s) {
+                    return (
+                      '<option value="' +
+                      (s.id || s.sample_code) +
+                      '">' +
+                      (s.sample_code || s.id) +
+                      "</option>"
+                    );
+                  })
+                  .join("") || "<option>— Chưa có Sample —</option>"
+              }
             </select>
           </div>
           <div class="form-field">
@@ -604,7 +611,12 @@ function bindDetailEvents() {
         document.getElementById("hash-val-text").textContent = data.file_hash;
         document.getElementById("btn-action-approve").disabled = false;
         currentBatch.report = data;
-        currentBatch.reports = [data, ...(currentBatch.reports || []).filter((report) => report.id !== data.id)];
+        currentBatch.reports = [
+          data,
+          ...(currentBatch.reports || []).filter(
+            (report) => report.id !== data.id,
+          ),
+        ];
         await openBatchDetail(currentBatch.id);
       } catch (err) {
         alert(`Lỗi: ${err.message}`);
@@ -844,6 +856,122 @@ function renderSampleTable(list) {
     `;
     tbody.appendChild(tr);
   });
+}
+
+function renderPagination(totalItems, currentStatusFilter) {
+  const container = document.getElementById("pagination");
+  if (!container) return;
+
+  container.innerHTML = "";
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+
+  // 1. Nút Lùi (<)
+  const prevBtn = document.createElement("button");
+  prevBtn.type = "button";
+  prevBtn.className = "page-btn page-nav-btn";
+  prevBtn.innerHTML = "&lt;";
+  prevBtn.disabled = currentPage <= 1;
+  prevBtn.onclick = function () {
+    goToPage(currentPage - 1, currentStatusFilter);
+  };
+  container.appendChild(prevBtn);
+
+  // 2. Các số trang
+  for (let i = 1; i <= totalPages; i++) {
+    if (
+      i === 1 ||
+      i === totalPages ||
+      (i >= currentPage - 1 && i <= currentPage + 1)
+    ) {
+      const numBtn = document.createElement("button");
+      numBtn.type = "button";
+      numBtn.className =
+        "page-number page-num-btn" + (i === currentPage ? " active" : "");
+      numBtn.textContent = i;
+      numBtn.onclick = function () {
+        goToPage(i, currentStatusFilter);
+      };
+      container.appendChild(numBtn);
+    } else if (i === currentPage - 2 || i === currentPage + 2) {
+      const dots = document.createElement("span");
+      dots.className = "page-dots";
+      dots.textContent = "...";
+      container.appendChild(dots);
+    }
+  }
+
+  // 3. Nút Tiến (>)
+  const nextBtn = document.createElement("button");
+  nextBtn.type = "button";
+  nextBtn.className = "page-btn page-nav-btn";
+  nextBtn.innerHTML = "&gt;";
+  nextBtn.disabled = currentPage >= totalPages;
+  nextBtn.onclick = function () {
+    goToPage(currentPage + 1, currentStatusFilter);
+  };
+  container.appendChild(nextBtn);
+}
+
+// Hàm chuyển trang khi bấm
+function goToPage(page, currentStatusFilter) {
+  currentPage = page;
+  renderBatchTable(currentStatusFilter);
+}
+
+// Hàm chuyển trang khi bấm
+function goToPage(page, currentStatusFilter) {
+  currentPage = page;
+  renderBatchTable(currentStatusFilter);
+}
+
+function renderBatchTable(statusFilter) {
+  const thead = document.getElementById("table-head");
+  const tbody = document.getElementById("table-body");
+  tbody.innerHTML = "";
+
+  thead.innerHTML = `
+    <tr>
+      <th>Batch code</th>
+      <th>Sản phẩm</th>
+      <th>Ngày ${activeTab === "approved" ? "duyệt" : "tạo hồ sơ"}</th>
+      <th>Nông dân</th>
+    </tr>
+  `;
+
+  // Lọc danh sách theo trạng thái
+  const list = BATCHES.filter(
+    (b) => (b.status || "").toUpperCase() === statusFilter,
+  );
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:32px;">Không có dữ liệu trong cơ sở dữ liệu.</td></tr>`;
+    renderPagination(0, statusFilter);
+    return;
+  }
+
+  // Cắt danh sách hiển thị cho trang hiện tại
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const pageItems = list.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  pageItems.forEach((b) => {
+    const code = b.batch_code || b.code;
+    const name = b.product_name || b.product;
+    const date = b.audit_date || b.production_date || b.created_at || "—";
+    const farmer = b.producer_name || b.farmer_name || b.farmer || "—";
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="code-col">${code}</td>
+      <td>${name}</td>
+      <td>${date}</td>
+      <td>${farmer}</td>
+    `;
+    tr.addEventListener("click", () => openBatchDetail(b.id || code));
+    tbody.appendChild(tr);
+  });
+
+  // Vẽ lại thanh phân trang theo tổng số lượng thực tế
+  renderPagination(list.length, statusFilter);
 }
 
 // Khởi động trang với dữ liệu từ DB
