@@ -122,12 +122,14 @@ def get_public_report_file(batch_code: str, db=Depends(get_db)):
 
     file_name, file_path = report
     requested_name = Path(file_path or file_name or "").name
+    candidate_names = (requested_name, f"seed_{Path(file_name or requested_name).name}")
     report_path = next(
         (
-            upload_dir / requested_name
+            upload_dir / candidate_name
+            for candidate_name in candidate_names
             for upload_dir in UPLOADS_DIRS
-            if (upload_dir / requested_name).resolve().parent == upload_dir.resolve()
-            and (upload_dir / requested_name).is_file()
+            if (upload_dir / candidate_name).resolve().parent == upload_dir.resolve()
+            and (upload_dir / candidate_name).is_file()
         ),
         None,
     )

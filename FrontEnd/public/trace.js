@@ -100,6 +100,26 @@ function resolveReportUrl(url) {
   return url.startsWith("http") ? url : `${API_BASE}${url}`;
 }
 
+let reportObjectUrl = null;
+
+async function loadReportPdf(data) {
+  const report = data?.reports?.[0];
+  if (!report?.url) return false;
+
+  const response = await fetch(resolveReportUrl(report.url));
+  if (!response.ok) throw new Error("Không thể tải file PDF");
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/pdf")) {
+    throw new Error("File report không phải PDF");
+  }
+
+  const blob = await response.blob();
+  if (reportObjectUrl) URL.revokeObjectURL(reportObjectUrl);
+  reportObjectUrl = URL.createObjectURL(blob);
+  report.pdfUrl = reportObjectUrl;
+  return true;
+}
+
 function renderTrace(data) {
   document.getElementById("loading").classList.add("hidden");
   const card = document.getElementById("trace-card");
@@ -111,17 +131,17 @@ function renderTrace(data) {
     Array.isArray(info.journey) && info.journey.length
       ? info.journey
       : [
-          {
-            title: "Lô hàng được tạo",
-            date: info.production_date || "—",
-            desc: "Hồ sơ được ghi nhận trong hệ thống AgriTrace.",
-          },
-          {
-            title: "Kiểm định viên phê duyệt",
-            date: info.audit_date || "—",
-            desc: "Kết quả kiểm định đã xác nhận chất lượng lô hàng.",
-          },
-        ];
+        {
+          title: "Lô hàng được tạo",
+          date: info.production_date || "—",
+          desc: "Hồ sơ được ghi nhận trong hệ thống AgriTrace.",
+        },
+        {
+          title: "Kiểm định viên phê duyệt",
+          date: info.audit_date || "—",
+          desc: "Kết quả kiểm định đã xác nhận chất lượng lô hàng.",
+        },
+      ];
   const reports =
     Array.isArray(info.reports) && info.reports.length
       ? info.reports
@@ -167,8 +187,8 @@ function renderTrace(data) {
     <section class="tab-panel" id="panel-journey">
       <ol class="journey-list">
         ${journey
-          .map(
-            (step) => `
+      .map(
+        (step) => `
               <li>
                 <div class="journey-dot" aria-hidden="true"></div>
                 <div>
@@ -178,8 +198,8 @@ function renderTrace(data) {
                 </div>
               </li>
             `,
-          )
-          .join("")}
+      )
+      .join("")}
       </ol>
     </section>
 
@@ -209,22 +229,24 @@ function renderTrace(data) {
 
     <section class="tab-panel" id="panel-report" hidden>
       <div class="report-list">
-        ${
-          reports.length
-            ? reports
-                .map(
-                  (report) => `
+        ${reports.length
+      ? reports
+        .map(
+          (report) => {
+            const pdfUrl = report.pdfUrl || "#";
+            return `
                   <div class="report-item">
-                    <a href="${escapeHtml(resolveReportUrl(report.url))}" target="_blank" rel="noopener">
+                    <a href="${escapeHtml(pdfUrl)}" target="_blank" rel="noopener">
                       📄 ${escapeHtml(report.name || "Phiếu kiểm nghiệm")}
                     </a>
-                    ${report.url ? `<div class="report-preview"><object data="${escapeHtml(resolveReportUrl(report.url))}" type="application/pdf"><a href="${escapeHtml(resolveReportUrl(report.url))}" target="_blank" rel="noopener">Mở file PDF</a></object></div>` : ""}
+                    ${report.pdfUrl ? `<div class="report-preview"><object data="${escapeHtml(report.pdfUrl)}" type="application/pdf"><a href="${escapeHtml(report.pdfUrl)}" target="_blank" rel="noopener">Mở file PDF</a></object></div>` : '<p class="report-loading">Đang tải file PDF...</p>'}
                   </div>
-                `,
-                )
-                .join("")
-            : '<p class="report-empty">Chưa có phiếu kiểm nghiệm được công khai cho lô hàng này.</p>'
-        }
+                `;
+          },
+        )
+        .join("")
+      : '<p class="report-empty">Chưa có phiếu kiểm nghiệm được công khai cho lô hàng này.</p>'
+    }
       </div>
     </section>
 
@@ -272,7 +294,13 @@ async function loadTrace() {
       throw new Error(data?.detail || "Không tìm thấy hồ sơ truy xuất");
     }
 
-    renderTrace(data || buildFallbackData());
+    const traceData = data || buildFallbackData();
+    renderTrace(traceData);
+    try {
+      if (await loadReportPdf(traceData)) renderTrace(traceData);
+    } catch (error) {
+      console.warn("Không thể tải file PDF public:", error.message);
+    }
   } catch (error) {
     renderTrace(buildFallbackData());
   }

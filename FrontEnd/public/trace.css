@@ -368,7 +368,7 @@ h2 {
   background: #ded8ff;
 }
 
-.report-item > a {
+.report-item>a {
   display: block;
 }
 
@@ -385,6 +385,12 @@ h2 {
   width: 100%;
   height: min(760px, 75vh);
   border: 0;
+}
+
+.report-loading {
+  margin-top: 8px;
+  color: var(--ink-faint);
+  font-size: 13px;
 }
 
 .report-empty {
@@ -481,6 +487,7 @@ h2 {
 }
 
 @media (max-width: 720px) {
+
   .topbar,
   .trace-shell,
   .site-footer {
