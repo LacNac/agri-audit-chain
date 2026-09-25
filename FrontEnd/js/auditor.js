@@ -383,7 +383,9 @@ async function openBatchDetail(batchIdOrCode) {
         ${latestReport ? '<span style="display:flex; gap:8px;"><button type="button" class="btn-gray-pill" id="btn-view-report">Xem file</button><button type="button" class="btn-gray-pill" id="btn-edit-report">Sửa</button></span>' : ""}
       </div>
 
-      ${latestReport ? `
+      ${
+        latestReport
+          ? `
         <div class="link-row" style="background:#f8fafc;">
           <span>Phòng lab: <strong>${latestReport.lab_name || "—"}</strong></span>
           <span>Mã phòng lab: <strong>${latestReport.lab_code || "—"}</strong></span>
@@ -392,7 +394,9 @@ async function openBatchDetail(batchIdOrCode) {
           <span>Kết quả lab: <strong>${reportResult || "Chưa có PASS/FAIL"}</strong></span>
           <span>${reportResult === "PASS" ? "Có thể approve hoặc reject" : reportResult === "FAIL" ? "Chỉ được reject" : "Cần cập nhật kết quả"}</span>
         </div>
-      ` : ""}
+      `
+          : ""
+      }
 
       <div class="report-form" style="${latestReport ? "display:none;" : ""}">
         <h4 style="margin:0 0 12px; font-size:13px;">Upload báo cáo mới</h4>
@@ -400,18 +404,19 @@ async function openBatchDetail(batchIdOrCode) {
           <div class="form-field">
             <label>Sample</label>
             <select id="r-sample-select">
-              ${samplesList
-        .map(function (s) {
-          return (
-            '<option value="' +
-            (s.id || s.sample_code) +
-            '">' +
-            (s.sample_code || s.id) +
-            "</option>"
-          );
-        })
-        .join("") || "<option>— Chưa có Sample —</option>"
-      }
+              ${
+                samplesList
+                  .map(function (s) {
+                    return (
+                      '<option value="' +
+                      (s.id || s.sample_code) +
+                      '">' +
+                      (s.sample_code || s.id) +
+                      "</option>"
+                    );
+                  })
+                  .join("") || "<option>— Chưa có Sample —</option>"
+              }
             </select>
           </div>
           <div class="form-field">
@@ -538,23 +543,23 @@ function bindDetailEvents() {
     .getElementById("btn-view-report")
     ?.addEventListener("click", openLabReportFile);
 
-  document
-    .getElementById("btn-edit-report")
-    ?.addEventListener("click", () => {
-      const reportForm = document.querySelector(".report-form");
-      if (!reportForm || !currentBatch.reports?.[0]) return;
-      const report = currentBatch.reports[0];
-      editingReportId = report.id;
-      reportForm.style.display = "block";
-      document.getElementById("r-sample-select").value = report.sample_id;
-      document.getElementById("r-result-select").value = report.result;
-      document.getElementById("r-lab-name").value = report.lab_name || "";
-      document.getElementById("r-lab-code").value = report.lab_code || "";
-      document.getElementById("r-report-date").value = report.report_date || "";
-      document.getElementById("file-chosen-text").textContent = "Giữ file hiện tại nếu không chọn file mới";
-      document.getElementById("btn-hash-upload").textContent = "Lưu thay đổi và tạo SHA-256";
-      reportForm.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
+  document.getElementById("btn-edit-report")?.addEventListener("click", () => {
+    const reportForm = document.querySelector(".report-form");
+    if (!reportForm || !currentBatch.reports?.[0]) return;
+    const report = currentBatch.reports[0];
+    editingReportId = report.id;
+    reportForm.style.display = "block";
+    document.getElementById("r-sample-select").value = report.sample_id;
+    document.getElementById("r-result-select").value = report.result;
+    document.getElementById("r-lab-name").value = report.lab_name || "";
+    document.getElementById("r-lab-code").value = report.lab_code || "";
+    document.getElementById("r-report-date").value = report.report_date || "";
+    document.getElementById("file-chosen-text").textContent =
+      "Giữ file hiện tại nếu không chọn file mới";
+    document.getElementById("btn-hash-upload").textContent =
+      "Lưu thay đổi và tạo SHA-256";
+    reportForm.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
 
   document
     .getElementById("btn-open-create-sample")
@@ -572,7 +577,8 @@ function bindDetailEvents() {
       const sampleSelect = document.getElementById("r-sample-select");
       const sampleId = sampleSelect?.value;
 
-      if (!editingReportId && !file) return alert("Vui lòng chọn file PDF kết quả kiểm định.");
+      if (!editingReportId && !file)
+        return alert("Vui lòng chọn file PDF kết quả kiểm định.");
       if (!labName) return alert("Vui lòng điền tên phòng lab.");
       if (
         !sampleId ||
@@ -625,15 +631,23 @@ function bindDetailEvents() {
             data.detail || "Không thể upload báo cáo lên Database.",
           );
 
-        alert(editingReportId
-          ? "Đã lưu thay đổi report vào Database và cập nhật SHA-256."
-          : "Upload báo cáo thành công! Mã SHA-256 đã được Backend tính và lưu vào cơ sở dữ liệu.");
+        alert(
+          editingReportId
+            ? "Đã lưu thay đổi report vào Database và cập nhật SHA-256."
+            : "Upload báo cáo thành công! Mã SHA-256 đã được Backend tính và lưu vào cơ sở dữ liệu.",
+        );
         document.getElementById("hash-box").style.display = "block";
         document.getElementById("hash-val-text").textContent = data.file_hash;
-        document.getElementById("btn-action-approve").disabled = data.result !== "PASS";
+        document.getElementById("btn-action-approve").disabled =
+          data.result !== "PASS";
         editingReportId = null;
         currentBatch.report = data;
-        currentBatch.reports = [data, ...(currentBatch.reports || []).filter((report) => report.id !== data.id)];
+        currentBatch.reports = [
+          data,
+          ...(currentBatch.reports || []).filter(
+            (report) => report.id !== data.id,
+          ),
+        ];
         await openBatchDetail(currentBatch.id);
       } catch (err) {
         alert(`Lỗi: ${err.message}`);
