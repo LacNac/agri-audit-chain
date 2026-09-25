@@ -8,7 +8,7 @@ from app.routers.users import get_current_user_profile, list_users
 from app.services.auth_service import register_user_with_business, login_user
 from app.services.batch_service import create_batch, update_batch, delete_batch
 from app.services.sample_service import create_sample, get_sample_by_id, list_samples_by_batch
-from app.services.audit_service import create_report, approve_batch, verify_report_integrity
+from app.services.audit_service import create_report, approve_batch, update_report, verify_report_integrity
 from app.services.audit_trail_service import record_audit_trail, list_audit_trails
 from app.services.qr_service import create_qr_record
 from app.routers.public import trace_batch
@@ -244,6 +244,27 @@ def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_i
     assert result["file_hash"] == __import__("hashlib").sha256(pdf_bytes).hexdigest()
     assert result["proof_hash"]
     assert verify_report_integrity(db, result["id"])["valid"] is True
+
+    updated_report = update_report(
+        db,
+        result["id"],
+        {
+            "sample_id": 1,
+            "lab_name": "Updated SGS Lab",
+            "lab_code": "LAB-SGS-02",
+            "report_date": "2026-09-11",
+            "result": "PASS",
+        },
+        user_id=7,
+    )
+    assert updated_report["lab_name"] == "Updated SGS Lab"
+    assert updated_report["lab_code"] == "LAB-SGS-02"
+    assert verify_report_integrity(db, result["id"])["valid"] is True
+
+    db.execute("UPDATE lab_reports SET result = 'FAIL' WHERE id = ?", (result["id"],))
+    with pytest.raises(HTTPException, match="Chỉ được approve"):
+        approve_batch(db, 1, user_id=7, reason="Approved")
+    db.execute("UPDATE lab_reports SET result = 'PASS' WHERE id = ?", (result["id"],))
 
     db.execute(
         "INSERT INTO lab_reports (report_code, sample_id, batch_id, lab_name, lab_code, report_date, result, file_name, file_hash, file_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')",

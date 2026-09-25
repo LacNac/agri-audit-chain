@@ -7,6 +7,7 @@ from ..dependencies.auth import get_db
 from ..dependencies.rbac import require_permission
 from ..schema.audit import AuditDecision, LabReportOut
 from ..services.audit_service import approve_batch, create_report, get_report, list_reports_by_batch, reject_batch, verify_report_integrity
+from ..services.audit_service import approve_batch, create_report, get_report, list_reports_by_batch, reject_batch, update_report, verify_report_integrity
 
 router = APIRouter(prefix="/auditor", tags=["auditor"])
 
@@ -204,6 +205,30 @@ async def create_lab_report_with_file(
 @router.get("/reports/{report_id}")
 def read_report(report_id: int, db=Depends(get_db), user=Depends(require_permission("AUDIT_VIEW"))):
     return get_report(db, report_id)
+
+
+@router.put("/reports/{report_id}")
+async def edit_lab_report(
+    report_id: int,
+    sample_id: int = Form(...),
+    lab_name: str = Form(...),
+    lab_code: str = Form(...),
+    report_date: date | None = Form(None),
+    result: str = Form(...),
+    file: UploadFile | None = File(None),
+    db=Depends(get_db),
+    user=Depends(require_permission("AUDIT_UPLOAD_REPORT")),
+):
+    if file and not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Chỉ chấp nhận file PDF")
+    report = update_report(
+        db,
+        report_id,
+        {"sample_id": sample_id, "lab_name": lab_name, "lab_code": lab_code, "report_date": report_date, "result": result},
+        file_bytes=await file.read() if file else None,
+        user_id=user["id"],
+    )
+    return report
 
 
 @router.get("/batches/{batch_id}/reports")
