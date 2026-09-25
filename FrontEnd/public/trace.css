@@ -368,6 +368,25 @@ h2 {
   background: #ded8ff;
 }
 
+.report-item > a {
+  display: block;
+}
+
+.report-preview {
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f5f5f5;
+}
+
+.report-preview object {
+  display: block;
+  width: 100%;
+  height: min(760px, 75vh);
+  border: 0;
+}
+
 .report-empty {
   font-size: 14px;
   color: var(--ink-faint);

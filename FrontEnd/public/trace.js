@@ -95,6 +95,11 @@ function bindTabs() {
   });
 }
 
+function resolveReportUrl(url) {
+  if (!url || url === "#") return "#";
+  return url.startsWith("http") ? url : `${API_BASE}${url}`;
+}
+
 function renderTrace(data) {
   document.getElementById("loading").classList.add("hidden");
   const card = document.getElementById("trace-card");
@@ -209,9 +214,12 @@ function renderTrace(data) {
             ? reports
                 .map(
                   (report) => `
-                  <a class="report-item" href="${escapeHtml(report.url || "#")}" target="_blank" rel="noopener">
-                    📄 ${escapeHtml(report.name || "Phiếu kiểm nghiệm")}
-                  </a>
+                  <div class="report-item">
+                    <a href="${escapeHtml(resolveReportUrl(report.url))}" target="_blank" rel="noopener">
+                      📄 ${escapeHtml(report.name || "Phiếu kiểm nghiệm")}
+                    </a>
+                    ${report.url ? `<div class="report-preview"><object data="${escapeHtml(resolveReportUrl(report.url))}" type="application/pdf"><a href="${escapeHtml(resolveReportUrl(report.url))}" target="_blank" rel="noopener">Mở file PDF</a></object></div>` : ""}
+                  </div>
                 `,
                 )
                 .join("")

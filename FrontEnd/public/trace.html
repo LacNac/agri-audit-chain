@@ -1,51 +1,44 @@
 <!doctype html>
 <html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hồ sơ truy xuất | AgriTrace</title>
-    <link rel="stylesheet" href="./trace.css" />
-  </head>
-  <body>
-    <div class="topbar">
-      <a class="brand" href="../index.html">
-        <img src="../assets/logo-icon.svg" alt="" class="brand-icon" />
-        <img src="../assets/logo-text.svg" alt="AgriTrace" class="brand-text" />
-      </a>
-      <a class="topbar-link" href="../index.html">Về AgriTrace</a>
-    </div>
 
-    <main class="trace-shell">
-      <header class="trace-header">
-        <a href="../index.html" class="brand brand-compact">
-          <span class="brand-mark">A</span>
-          <span>
-            <strong>AgriTrace</strong>
-            <small>Public Traceability</small>
-          </span>
-        </a>
-        <span class="verified-pill">HỒ SƠ CÔNG KHAI</span>
-      </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hồ sơ truy xuất | AgriTrace</title>
+  <link rel="stylesheet" href="./trace.css" />
+</head>
 
-      <section id="loading" class="state">
-        Đang xác minh mã truy xuất...
-      </section>
-      <section id="error" class="state error-state hidden"></section>
-      <article id="trace-card" class="trace-card hidden"></article>
-    </main>
+<body>
+  <div class="topbar">
+    <a class="brand" href="../index.html">
+      <img src="../assets/logotachnen.png" alt="" class="brand-icon" />
+      <img src="../assets/texttachnen.png" alt="AgriTrace" class="brand-text" />
+    </a>
+  </div>
 
-    <footer class="site-footer">
-      <p class="footer-claim">
-        Bạn đang xem hồ sơ số được xác thực bởi AgriTrace
-      </p>
-      <p class="footer-tagline">
-        Minh bạch thông tin · Truy xuất nguồn gốc · An tâm lựa chọn
-      </p>
-      <a class="footer-link" href="../index.html"
-        >Tìm hiểu thêm về AgriTrace →</a
-      >
-    </footer>
+  <main class="trace-shell">
+    <header class="trace-header">
+      <span class="verified-pill">HỒ SƠ CÔNG KHAI</span>
+    </header>
 
-    <script src="./trace.js"></script>
-  </body>
+    <section id="loading" class="state">
+      Đang xác minh mã truy xuất...
+    </section>
+    <section id="error" class="state error-state hidden"></section>
+    <article id="trace-card" class="trace-card hidden"></article>
+  </main>
+
+  <footer class="site-footer">
+    <p class="footer-claim">
+      Bạn đang xem hồ sơ số được xác thực bởi AgriTrace
+    </p>
+    <p class="footer-tagline">
+      Minh bạch thông tin · Truy xuất nguồn gốc · An tâm lựa chọn
+    </p>
+    <a class="footer-link" href="../index.html">Tìm hiểu thêm về AgriTrace →</a>
+  </footer>
+
+  <script src="./trace.js"></script>
+</body>
+
 </html>

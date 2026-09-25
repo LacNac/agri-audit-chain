@@ -1,8 +1,15 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 
 from ..dependencies.auth import get_db
 
 router = APIRouter(prefix="/public", tags=["public"])
+UPLOADS_DIRS = (
+    Path(__file__).resolve().parents[2] / "uploads",
+    Path(__file__).resolve().parents[1] / "uploads",
+)
 
 
 def _trace_batch(batch_code: str, db):
@@ -24,7 +31,7 @@ def _trace_batch(batch_code: str, db):
         raise HTTPException(status_code=403, detail="Batch chưa được kiểm định công khai")
     report_rows = db.execute(
         """
-        SELECT lr.result, lr.file_hash, lr.report_code
+        SELECT lr.result, lr.file_hash, lr.report_code, lr.file_name
         FROM lab_reports lr
         JOIN samples s ON s.id = lr.sample_id
         WHERE s.batch_id = ?
@@ -42,6 +49,13 @@ def _trace_batch(batch_code: str, db):
             "latest_result": latest_result,
             "latest_report_code": report_rows[0][2],
         }
+        reports = [
+            {
+                "name": row[3] or row[2] or "Phiếu kiểm nghiệm.pdf",
+                "url": f"/public/trace/{resolved_batch_code}/report-file",
+            }
+            for row in report_rows
+        ]
         verification = {
             "sha256": latest_hash,
             "integrity_proof": "sha256-present" if latest_hash else "missing",
@@ -49,6 +63,7 @@ def _trace_batch(batch_code: str, db):
         }
     else:
         result_summary = {"report_count": 0, "latest_result": None, "latest_report_code": None}
+        reports = []
         verification = {"sha256": None, "integrity_proof": "missing", "verified": False}
 
     trace_row = db.execute(
@@ -64,6 +79,7 @@ def _trace_batch(batch_code: str, db):
         "production_date": production_date,
         "audit_status": audit_status,
         "laboratory_result_summary": result_summary,
+        "reports": reports,
         "verification": verification,
         "trace_id": trace_row[0] if trace_row else None,
         "public_url": trace_row[1] if trace_row else None,
@@ -84,3 +100,41 @@ def trace_by_id(trace_id: str, db=Depends(get_db)):
     if not row:
         raise HTTPException(status_code=404, detail="Mã QR không tồn tại")
     return _trace_batch(row[0], db)
+
+
+@router.get("/trace/{batch_code}/report-file")
+def get_public_report_file(batch_code: str, db=Depends(get_db)):
+    batch = db.execute(
+        "SELECT id, status FROM batches WHERE batch_code = ?",
+        (batch_code,),
+    ).fetchone()
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch không tồn tại")
+    if batch[1] != "AUDITED":
+        raise HTTPException(status_code=403, detail="Batch chưa được kiểm định công khai")
+
+    report = db.execute(
+        "SELECT file_name, file_path FROM lab_reports WHERE batch_id = ? ORDER BY id DESC LIMIT 1",
+        (batch[0],),
+    ).fetchone()
+    if not report:
+        raise HTTPException(status_code=404, detail="Batch chưa có report")
+
+    file_name, file_path = report
+    requested_name = Path(file_path or file_name or "").name
+    report_path = next(
+        (
+            upload_dir / requested_name
+            for upload_dir in UPLOADS_DIRS
+            if (upload_dir / requested_name).resolve().parent == upload_dir.resolve()
+            and (upload_dir / requested_name).is_file()
+        ),
+        None,
+    )
+    if report_path is None:
+        raise HTTPException(status_code=404, detail="File report không tồn tại")
+    return FileResponse(
+        report_path,
+        media_type="application/pdf",
+        filename=file_name or requested_name,
+    )
