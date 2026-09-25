@@ -249,3 +249,16 @@ document.addEventListener("DOMContentLoaded", () => {
     validateForm();
   });
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const mode = urlParams.get("mode");
+
+  if (mode === "register") {
+    // Bấm nút đăng ký từ trang chủ -> Hiện card Bước 1 đăng ký
+    showCard("register-1");
+  } else if (mode === "login") {
+    // Bấm nút đăng nhập từ trang chủ -> Hiện màn hình chọn đăng nhập (card-landing)
+    showCard("landing");
+  }
+});
