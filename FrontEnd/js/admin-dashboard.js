@@ -1,4 +1,11 @@
 const API_BASE = "http://127.0.0.1:8000";
+const ADMIN_ACTIVE_SECTION_KEY = "adminActiveSection";
+const DASHBOARD_SECTION_IDS = [
+  "overview-section",
+  "users-section",
+  "batches-section",
+  "activity-section",
+];
 
 function getCurrentUser() {
   try {
@@ -209,7 +216,7 @@ async function loadUsers(token) {
         <td>${escapeHtml(item.email)}</td>
         <td>${escapeHtml(item.role)}</td>
         <td><span class="user-status ${isLocked ? "locked" : "active"}">${isLocked ? "Đã khóa" : "Đang hoạt động"}</span></td>
-        <td><button class="status-btn ${isLocked ? "unlock" : "lock"}" data-user-id="${item.id}" data-next-status="${isLocked ? "active" : "locked"}">${isLocked ? "Mở khóa" : "Khóa"}</button></td>
+        <td><button type="button" class="status-btn ${isLocked ? "unlock" : "lock"}" data-user-id="${item.id}" data-next-status="${isLocked ? "active" : "locked"}">${isLocked ? "Mở khóa" : "Khóa"}</button></td>
       </tr>`;
       })
       .join("") ||
@@ -230,49 +237,46 @@ async function updateUserStatus(userId, status, token) {
     throw new Error(data.detail || "Không thể cập nhật trạng thái");
 }
 
-async function loadDashboard() {
-  const currentUser = getCurrentUser();
-  const token = currentUser.access_token;
+async function loadDashboardSummary(token) {
+  const response = await fetch(`${API_BASE}/admin/dashboard`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
 
-  if (!token || String(currentUser.role || "").toUpperCase() !== "ADMIN") {
-    window.location.href = "./login.html";
-    return;
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(errorData.detail || "Không thể tải dashboard");
+    error.status = response.status;
+    throw error;
   }
 
+  const data = await response.json();
+  const summary = data.summary || {};
+  setTextContent("users-count", summary.users ?? 0);
+  setTextContent("farmers-count", summary.farmers ?? 0);
+  setTextContent("auditors-count", summary.auditors ?? 0);
+  setTextContent("batches-count", summary.batches ?? 0);
+  setTextContent("audited-count", summary.audited_batches ?? 0);
+  setTextContent("rejected-count", summary.rejected_batches ?? 0);
+  setTextContent("pending-count", summary.pending_batches ?? 0);
+  setTextContent("admins-count", summary.admins ?? 0);
+}
+
+async function loadDashboard() {
+  const currentUser = AppAuth.requireRole("ADMIN", "admin/admin_login.html");
+  if (!currentUser) return;
+  const token = currentUser.access_token;
+
   try {
-    const response = await fetch(`${API_BASE}/admin/dashboard`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const error = new Error(errorData.detail || "Không thể tải dashboard");
-      error.status = response.status;
-      throw error;
-    }
-
-    const data = await response.json();
-    const summary = data.summary || {};
-
-    setTextContent("users-count", summary.users ?? 0);
-    setTextContent("farmers-count", summary.farmers ?? 0);
-    setTextContent("auditors-count", summary.auditors ?? 0);
-    setTextContent("batches-count", summary.batches ?? 0);
-    setTextContent("audited-count", summary.audited_batches ?? 0);
-    setTextContent("rejected-count", summary.rejected_batches ?? 0);
-    setTextContent("pending-count", summary.pending_batches ?? 0);
-    setTextContent("admins-count", summary.admins ?? 0);
+    await loadDashboardSummary(token);
     await loadUsers(token);
   } catch (error) {
     alert(error.message);
     if (error.status === 401 || error.status === 403) {
-      sessionStorage.removeItem("currentUser");
-      localStorage.removeItem("currentUser");
-      window.location.href = "./login.html";
+      AppAuth.logoutTo("admin/admin_login.html");
     }
   }
 }
@@ -280,6 +284,7 @@ async function loadDashboard() {
 document
   .getElementById("users-table-body")
   ?.addEventListener("click", async (event) => {
+    event.preventDefault();
     const button = event.target.closest("[data-user-id]");
     if (!button) return;
 
@@ -292,7 +297,7 @@ document
         currentUser.access_token,
       );
       await loadUsers(currentUser.access_token);
-      await loadDashboard();
+      await loadDashboardSummary(currentUser.access_token);
     } catch (error) {
       alert(error.message);
       button.disabled = false;
@@ -325,7 +330,7 @@ document
       form.reset();
       if (message) message.textContent = `Đã tạo tài khoản ${data.username}.`;
       await loadUsers(currentUser.access_token);
-      await loadDashboard();
+      await loadDashboardSummary(currentUser.access_token);
     } catch (error) {
       if (message) message.textContent = error.message;
     } finally {
@@ -359,23 +364,24 @@ document
   });
 
 function showDashboardSection(sectionId) {
-  const sectionIds = [
-    "overview-section",
-    "users-section",
-    "batches-section",
-    "activity-section",
-  ];
+  if (!DASHBOARD_SECTION_IDS.includes(sectionId)) {
+    sectionId = "overview-section";
+  }
   const titles = {
     "overview-section": "Tổng quan",
     "users-section": "Quản lý người dùng",
     "batches-section": "Quản lý lô hàng",
     "activity-section": "Nhật ký hoạt động hệ thống",
   };
-  sectionIds.forEach((id) => {
+  DASHBOARD_SECTION_IDS.forEach((id) => {
     document
       .getElementById(id)
       ?.classList.toggle("view-hidden", id !== sectionId);
   });
+  document.querySelectorAll(".sidebar-link").forEach((link) => {
+    link.classList.toggle("active", link.dataset.section === sectionId);
+  });
+  sessionStorage.setItem(ADMIN_ACTIVE_SECTION_KEY, sectionId);
   setTextContent("page-title", titles[sectionId] || "Tổng quan");
 
   const token = getCurrentUser().access_token;
@@ -390,16 +396,13 @@ function showDashboardSection(sectionId) {
 
 document.querySelectorAll(".sidebar-link").forEach((link) => {
   link.addEventListener("click", () => {
-    document
-      .querySelectorAll(".sidebar-link")
-      .forEach((item) => item.classList.remove("active"));
-    link.classList.add("active");
     showDashboardSection(link.dataset.section);
   });
 });
 
-showDashboardSection("overview-section");
+showDashboardSection(
+  sessionStorage.getItem(ADMIN_ACTIVE_SECTION_KEY) || "overview-section",
+);
 
 document.getElementById("logoutBtn")?.addEventListener("click", logout);
-protectAdminExit();
 loadDashboard();
