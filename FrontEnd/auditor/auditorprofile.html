@@ -233,7 +233,7 @@
           <button
             class="logout-btn"
             type="button"
-            onclick="window.location.href = '../login.html'"
+            onclick="AppAuth.logout({ redirectTo: '../login.html' })"
           >
             Log out
           </button>
@@ -382,5 +382,6 @@
       </main>
     </div>
   </body>
+  <script src="../js/app-auth.js"></script>
   <script src="../js/auditorprofile.js"></script>
 </html>

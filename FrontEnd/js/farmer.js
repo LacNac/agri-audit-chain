@@ -172,8 +172,7 @@ function getCurrentSession() {
 }
 
 function clearCurrentSession() {
-  sessionStorage.removeItem("currentUser");
-  localStorage.removeItem("currentUser");
+  AppAuth.clearSession();
 }
 
 async function loadQrImage(batch) {
@@ -1168,8 +1167,7 @@ function submitEditProfile() {
 /* ---- logout ---- */
 function doLogout() {
   if (confirm("Bạn có chắc chắn muốn đăng xuất khỏi AgriTrace?")) {
-    clearCurrentSession();
-    window.location.href = "../login.html";
+    AppAuth.logout({ redirectTo: "../login.html" });
   }
 }
 function reLogin() {

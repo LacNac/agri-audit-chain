@@ -8,27 +8,10 @@ const DASHBOARD_SECTION_IDS = [
 ];
 
 function getCurrentUser() {
-  try {
-    const serializedUser =
-      sessionStorage.getItem("currentUser") ||
-      localStorage.getItem("currentUser") ||
-      "{}";
-    const user = JSON.parse(serializedUser);
-    if (user.access_token && !sessionStorage.getItem("currentUser")) {
-      sessionStorage.setItem("currentUser", serializedUser);
-    }
-    return user;
-  } catch (error) {
-    return {};
-  }
+  return AppAuth.getSession() || {};
 }
 
 let isLoggingOut = false;
-
-function clearAdminSession() {
-  sessionStorage.removeItem("currentUser");
-  localStorage.removeItem("currentUser");
-}
 
 function logout(requireConfirmation = true) {
   if (
@@ -39,8 +22,7 @@ function logout(requireConfirmation = true) {
   }
 
   isLoggingOut = true;
-  clearAdminSession();
-  window.location.href = "./admin_login.html";
+  AppAuth.logout({ redirectTo: "./admin_login.html" });
   return true;
 }
 
@@ -57,15 +39,6 @@ function protectAdminExit() {
     );
   });
 
-  window.addEventListener("beforeunload", (event) => {
-    if (isLoggingOut) return;
-    event.preventDefault();
-    event.returnValue = "";
-  });
-
-  window.addEventListener("pagehide", () => {
-    if (!isLoggingOut) clearAdminSession();
-  });
 }
 
 function renderList(elementId, items, emptyMessage = "Không có dữ liệu") {
@@ -276,7 +249,7 @@ async function loadDashboard() {
   } catch (error) {
     alert(error.message);
     if (error.status === 401 || error.status === 403) {
-      AppAuth.logoutTo("admin/admin_login.html");
+      AppAuth.logoutTo("./admin_login.html");
     }
   }
 }

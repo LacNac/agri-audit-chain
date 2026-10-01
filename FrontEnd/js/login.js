@@ -163,18 +163,22 @@ if (formLoginDn) {
     submitBtn.textContent = "Đang đăng nhập...";
 
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password }),
+      const data = await AppAuth.withLoginLock(async () => {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier, password }),
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.detail || "Đăng nhập thất bại");
+
+        const role = String(result.role || "").toUpperCase();
+        if (!["FARMER", "ADMIN", "AUDITOR"].includes(role))
+          throw new Error("Vai trò tài khoản không hợp lệ");
+        AppAuth.saveSession(result);
+        return result;
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
-
       const role = String(data.role || "").toUpperCase();
-      sessionStorage.setItem("currentUser", JSON.stringify(data));
-      localStorage.setItem("currentUser", JSON.stringify(data));
 
       if (role === "FARMER") {
         window.location.href = "./farmer/farmer.html";
@@ -182,8 +186,6 @@ if (formLoginDn) {
         window.location.href = "./admin/admin.html";
       } else if (role === "AUDITOR") {
         window.location.href = "./auditor/auditdashboard.html";
-      } else {
-        throw new Error("Vai trò tài khoản không hợp lệ");
       }
     } catch (err) {
       setFormMessage(formLoginDn, "Lỗi: " + err.message);
@@ -211,18 +213,22 @@ if (formLoginKd) {
     submitBtn.textContent = "Đang đăng nhập...";
 
     try {
-      const res = await fetch(`${API_BASE}/auth/login-auditor`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password }),
+      const data = await AppAuth.withLoginLock(async () => {
+        const res = await fetch(`${API_BASE}/auth/login-auditor`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier, password }),
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.detail || "Đăng nhập thất bại");
+
+        const role = String(result.role || "").toUpperCase();
+        if (!["AUDITOR", "ADMIN", "FARMER"].includes(role))
+          throw new Error("Vai trò tài khoản không hợp lệ");
+        AppAuth.saveSession(result);
+        return result;
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Đăng nhập thất bại");
-
       const role = String(data.role || "").toUpperCase();
-      sessionStorage.setItem("currentUser", JSON.stringify(data));
-      localStorage.setItem("currentUser", JSON.stringify(data));
 
       if (role === "AUDITOR") {
         window.location.href = "./auditor/auditdashboard.html";
@@ -230,8 +236,6 @@ if (formLoginKd) {
         window.location.href = "./admin/admin.html";
       } else if (role === "FARMER") {
         window.location.href = "./farmer/farmer.html";
-      } else {
-        throw new Error("Vai trò tài khoản không hợp lệ");
       }
     } catch (err) {
       setFormMessage(formLoginKd, "Lỗi: " + err.message);
@@ -341,3 +345,5 @@ document.addEventListener("DOMContentLoaded", () => {
     validateForm();
   });
 });
+
+AppAuth.requireLogoutBeforeLogin();
