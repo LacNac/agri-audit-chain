@@ -1,0 +1,36 @@
+# Môi trường ảo Python
+venv/
+.venv/
+env/
+
+# File Python tạm
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Biến môi trường và thông tin bí mật
+.env
+.env.*
+
+# File log
+*.log
+logs/
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# File hệ điều hành
+.DS_Store
+Thumbs.db
+
+# File tạm
+*.tmp
+*.temp
+
+# Frontend React
+node_modules/
+dist/
+build/
