@@ -1,4 +1,4 @@
-const API_BASE = "https://agri-audit-chain-backend.onrender.com/";
+const API_BASE = "https://agri-audit-chain-backend.onrender.com";
 const ADMIN_ACTIVE_SECTION_KEY = "adminActiveSection";
 const DASHBOARD_SECTION_IDS = [
   "overview-section",

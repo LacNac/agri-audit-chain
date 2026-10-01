@@ -2,7 +2,7 @@
 // AgriTrace — điều hướng giữa các màn hình (SPA đơn giản, không reload)
 // ===================================================================
 
-const API_BASE = "https://agri-audit-chain-backend.onrender.com/";
+const API_BASE = "https://agri-audit-chain-backend.onrender.com";
 
 const CARD_IDS = {
   landing: "card-landing",

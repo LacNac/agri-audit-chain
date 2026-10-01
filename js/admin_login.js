@@ -1,4 +1,4 @@
-const API_BASE = "https://agri-audit-chain-backend.onrender.com/";
+const API_BASE = "https://agri-audit-chain-backend.onrender.com";
 
 document.addEventListener("DOMContentLoaded", () => {
   AppAuth.requireLogoutBeforeLogin();
