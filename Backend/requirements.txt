@@ -1,7 +1,0 @@
-﻿fastapi==0.141.1
-uvicorn==0.53.0
-pydantic==2.13.5
-email-validator==2.2.0
-python-multipart==0.0.32
-qrcode==8.2
-pillow==12.2.0
