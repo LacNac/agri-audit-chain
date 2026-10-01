@@ -26,7 +26,7 @@ def create_qr_record(db: sqlite3.Connection, batch_id: int, user_id: int | None 
     ).fetchone()
     if existing:
         trace_id, public_url = existing
-        expected_url = f"/FrontEnd/public/trace.html?trace={trace_id}"
+        expected_url = f"/public/trace.html?trace={trace_id}"
         if public_url != expected_url:
             db.execute("UPDATE trace_records SET public_url = ? WHERE batch_id = ?", (expected_url, batch_id))
             db.commit()
