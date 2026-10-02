@@ -1,309 +1,939 @@
+/* ========================================================
+   1. CẤU HÌNH API & XÁC THỰC (JWT AUTHENTICATION)
+   ======================================================== */
 const API_BASE = "https://agri-audit-chain-backend.onrender.com";
-const params = new URLSearchParams(window.location.search);
-const lookup = params.get("trace") || params.get("batch") || "";
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function showError(message) {
-  document.getElementById("loading").classList.add("hidden");
-  const error = document.getElementById("error");
-  error.textContent = message;
-  error.classList.remove("hidden");
-}
-
-function normalizeStatus(status) {
-  const value = String(status || "UNVERIFIED").toUpperCase();
-  if (value === "AUDITED")
-    return { text: "Đã kiểm định", cls: "status-audited" };
-  if (value === "REJECTED")
-    return { text: "Bị từ chối", cls: "status-rejected" };
-  return { text: "Chưa kiểm định", cls: "status-pending" };
-}
-
-function buildFallbackData() {
+function getAuthHeaders() {
+  const sessionUser =
+    sessionStorage.getItem("currentUser") ||
+    localStorage.getItem("currentUser");
+  const token = sessionUser ? JSON.parse(sessionUser).access_token : null;
   return {
-    product_name: "Xoài Cát Hòa Lộc",
-    batch_code: "AGT-2026-0042",
-    trace_id: "TRC-9F21-AGT",
-    audit_status: "AUDITED",
-    summary: "Xoài chín cây, thu hoạch thủ công, không dùng thuốc chín ép.",
-    farmer: "Nông trại Ba Thức, Cái Bè",
-    origin: "Cái Bè, Tiền Giang",
-    production_date: "15/09/2026",
-    image: "../assets/fruit.svg",
-    weight: "180 kg",
-    journey: [
-      {
-        title: "Lô hàng được tạo",
-        date: "15/09/2026",
-        desc: "Nông dân khai báo lô hàng sau thu hoạch.",
-      },
-      {
-        title: "Mẫu gửi kiểm nghiệm",
-        date: "16/09/2026",
-        desc: "Mẫu đại diện được gửi đến phòng thí nghiệm.",
-      },
-      {
-        title: "Kiểm định viên phê duyệt",
-        date: "19/09/2026",
-        desc: "Hồ sơ được xác minh và chuyển sang trạng thái đã kiểm định.",
-      },
-      {
-        title: "Mã QR được kích hoạt",
-        date: "19/09/2026",
-        desc: "Lô hàng sẵn sàng để truy xuất công khai.",
-      },
-    ],
-    auditor_name: "Trung tâm Kiểm định Nông sản An Giang",
-    audit_date: "19/09/2026",
-    report_hash: "3f9c1a...e02b8d",
-    reports: [{ name: "Phiếu kiểm nghiệm vi sinh.pdf", url: "#" }],
-    qr_image: "",
-    last_updated: "19/09/2026",
-    laboratory_result_summary: {
-      report_count: 1,
-      latest_report_code: "LAB-2026-0342",
-      latest_result: "Đạt tiêu chuẩn an toàn thực phẩm",
-    },
-    verification: {
-      sha256: "3f9c1a4e0c1b7a8f3d17b1f694c7e45d0bc1f9d1d4d8a5a7c2cf4f6d7f7a2a9",
-      verified: true,
-    },
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
-function bindTabs() {
-  document.querySelectorAll(".tab-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document
-        .querySelectorAll(".tab-btn")
-        .forEach((b) => b.classList.remove("active"));
-      document
-        .querySelectorAll(".tab-panel")
-        .forEach((panel) => (panel.hidden = true));
-      btn.classList.add("active");
-      const panel = document.getElementById(`panel-${btn.dataset.tab}`);
-      if (panel) panel.hidden = false;
+let BATCHES = [];
+let SAMPLES = [];
+let AUDIT_HISTORY = [];
+let activeTab = "pending";
+let currentBatch = null;
+let currentAuditorName = "Auditor";
+let editingReportId = null;
+
+async function loadAuditorIdentity() {
+  try {
+    const response = await fetch(`${API_BASE}/auditor/profile`, {
+      headers: getAuthHeaders(),
     });
-  });
-}
+    const data = await response.json();
+    if (!response.ok)
+      throw new Error(data.detail || "Không thể tải hồ sơ Auditor.");
 
-function resolveReportUrl(url) {
-  if (!url || url === "#") return "#";
-  return url.startsWith("http") ? url : `${API_BASE}${url}`;
-}
-
-let reportObjectUrl = null;
-
-async function loadReportPdf(data) {
-  const report = data?.reports?.[0];
-  if (!report?.url) return false;
-
-  const response = await fetch(resolveReportUrl(report.url));
-  if (!response.ok) throw new Error("Không thể tải file PDF");
-  const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("application/pdf")) {
-    throw new Error("File report không phải PDF");
+    currentAuditorName = data.full_name;
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.full_name)}&background=5c33cf&color=fff`;
+    const nameElement = document.getElementById("sidebar-user-name");
+    const avatarElement = document.getElementById("sidebar-user-avatar");
+    if (nameElement) nameElement.textContent = data.full_name;
+    if (avatarElement) avatarElement.src = avatarUrl;
+  } catch (error) {
+    console.warn("Không thể tải thông tin Auditor:", error.message);
   }
-
-  const blob = await response.blob();
-  if (reportObjectUrl) URL.revokeObjectURL(reportObjectUrl);
-  reportObjectUrl = URL.createObjectURL(blob);
-  report.pdfUrl = reportObjectUrl;
-  return true;
 }
 
-function renderTrace(data) {
-  document.getElementById("loading").classList.add("hidden");
-  const card = document.getElementById("trace-card");
-  const info = data && Object.keys(data).length ? data : buildFallbackData();
-  const summary = info.laboratory_result_summary || {};
-  const verification = info.verification || {};
-  const status = normalizeStatus(info.audit_status);
-  const journey =
-    Array.isArray(info.journey) && info.journey.length
-      ? info.journey
-      : [
-        {
-          title: "Lô hàng được tạo",
-          date: info.production_date || "—",
-          desc: "Hồ sơ được ghi nhận trong hệ thống AgriTrace.",
-        },
-        {
-          title: "Kiểm định viên phê duyệt",
-          date: info.audit_date || "—",
-          desc: "Kết quả kiểm định đã xác nhận chất lượng lô hàng.",
-        },
-      ];
-  const reports =
-    Array.isArray(info.reports) && info.reports.length
-      ? info.reports
-      : [{ name: "Chưa có phiếu kiểm nghiệm", url: "#" }];
+/* ========================================================
+   2. GỌI API LẤY DỮ LIỆU TỪ DATABASE
+   ======================================================== */
 
-  card.innerHTML = `
-    <div class="product-media">
-      <img src="${escapeHtml(info.image || "../assets/fruit.svg")}" alt="${escapeHtml(info.product_name || "Sản phẩm")}" />
-      <span class="status-badge ${status.cls}">${status.text}</span>
-    </div>
+// Lấy danh sách Batches từ DB
+async function fetchBatchesFromDB(filters = null) {
+  try {
+    const endpoint =
+      activeTab === "pending" || activeTab === "rejected"
+        ? "/auditor/queue"
+        : "/batches";
+    const query = endpoint === "/auditor/queue" ? filters?.toString() : "";
+    const res = await fetch(`${API_BASE}${endpoint}${query ? `?${query}` : ""}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Không thể tải danh sách lô hàng từ server.");
+    const data = await res.json();
+    BATCHES = Array.isArray(data) ? data : data.items || [];
+  } catch (err) {
+    console.warn("Lỗi kết nối API batches:", err.message);
+  }
+}
 
-    <section class="product-main">
-      <p class="batch-code">Mã lô: ${escapeHtml(info.batch_code || "—")}</p>
-      <h1>${escapeHtml(info.product_name || "Nông sản")}</h1>
-      <p class="product-summary">${escapeHtml(info.summary || "Đang cập nhật thông tin mô tả lô hàng.")}</p>
+async function fetchSamplesFromDB() {
+  try {
+    const res = await fetch(`${API_BASE}/samples`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Không thể tải danh sách mẫu.");
+    const data = await res.json();
+    SAMPLES = Array.isArray(data) ? data : data.items || [];
+  } catch (err) {
+    console.warn("Lỗi kết nối API samples:", err.message);
+  }
+}
 
-      <div class="quick-facts">
-        <div>
-          <p class="fact-label">Nông trại</p>
-          <p class="fact-value">${escapeHtml(info.farmer || "—")}</p>
-        </div>
-        <div>
-          <p class="fact-label">Ngày thu hoạch</p>
-          <p class="fact-value">${escapeHtml(info.production_date || "—")}</p>
-        </div>
-        <div>
-          <p class="fact-label">Vùng trồng</p>
-          <p class="fact-value">${escapeHtml(info.origin || "—")}</p>
-        </div>
-        <div>
-          <p class="fact-label">Khối lượng lô</p>
-          <p class="fact-value">${escapeHtml(info.weight || "—")}</p>
-        </div>
+async function fetchAuditHistoryFromDB() {
+  try {
+    const res = await fetch(`${API_BASE}/auditor/history`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Không thể tải lịch sử kiểm định.");
+    const data = await res.json();
+    AUDIT_HISTORY = Array.isArray(data) ? data : data.items || [];
+  } catch (err) {
+    console.warn("Lỗi kết nối API history:", err.message);
+  }
+}
+
+document.querySelectorAll(".sidebar-nav .nav-item").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    document
+      .querySelectorAll(".sidebar-nav .nav-item")
+      .forEach((item) => item.classList.remove("active"));
+    btn.classList.add("active");
+    activeTab = btn.getAttribute("data-tab");
+    await switchTab(activeTab);
+  });
+});
+
+async function switchTab(tab) {
+  const heading = document.getElementById("page-heading");
+  const batchForm = document.getElementById("batch-filter-form");
+  const sampleForm = document.getElementById("sample-filter-form");
+  const statContainer = document.getElementById("stat-container");
+  const table = document.querySelector(".data-table");
+  const pagination = document.querySelector(".pagination");
+  const timeline = document.getElementById("audit-timeline-box");
+  const toolbarActions = document.querySelector(".toolbar-actions");
+
+  if (tab === "samples") {
+    heading.textContent = "Danh sách mẫu";
+    if (table) table.style.display = "table";
+    if (pagination) pagination.style.display = "flex";
+    if (timeline) timeline.style.display = "none";
+    if (toolbarActions) toolbarActions.style.display = "flex";
+
+    batchForm.style.display = "none";
+    sampleForm.style.display = "grid";
+
+    await fetchSamplesFromDB();
+
+    const countWaitingLab = SAMPLES.filter(
+      (s) => s.status === "WAITING_LAB",
+    ).length;
+    const countHasReport = SAMPLES.filter(
+      (s) => s.status === "HAS_REPORT",
+    ).length;
+    const countWaitingResult = SAMPLES.filter(
+      (s) => s.status === "WAITING_RESULT",
+    ).length;
+
+    statContainer.innerHTML = `
+      <div class="stat-pills">
+        <span class="stat-pill pill-yellow">Chờ gửi lab &nbsp;<strong>${countWaitingLab}</strong></span>
+        <span class="stat-pill pill-green">Đã có báo cáo &nbsp;<strong>${countHasReport}</strong></span>
+        <span class="stat-pill pill-blue">Đang chờ kết quả &nbsp;<strong>${countWaitingResult}</strong></span>
       </div>
-    </section>
+    `;
+    renderSampleTable(SAMPLES);
+  } else if (tab === "history") {
+    heading.textContent = "Lịch sử kiểm định";
+    if (table) table.style.display = "none";
+    if (pagination) pagination.style.display = "none";
+    if (sampleForm) sampleForm.style.display = "none";
+    if (statContainer) statContainer.innerHTML = "";
+    if (toolbarActions) toolbarActions.style.display = "none";
 
-    <nav class="tabs" aria-label="Thông tin lô hàng">
-      <button class="tab-btn active" data-tab="journey">Hành trình lô hàng</button>
-      <button class="tab-btn" data-tab="audit">Kiểm định &amp; bằng chứng</button>
-      <button class="tab-btn" data-tab="report">Phiếu kiểm nghiệm</button>
-    </nav>
-
-    <section class="tab-panel" id="panel-journey">
-      <ol class="journey-list">
-        ${journey
-      .map(
-        (step) => `
-              <li>
-                <div class="journey-dot" aria-hidden="true"></div>
-                <div>
-                  <p class="journey-title">${escapeHtml(step.title || "Mốc mới")}</p>
-                  <p class="journey-date">${escapeHtml(step.date || "—")}</p>
-                  <p class="journey-desc">${escapeHtml(step.desc || "Chưa có mô tả.")}</p>
-                </div>
-              </li>
-            `,
-      )
-      .join("")}
-      </ol>
-    </section>
-
-    <section class="tab-panel" id="panel-audit" hidden>
-      <div class="audit-grid">
-        <div class="audit-item">
-          <p class="audit-label">Đơn vị kiểm định</p>
-          <p class="audit-value">${escapeHtml(info.auditor_name || "—")}</p>
-        </div>
-        <div class="audit-item">
-          <p class="audit-label">Ngày phê duyệt</p>
-          <p class="audit-value">${escapeHtml(info.audit_date || "—")}</p>
-        </div>
-        <div class="audit-item audit-hash">
-          <p class="audit-label">Mã băm SHA-256 báo cáo</p>
-          <p class="audit-value hash">${escapeHtml(info.report_hash || verification.sha256 || "—")}</p>
-        </div>
-        <div class="audit-item">
-          <p class="audit-label">Trace ID</p>
-          <p class="audit-value">${escapeHtml(info.trace_id || "—")}</p>
-        </div>
+    batchForm.style.display = "flex";
+    batchForm.className = "history-filter-bar";
+    batchForm.innerHTML = `
+      <div class="history-filter-group">
+        <label>Batch code</label>
+        <input id="hf-code" type="text" placeholder="Nhập mã lô hàng" />
       </div>
-      <p class="audit-note">
-        Mã băm trên được hệ thống tự động tạo khi tiếp nhận báo cáo kiểm nghiệm. Nếu tài liệu gốc bị thay đổi sau đó, mã băm sẽ không còn khớp — đây là cơ sở để xác minh báo cáo chưa bị chỉnh sửa.
-      </p>
-    </section>
+      <div class="history-filter-group">
+        <label>Hành động</label>
+        <select id="hf-action">
+          <option value="">Tất cả</option>
+          <option value="APPROVE">Phê duyệt</option>
+          <option value="REJECT">Từ chối</option>
+          <option value="RESUBMIT">Gửi lại kiểm định</option>
+        </select>
+      </div>
+      <div class="history-filter-group">
+        <label>Khoảng thời gian</label>
+        <input id="hf-date" type="text" placeholder="Chọn ngày" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'" />
+      </div>
+      <button type="button" class="btn-filter-action" id="btn-history-filter">Lọc</button>
+    `;
 
-    <section class="tab-panel" id="panel-report" hidden>
-      <div class="report-list">
-        ${reports.length
-      ? reports
-        .map(
-          (report) => {
-            const pdfUrl = report.pdfUrl || "#";
-            return `
-                  <div class="report-item">
-                    <a href="${escapeHtml(pdfUrl)}" target="_blank" rel="noopener">
-                      📄 ${escapeHtml(report.name || "Phiếu kiểm nghiệm")}
-                    </a>
-                    ${report.pdfUrl ? `<div class="report-preview"><object data="${escapeHtml(report.pdfUrl)}" type="application/pdf"><a href="${escapeHtml(report.pdfUrl)}" target="_blank" rel="noopener">Mở file PDF</a></object></div>` : '<p class="report-loading">Đang tải file PDF...</p>'}
-                  </div>
-                `;
-          },
-        )
-        .join("")
-      : '<p class="report-empty">Chưa có phiếu kiểm nghiệm được công khai cho lô hàng này.</p>'
+    await fetchAuditHistoryFromDB();
+    renderAuditTimeline(AUDIT_HISTORY);
+
+    document
+      .getElementById("btn-history-filter")
+      ?.addEventListener("click", () => {
+        const code = document
+          .getElementById("hf-code")
+          .value.trim()
+          .toLowerCase();
+        const action = document.getElementById("hf-action").value;
+        const filtered = AUDIT_HISTORY.filter(
+          (h) =>
+            (h.batch_code || h.batchCode || "").toLowerCase().includes(code) &&
+            (!action || h.action === action),
+        );
+        renderAuditTimeline(filtered);
+      });
+  } else {
+    // pending, approved, rejected
+    if (table) table.style.display = "table";
+    if (pagination) pagination.style.display = "flex";
+    if (timeline) timeline.style.display = "none";
+    if (toolbarActions) toolbarActions.style.display = "flex";
+
+    batchForm.className = "filter-grid";
+    batchForm.style.display = "grid";
+    batchForm.innerHTML = `
+      <div class="filter-group">
+        <label for="f-code">Batch code</label>
+        <input id="f-code" type="text" placeholder="Nhập mã lô hàng" />
+      </div>
+      <div class="filter-group">
+        <label for="f-product">Tên sản phẩm</label>
+        <input id="f-product" type="text" placeholder="Nhập tên sản phẩm" />
+      </div>
+      <div class="filter-group">
+        <label for="f-date" id="lbl-date">${tab === "approved" ? "Ngày duyệt" : "Ngày gửi kiểm định"}</label>
+        <input id="f-date" type="text" placeholder="Chọn ngày" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'" />
+      </div>
+      <div class="filter-group full-width">
+        <label for="f-farmer">Nông dân</label>
+        <input id="f-farmer" type="text" placeholder="Nhập tên nông dân" />
+      </div>
+    `;
+
+    sampleForm.style.display = "none";
+
+    await fetchBatchesFromDB();
+
+    let titleText = "Danh sách chờ duyệt";
+    let filterStatus = "UNVERIFIED";
+    if (tab === "approved") {
+      titleText = "Danh sách đã duyệt";
+      filterStatus = "AUDITED";
+    } else if (tab === "rejected") {
+      titleText = "Danh sách từ chối";
+      filterStatus = "REJECTED";
     }
-      </div>
-    </section>
 
-    <section class="qr-block">
-      <div class="qr-image">
-        <img src="${escapeHtml(info.qr_image || `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(info.trace_id || info.batch_code || "AgriTrace")}`)}" alt="Mã QR của lô hàng" />
+    heading.textContent = titleText;
+    renderBatchCount(filterStatus);
+    renderBatchTable(filterStatus);
+  }
+}
+
+function renderBatchCount(statusFilter) {
+  const count = BATCHES.filter(
+    (batch) => (batch.status || "").toUpperCase() === statusFilter,
+  ).length;
+  const label =
+    statusFilter === "AUDITED"
+      ? "đã duyệt"
+      : statusFilter === "REJECTED"
+        ? "từ chối"
+        : "chưa duyệt";
+  document.getElementById("stat-container").innerHTML = `
+    <div class="counter-box">
+      <span>Tổng lô hàng ${label}</span>
+      <div class="box-badge">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5c33cf" stroke-width="2"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/></svg>
+        <strong>${count}</strong>
       </div>
-      <div class="qr-meta">
-        <p class="qr-heading">Mã QR lô hàng</p>
-        <p>Mã lô: <strong>${escapeHtml(info.batch_code || "—")}</strong></p>
-        <p>Cập nhật lần cuối: <span>${escapeHtml(info.last_updated || info.audit_date || "—")}</span></p>
-      </div>
-    </section>
+    </div>
+  `;
+}
+
+async function searchPendingBatches() {
+  if (activeTab !== "pending") return;
+
+  const filters = new URLSearchParams();
+  const fields = [
+    ["batch_code", "f-code"],
+    ["product_name", "f-product"],
+    ["inspection_sent_date", "f-date"],
+    ["farmer_name", "f-farmer"],
+  ];
+  fields.forEach(([parameter, elementId]) => {
+    const value = document.getElementById(elementId)?.value.trim();
+    if (value) filters.set(parameter, value);
+  });
+
+  await fetchBatchesFromDB(filters);
+  renderBatchCount("UNVERIFIED");
+  renderBatchTable("UNVERIFIED");
+}
+
+/* ========================================================
+   4. RENDER BẢNG BATCH TỪ DỮ LIỆU DATABASE
+   ======================================================== */
+function formatAuditDate(value) {
+  const match = String(value || "").match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/
+  );
+  if (!match) return "—";
+  const [, year, month, day, hours, minutes] = match;
+  return `${day}/${month}/${year}${hours ? ` ${hours}:${minutes}` : ""}`;
+}
+
+function renderBatchTable(statusFilter) {
+  const thead = document.getElementById("table-head");
+  const tbody = document.getElementById("table-body");
+  tbody.innerHTML = "";
+
+  thead.innerHTML = `
+    <tr>
+      <th>Batch code</th>
+      <th>Sản phẩm</th>
+      <th>Ngày ${activeTab === "approved" ? "duyệt" : "tạo hồ sơ"}</th>
+      <th>Nông dân</th>
+    </tr>
   `;
 
-  card.classList.remove("hidden");
-  bindTabs();
-}
+  const list = BATCHES.filter(
+    (b) => (b.status || "").toUpperCase() === statusFilter,
+  );
 
-async function loadTrace() {
-  if (!lookup) {
-    showError("Mã truy xuất đang trống. Hãy quét QR hoặc nhập Batch Code.");
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:32px;">Không tìm thấy lô hàng phù hợp</td></tr>`;
     return;
   }
 
-  const normalizedLookup = lookup.toUpperCase();
-  const endpoint =
-    normalizedLookup.startsWith("QR-") || normalizedLookup.startsWith("TRACE-")
-      ? `/public/trace-id/${encodeURIComponent(lookup)}`
-      : `/public/trace/${encodeURIComponent(lookup)}`;
+  list.forEach((b) => {
+    const code = b.batch_code || b.code;
+    const name = b.product_name || b.product;
+    const date =
+      activeTab === "approved"
+        ? formatAuditDate(b.audit_date)
+        : b.created_at || b.createdDate || "—";
+    const farmer = b.producer_name || b.farmer_name || b.farmer || "—";
 
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="code-col">${code}</td>
+      <td>${name}</td>
+      <td>${date}</td>
+      <td>${farmer}</td>
+    `;
+    tr.addEventListener("click", () => openBatchDetail(b.id || code));
+    tbody.appendChild(tr);
+  });
+}
+
+/* ========================================================
+   5. XEM CHI TIẾT BATCH QUA API (GET /api/v1/auditor/batches/{id})
+   ======================================================== */
+async function openBatchDetail(batchIdOrCode) {
   try {
-    const response = await fetch(`${API_BASE}${endpoint}`);
-    const data = await response.json().catch(() => null);
+    const res = await fetch(`${API_BASE}/auditor/batches/${batchIdOrCode}`, {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      currentBatch = await res.json();
+    } else {
+      currentBatch = BATCHES.find(
+        (b) =>
+          b.id === batchIdOrCode ||
+          b.code === batchIdOrCode ||
+          b.batch_code === batchIdOrCode,
+      );
+    }
+  } catch (e) {
+    currentBatch = BATCHES.find(
+      (b) =>
+        b.id === batchIdOrCode ||
+        b.code === batchIdOrCode ||
+        b.batch_code === batchIdOrCode,
+    );
+  }
 
-    if (!response.ok) {
-      const fallback = buildFallbackData();
-      if (
-        lookup.toUpperCase().includes("AGT") ||
-        lookup.toUpperCase().includes("TRACE")
-      ) {
-        renderTrace(fallback);
-        return;
+  if (!currentBatch) return;
+
+  const card = document.getElementById("detail-card-content");
+  const overlay = document.getElementById("detail-overlay");
+
+  const code = currentBatch.batch_code || currentBatch.code;
+  const product = currentBatch.product_name || currentBatch.product;
+  const farmer =
+    currentBatch.producer_name ||
+    currentBatch.farmer_name ||
+    currentBatch.farmer ||
+    "Chưa cập nhật";
+  const harvest =
+    currentBatch.production_date ||
+    currentBatch.harvest_date ||
+    currentBatch.harvestDate ||
+    "—";
+  const weight = currentBatch.quantity
+    ? `${currentBatch.quantity} ${currentBatch.unit || ""}`
+    : currentBatch.weight || "—";
+  const created = currentBatch.created_at || currentBatch.createdDate || "—";
+  const origin = currentBatch.origin || "Việt Nam";
+  const status = (currentBatch.status || "").toUpperCase();
+  const latestReport = currentBatch.reports?.[0] || currentBatch.report || null;
+  const reportResult = (latestReport?.result || "").toUpperCase();
+  editingReportId = null;
+
+  let statusBadge = '<span class="status-badge amber">Chờ kiểm định</span>';
+  if (status === "AUDITED")
+    statusBadge = '<span class="status-badge green">Đã kiểm định</span>';
+  if (status === "REJECTED")
+    statusBadge = '<span class="status-badge red">Bị từ chối</span>';
+
+  const samplesList = currentBatch.samples || [];
+  let sampleSection = "";
+  if (samplesList.length === 0) {
+    sampleSection = `
+      <div class="link-row">
+        <span>📎 Sample</span>
+        <button type="button" class="btn-chip" id="btn-open-create-sample">+ Tạo sample mới</button>
+      </div>
+    `;
+  } else {
+    const s = samplesList[0];
+    sampleSection = `
+      <div class="link-row" style="background:#ede9fe;">
+        <span><strong>${s.sample_code || s.id}</strong></span>
+        <span style="color:#64748b; font-size:12px;">Lấy mẫu ${s.created_at || s.date || ""}</span>
+      </div>
+    `;
+  }
+
+  let dynamicBody = "";
+  if (status === "UNVERIFIED" || status === "PENDING") {
+    dynamicBody = `
+      <div class="link-row">
+        <span>📄 Báo cáo kiểm nghiệm: <strong id="report-name">${latestReport ? latestReport.file_name || latestReport.fileName : "chưa có"}</strong></span>
+        ${latestReport ? '<span style="display:flex; gap:8px;"><button type="button" class="btn-gray-pill" id="btn-view-report">Xem file</button><button type="button" class="btn-gray-pill" id="btn-edit-report">Sửa</button></span>' : ""}
+      </div>
+
+      ${latestReport
+        ? `
+        <div class="link-row" style="background:#f8fafc;">
+          <span>Phòng lab: <strong>${latestReport.lab_name || "—"}</strong></span>
+          <span>Mã phòng lab: <strong>${latestReport.lab_code || "—"}</strong></span>
+        </div>
+        <div class="link-row" style="background:${reportResult === "PASS" ? "#f0fdf4" : reportResult === "FAIL" ? "#fef2f2" : "#fffbeb"};">
+          <span>Kết quả lab: <strong>${reportResult || "Chưa có PASS/FAIL"}</strong></span>
+          <span>${reportResult === "PASS" ? "Có thể approve hoặc reject" : reportResult === "FAIL" ? "Chỉ được reject" : "Cần cập nhật kết quả"}</span>
+        </div>
+      `
+        : ""
       }
-      throw new Error(data?.detail || "Không tìm thấy hồ sơ truy xuất");
-    }
 
-    const traceData = data || buildFallbackData();
-    renderTrace(traceData);
-    try {
-      if (await loadReportPdf(traceData)) renderTrace(traceData);
-    } catch (error) {
-      console.warn("Không thể tải file PDF public:", error.message);
-    }
-  } catch (error) {
-    renderTrace(buildFallbackData());
+      <div class="report-form" style="${latestReport ? "display:none;" : ""}">
+        <h4 style="margin:0 0 12px; font-size:13px;">Upload báo cáo mới</h4>
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Sample</label>
+            <select id="r-sample-select">
+              ${samplesList
+        .map(function (s) {
+          return (
+            '<option value="' +
+            (s.id || s.sample_code) +
+            '">' +
+            (s.sample_code || s.id) +
+            "</option>"
+          );
+        })
+        .join("") || "<option>— Chưa có Sample —</option>"
+      }
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Kết quả</label>
+            <select id="r-result-select"><option value="PASS">PASS</option><option value="FAIL">FAIL</option></select>
+          </div>
+          <div class="form-field"><label>Tên phòng lab</label><input type="text" id="r-lab-name" placeholder="VD: TT Kiểm định An Giang" /></div>
+          <div class="form-field"><label>Mã phòng lab</label><input type="text" id="r-lab-code" placeholder="VD: LAB-AG-01" /></div>
+          <div class="form-field"><label>Ngày báo cáo</label><input type="date" id="r-report-date" /></div>
+          <div class="form-field">
+            <label>File PDF</label>
+            <div class="file-picker">
+              <button type="button" class="btn-chip" onclick="document.getElementById('mock-file-input').click()">Chọn tệp</button>
+              <span id="file-chosen-text">Chưa chọn tệp</span>
+              <input type="file" id="mock-file-input" hidden accept=".pdf" onchange="document.getElementById('file-chosen-text').textContent=this.files[0]?.name||'Chưa chọn tệp'" />
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn-upload" id="btn-hash-upload">Upload và tạo SHA-256</button>
+        <div class="hash-result" id="hash-box" style="display:none;">
+          <p class="fact-label">MÃ BĂM SHA-256 (TỪ FILE DATABASE)</p>
+          <p class="hash-value" id="hash-val-text"></p>
+        </div>
+      </div>
+
+      <h4 class="section-label">Lí do từ chối</h4>
+      <textarea id="txt-reject-reason" class="reason-box" placeholder="Nhập lí do trước khi từ chối..."></textarea>
+
+      <div class="decision-row">
+        <button type="button" class="btn-approve" id="btn-action-approve" ${reportResult === "PASS" ? "" : "disabled"}>APPROVE</button>
+        <button type="button" class="btn-reject" id="btn-action-reject">REJECT</button>
+      </div>
+    `;
+  } else if (status === "AUDITED") {
+    dynamicBody = `
+      <div class="link-row" style="background:#f1f5f9;">
+        <span>📄 Báo cáo kiểm nghiệm: <strong>${latestReport?.file_name || "Chưa có báo cáo"}</strong></span>
+        ${latestReport ? '<button type="button" class="btn-gray-pill" id="btn-view-report">Xem file</button>' : ""}
+      </div>
+      <div class="link-row" style="background:#f8fafc;">
+        <span>Phòng lab: <strong>${latestReport?.lab_name || "—"}</strong></span>
+        <span>Mã phòng lab: <strong>${latestReport?.lab_code || "—"}</strong></span>
+      </div>
+
+      <div class="criteria-box">
+        <div class="criteria-title">Điều kiện phê duyệt trong Database</div>
+        <div class="criteria-grid">
+          <div class="criteria-item valid">✓ Laboratory Test Report tồn tại</div>
+          <div class="criteria-item valid">✓ SHA-256 hợp lệ</div>
+          <div class="criteria-item valid">✓ Report thuộc đúng Sample</div>
+          <div class="criteria-item valid">✓ Proof of Integrity hợp lệ</div>
+          <div class="criteria-item valid">✓ Sample thuộc đúng Batch</div>
+        </div>
+      </div>
+
+      <div style="background:#f8fafc; border-radius:8px; padding:12px; font-size:11.5px; color:#64748b; margin-top:12px;">
+        <div>Mã băm SHA-256: <code>${latestReport?.file_hash || "Chưa có"}</code></div>
+        <div>Trace ID: <strong>${currentBatch.trace_id || currentBatch.traceId || "TRC-9F21-AGT"}</strong></div>
+      </div>
+    `;
+  } else if (status === "REJECTED") {
+    dynamicBody = `
+      <div class="reject-alert">
+        <div class="reject-alert-title">⚠ Lý do từ chối ghi nhận trong Database</div>
+        <p class="reject-alert-body">${currentBatch.reason || currentBatch.reject_reason || currentBatch.rejectReason || "Không đạt chuẩn kiểm định chất lượng."}</p>
+        <p class="reject-alert-meta">Auditor phụ trách: ${currentBatch.auditor_name || currentAuditorName}</p>
+      </div>
+    `;
+  }
+
+  card.innerHTML = `
+    <button class="back-link" id="btn-close-detail" type="button">← Quay lại danh sách</button>
+    <div class="detail-header">
+      <div>
+        <p class="detail-code">${code}</p>
+        <h2 class="detail-title">${product}</h2>
+      </div>
+      ${statusBadge}
+    </div>
+
+    <div class="fact-grid">
+      <div class="fact"><p class="fact-label">Nông dân</p><p class="fact-value">${farmer}</p></div>
+      <div class="fact"><p class="fact-label">Ngày thu hoạch</p><p class="fact-value">${harvest}</p></div>
+      <div class="fact"><p class="fact-label">Khối lượng</p><p class="fact-value">${weight}</p></div>
+      <div class="fact"><p class="fact-label">Ngày tạo</p><p class="fact-value">${created}</p></div>
+      <div class="fact"><p class="fact-label">Nguồn gốc</p><p class="fact-value">${origin}</p></div>
+    </div>
+
+    <h4 class="section-label">Sample liên kết</h4>
+    ${sampleSection}
+    ${dynamicBody}
+  `;
+
+  overlay.hidden = false;
+  bindDetailEvents();
+}
+
+/* ========================================================
+   6. GỌI API: UPLOAD REPORT, APPROVE, REJECT
+   ======================================================== */
+async function openLabReportFile() {
+  const reportWindow = window.open("about:blank", "_blank");
+  try {
+    const batchId = currentBatch.id || currentBatch.batch_id;
+    const res = await fetch(`${API_BASE}/batches/${batchId}/report-file`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Không thể tải file report.");
+    const fileUrl = URL.createObjectURL(await res.blob());
+    if (reportWindow) reportWindow.location.href = fileUrl;
+    else window.location.href = fileUrl;
+  } catch (err) {
+    if (reportWindow) reportWindow.close();
+    alert(`Lỗi: ${err.message}`);
   }
 }
 
-loadTrace();
+function bindDetailEvents() {
+  document
+    .getElementById("btn-close-detail")
+    ?.addEventListener("click", closeDetail);
+
+  document
+    .getElementById("btn-view-report")
+    ?.addEventListener("click", openLabReportFile);
+
+  document.getElementById("btn-edit-report")?.addEventListener("click", () => {
+    const reportForm = document.querySelector(".report-form");
+    if (!reportForm || !currentBatch.reports?.[0]) return;
+    const report = currentBatch.reports[0];
+    editingReportId = report.id;
+    reportForm.style.display = "block";
+    document.getElementById("r-sample-select").value = report.sample_id;
+    document.getElementById("r-result-select").value = report.result;
+    document.getElementById("r-lab-name").value = report.lab_name || "";
+    document.getElementById("r-lab-code").value = report.lab_code || "";
+    document.getElementById("r-report-date").value = report.report_date || "";
+    document.getElementById("file-chosen-text").textContent =
+      "Giữ file hiện tại nếu không chọn file mới";
+    document.getElementById("btn-hash-upload").textContent =
+      "Lưu thay đổi và tạo SHA-256";
+    reportForm.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  document
+    .getElementById("btn-open-create-sample")
+    ?.addEventListener("click", () => {
+      openCreateSampleModal(currentBatch);
+    });
+
+  // Upload Báo cáo kiểm nghiệm lên API
+  document
+    .getElementById("btn-hash-upload")
+    ?.addEventListener("click", async () => {
+      const fileInput = document.getElementById("mock-file-input");
+      const file = fileInput.files[0];
+      const labName = document.getElementById("r-lab-name").value.trim();
+      const sampleSelect = document.getElementById("r-sample-select");
+      const sampleId = sampleSelect?.value;
+
+      if (!editingReportId && !file)
+        return alert("Vui lòng chọn file PDF kết quả kiểm định.");
+      if (!labName) return alert("Vui lòng điền tên phòng lab.");
+      if (
+        !sampleId ||
+        !samplesListForBatch(currentBatch).some(
+          (sample) => String(sample.id) === String(sampleId),
+        )
+      ) {
+        return alert(
+          "Batch phải có Sample hợp lệ trước khi upload Laboratory Test Report.",
+        );
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      const batchId =
+        currentBatch.id || currentBatch.code || currentBatch.batch_code;
+      formData.append("batch_id", batchId);
+      formData.append("lab_name", labName);
+      formData.append(
+        "lab_code",
+        document.getElementById("r-lab-code").value.trim(),
+      );
+      formData.append(
+        "result",
+        document.getElementById("r-result-select").value,
+      );
+      formData.append("sample_id", sampleId);
+      formData.append(
+        "report_date",
+        document.getElementById("r-report-date").value,
+      );
+
+      try {
+        const endpoint = editingReportId
+          ? `${API_BASE}/auditor/reports/${editingReportId}`
+          : `${API_BASE}/auditor/reports`;
+        const res = await fetch(endpoint, {
+          method: editingReportId ? "PUT" : "POST",
+          headers: {
+            ...(getAuthHeaders().Authorization
+              ? { Authorization: getAuthHeaders().Authorization }
+              : {}),
+          },
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok)
+          throw new Error(
+            data.detail || "Không thể upload báo cáo lên Database.",
+          );
+
+        alert(
+          editingReportId
+            ? "Đã lưu thay đổi report vào Database và cập nhật SHA-256."
+            : "Upload báo cáo thành công! Mã SHA-256 đã được Backend tính và lưu vào cơ sở dữ liệu.",
+        );
+        document.getElementById("hash-box").style.display = "block";
+        document.getElementById("hash-val-text").textContent = data.file_hash;
+        document.getElementById("btn-action-approve").disabled =
+          data.result !== "PASS";
+        editingReportId = null;
+        currentBatch.report = data;
+        currentBatch.reports = [
+          data,
+          ...(currentBatch.reports || []).filter(
+            (report) => report.id !== data.id,
+          ),
+        ];
+        await openBatchDetail(currentBatch.id);
+      } catch (err) {
+        alert(`Lỗi: ${err.message}`);
+      }
+    });
+
+  // Phê duyệt Lô hàng qua API (POST /batches/{id}/approve)
+  document
+    .getElementById("btn-action-approve")
+    ?.addEventListener("click", async () => {
+      const batchId =
+        currentBatch.id || currentBatch.code || currentBatch.batch_code;
+      try {
+        const res = await fetch(
+          `${API_BASE}/auditor/batches/${batchId}/approve`,
+          {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ reason: "Auditor approved" }),
+          },
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Phê duyệt thất bại.");
+
+        alert(
+          `Lô hàng ${currentBatch.batch_code || currentBatch.code} đã được cập nhật trạng thái AUDITED trong Database!`,
+        );
+        closeDetail();
+        await switchTab(activeTab);
+      } catch (err) {
+        alert(`Lỗi: ${err.message}`);
+      }
+    });
+
+  // Từ chối Lô hàng qua API (POST /batches/{id}/reject)
+  document
+    .getElementById("btn-action-reject")
+    ?.addEventListener("click", async () => {
+      const reason = document.getElementById("txt-reject-reason").value.trim();
+      if (!reason) return alert("Vui lòng nhập lý do từ chối.");
+
+      const batchId =
+        currentBatch.id || currentBatch.code || currentBatch.batch_code;
+      try {
+        const res = await fetch(
+          `${API_BASE}/auditor/batches/${batchId}/reject`,
+          {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ reason }),
+          },
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Từ chối thất bại.");
+
+        alert(`Đã cập nhật trạng thái REJECTED cho lô hàng vào Database!`);
+        closeDetail();
+        await switchTab(activeTab);
+      } catch (err) {
+        alert(`Lỗi: ${err.message}`);
+      }
+    });
+}
+
+function samplesListForBatch(batch) {
+  return (batch?.samples || []).filter(
+    (sample) => String(sample.batch_id) === String(batch.id),
+  );
+}
+
+function closeDetail() {
+  const overlay = document.getElementById("detail-overlay");
+  overlay.hidden = true;
+}
+
+document.getElementById("detail-overlay")?.addEventListener("click", (e) => {
+  if (e.target.id === "detail-overlay") closeDetail();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    closeDetail();
+    closeModal();
+  }
+});
+
+/* ========================================================
+   7. GỌI API: TẠO SAMPLE VÀO DATABASE
+   ======================================================== */
+function openCreateSampleModal(batch) {
+  document.getElementById("m-batch-code").value =
+    batch.batch_code || batch.code;
+  document.getElementById("m-product-name").value =
+    batch.product_name || batch.product;
+  document.getElementById("m-farmer").value =
+    batch.farmer_name || batch.farmer || "";
+  document.getElementById("m-origin").value = batch.origin || "";
+  document.getElementById("m-sample-id").value =
+    `SMP-HN-${Date.now().toString().slice(-4)}`;
+  document.getElementById("m-weight").value = "1 kg";
+  document.getElementById("m-date").value = new Date()
+    .toISOString()
+    .split("T")[0];
+
+  document.getElementById("create-sample-modal").hidden = false;
+}
+
+function closeModal() {
+  document.getElementById("create-sample-modal").hidden = true;
+}
+
+document
+  .getElementById("btn-close-modal")
+  ?.addEventListener("click", closeModal);
+document
+  .getElementById("btn-cancel-modal")
+  ?.addEventListener("click", closeModal);
+
+document
+  .getElementById("create-sample-form")
+  ?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const samplePayload = {
+      batch_id: currentBatch.id,
+      sample_id: document.getElementById("m-sample-id").value.trim(),
+      sampling_date: document.getElementById("m-date").value,
+      sample_quantity: Number.parseFloat(
+        document.getElementById("m-weight").value,
+      ),
+      sample_unit: "kg",
+      sampling_location: currentBatch.origin || "Chưa cập nhật",
+      sampling_method: "Lấy mẫu kiểm định",
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/samples`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(samplePayload),
+      });
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data.detail || "Không thể tạo mẫu vào Database.");
+
+      alert(
+        `Tạo mẫu ${data.sample_code || data.sample_id} vào cơ sở dữ liệu thành công!`,
+      );
+      closeModal();
+      openBatchDetail(currentBatch.id || currentBatch.code);
+    } catch (err) {
+      alert(`Lỗi: ${err.message}`);
+    }
+  });
+
+document.getElementById("btn-search")?.addEventListener("click", searchPendingBatches);
+document.getElementById("btn-refresh")?.addEventListener("click", async () => {
+  document.getElementById("batch-filter-form")?.reset();
+  await switchTab(activeTab);
+});
+
+/* ========================================================
+   8. RENDER TIMELINE & MẪU
+   ======================================================== */
+function renderAuditTimeline(list) {
+  const contentCard = document.querySelector(".content-card");
+  let timeline = document.getElementById("audit-timeline-box");
+
+  if (!timeline) {
+    timeline = document.createElement("div");
+    timeline.id = "audit-timeline-box";
+    timeline.className = "timeline-container";
+    contentCard.appendChild(timeline);
+  }
+
+  timeline.style.display = "block";
+  timeline.innerHTML = "";
+
+  if (list.length === 0) {
+    timeline.innerHTML =
+      '<p style="text-align:center; color:#9ca3af; padding:24px;">Chưa có bản ghi lịch sử nào trong cơ sở dữ liệu.</p>';
+    return;
+  }
+
+  list.forEach((item) => {
+    let dotClass = "dot-approve";
+    if (item.action === "REJECT") dotClass = "dot-reject";
+    if (item.action === "RESUBMIT") dotClass = "dot-resubmit";
+
+    const div = document.createElement("div");
+    div.className = "timeline-item";
+    div.innerHTML = `
+      <div class="timeline-dot ${dotClass}"></div>
+      <div class="timeline-card">
+        <div class="timeline-header">
+          <div class="timeline-title">
+            ${item.title || "Thao tác"} <a href="javascript:void(0)" class="batch-link" onclick="openBatchDetail('${item.batch_code || item.batchCode}')">${item.batch_code || item.batchCode}</a>
+          </div>
+          <div class="timeline-time">${item.time || item.created_at || ""}</div>
+        </div>
+        <div class="timeline-desc">
+          ${item.product ? `${item.product} — trạng thái: ` : ""}${item.transition || item.details || ""}
+        </div>
+        ${item.reason ? `<div class="timeline-reason">Lý do: ${item.reason}</div>` : ""}
+        <div class="timeline-auditor">Auditor: <strong>${item.auditor_name || item.auditor || "Hệ thống"}</strong></div>
+      </div>
+    `;
+    timeline.appendChild(div);
+  });
+}
+
+function renderSampleTable(list) {
+  const thead = document.getElementById("table-head");
+  const tbody = document.getElementById("table-body");
+  tbody.innerHTML = "";
+
+  thead.innerHTML = `
+    <tr>
+      <th>Sample ID</th>
+      <th>Batch code</th>
+      <th>Sản phẩm</th>
+      <th>Trạng thái</th>
+    </tr>
+  `;
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:32px;">Không có mẫu nào trong Database.</td></tr>`;
+    return;
+  }
+
+  list.forEach((s) => {
+    let tag = '<span class="status-tag waiting-lab">Chờ gửi lab</span>';
+    if (s.status === "HAS_REPORT")
+      tag = '<span class="status-tag has-report">Đã có báo cáo</span>';
+    if (s.status === "WAITING_RESULT")
+      tag = '<span class="status-tag waiting-result">Đang chờ kết quả</span>';
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="code-col">${s.sample_code || s.id}</td>
+      <td>${s.batch_code || s.batchCode}</td>
+      <td>${s.product_name || s.product || "Nông sản"}</td>
+      <td>${tag}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Khởi động trang với dữ liệu từ DB
+loadAuditorIdentity();
+switchTab("pending");

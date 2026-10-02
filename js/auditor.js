@@ -47,13 +47,14 @@ async function loadAuditorIdentity() {
    ======================================================== */
 
 // Lấy danh sách Batches từ DB
-async function fetchBatchesFromDB() {
+async function fetchBatchesFromDB(filters = null) {
   try {
     const endpoint =
       activeTab === "pending" || activeTab === "rejected"
         ? "/auditor/queue"
         : "/batches";
-    const res = await fetch(`${API_BASE}${endpoint}`, {
+    const query = endpoint === "/auditor/queue" ? filters?.toString() : "";
+    const res = await fetch(`${API_BASE}${endpoint}${query ? `?${query}` : ""}`, {
       method: "GET",
       headers: getAuthHeaders(),
     });
@@ -232,29 +233,65 @@ async function switchTab(tab) {
       titleText = "Danh sách từ chối";
       filterStatus = "REJECTED";
     }
-
-    const filteredBatches = BATCHES.filter(
-      (b) => (b.status || "").toUpperCase() === filterStatus,
-    );
-
     heading.textContent = titleText;
-    statContainer.innerHTML = `
-      <div class="counter-box">
-        <span>Tổng lô hàng ${tab === "approved" ? "đã duyệt" : tab === "rejected" ? "từ chối" : "chưa duyệt"}</span>
-        <div class="box-badge">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5c33cf" stroke-width="2"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/></svg>
-          <strong>${filteredBatches.length}</strong>
-        </div>
-      </div>
-    `;
-
+    renderBatchCount(filterStatus);
     renderBatchTable(filterStatus);
   }
+}
+
+function renderBatchCount(statusFilter) {
+  const count = BATCHES.filter(
+    (batch) => (batch.status || "").toUpperCase() === statusFilter,
+  ).length;
+  const label =
+    statusFilter === "AUDITED"
+      ? "đã duyệt"
+      : statusFilter === "REJECTED"
+        ? "từ chối"
+        : "chưa duyệt";
+  document.getElementById("stat-container").innerHTML = `
+    <div class="counter-box">
+      <span>Tổng lô hàng ${label}</span>
+      <div class="box-badge">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5c33cf" stroke-width="2"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/></svg>
+        <strong>${count}</strong>
+      </div>
+    </div>
+  `;
+}
+
+async function searchPendingBatches() {
+  if (activeTab !== "pending") return;
+
+  const filters = new URLSearchParams();
+  const fields = [
+    ["batch_code", "f-code"],
+    ["product_name", "f-product"],
+    ["inspection_sent_date", "f-date"],
+    ["farmer_name", "f-farmer"],
+  ];
+  fields.forEach(([parameter, elementId]) => {
+    const value = document.getElementById(elementId)?.value.trim();
+    if (value) filters.set(parameter, value);
+  });
+
+  await fetchBatchesFromDB(filters);
+  renderBatchCount("UNVERIFIED");
+  renderBatchTable("UNVERIFIED");
 }
 
 /* ========================================================
    4. RENDER BẢNG BATCH TỪ DỮ LIỆU DATABASE
    ======================================================== */
+function formatAuditDate(value) {
+  const match = String(value || "").match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/
+  );
+  if (!match) return "—";
+  const [, year, month, day, hours, minutes] = match;
+  return `${day}/${month}/${year}${hours ? ` ${hours}:${minutes}` : ""}`;
+}
+
 function renderBatchTable(statusFilter) {
   const thead = document.getElementById("table-head");
   const tbody = document.getElementById("table-body");
@@ -274,14 +311,17 @@ function renderBatchTable(statusFilter) {
   );
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:32px;">Không có dữ liệu trong cơ sở dữ liệu.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:32px;">Không tìm thấy lô hàng phù hợp</td></tr>`;
     return;
   }
 
   list.forEach((b) => {
     const code = b.batch_code || b.code;
     const name = b.product_name || b.product;
-    const date = b.audit_date || b.created_at || b.createdDate || "—";
+    const date =
+      activeTab === "approved"
+        ? formatAuditDate(b.audit_date)
+        : b.created_at || b.createdDate || "—";
     const farmer = b.producer_name || b.farmer_name || b.farmer || "—";
 
     const tr = document.createElement("tr");
@@ -383,9 +423,8 @@ async function openBatchDetail(batchIdOrCode) {
         ${latestReport ? '<span style="display:flex; gap:8px;"><button type="button" class="btn-gray-pill" id="btn-view-report">Xem file</button><button type="button" class="btn-gray-pill" id="btn-edit-report">Sửa</button></span>' : ""}
       </div>
 
-      ${
-        latestReport
-          ? `
+      ${latestReport
+        ? `
         <div class="link-row" style="background:#f8fafc;">
           <span>Phòng lab: <strong>${latestReport.lab_name || "—"}</strong></span>
           <span>Mã phòng lab: <strong>${latestReport.lab_code || "—"}</strong></span>
@@ -395,7 +434,7 @@ async function openBatchDetail(batchIdOrCode) {
           <span>${reportResult === "PASS" ? "Có thể approve hoặc reject" : reportResult === "FAIL" ? "Chỉ được reject" : "Cần cập nhật kết quả"}</span>
         </div>
       `
-          : ""
+        : ""
       }
 
       <div class="report-form" style="${latestReport ? "display:none;" : ""}">
@@ -404,19 +443,18 @@ async function openBatchDetail(batchIdOrCode) {
           <div class="form-field">
             <label>Sample</label>
             <select id="r-sample-select">
-              ${
-                samplesList
-                  .map(function (s) {
-                    return (
-                      '<option value="' +
-                      (s.id || s.sample_code) +
-                      '">' +
-                      (s.sample_code || s.id) +
-                      "</option>"
-                    );
-                  })
-                  .join("") || "<option>— Chưa có Sample —</option>"
-              }
+              ${samplesList
+        .map(function (s) {
+          return (
+            '<option value="' +
+            (s.id || s.sample_code) +
+            '">' +
+            (s.sample_code || s.id) +
+            "</option>"
+          );
+        })
+        .join("") || "<option>— Chưa có Sample —</option>"
+      }
             </select>
           </div>
           <div class="form-field">
@@ -772,7 +810,7 @@ document
     e.preventDefault();
     const samplePayload = {
       batch_id: currentBatch.id,
-      sample_code: document.getElementById("m-sample-id").value.trim(),
+      sample_id: document.getElementById("m-sample-id").value.trim(),
       sampling_date: document.getElementById("m-date").value,
       sample_quantity: Number.parseFloat(
         document.getElementById("m-weight").value,
@@ -793,7 +831,7 @@ document
         throw new Error(data.detail || "Không thể tạo mẫu vào Database.");
 
       alert(
-        `Tạo mẫu ${samplePayload.sample_code} vào cơ sở dữ liệu thành công!`,
+        `Tạo mẫu ${data.sample_code || data.sample_id} vào cơ sở dữ liệu thành công!`,
       );
       closeModal();
       openBatchDetail(currentBatch.id || currentBatch.code);
@@ -801,6 +839,12 @@ document
       alert(`Lỗi: ${err.message}`);
     }
   });
+
+document.getElementById("btn-search")?.addEventListener("click", searchPendingBatches);
+document.getElementById("btn-refresh")?.addEventListener("click", async () => {
+  document.getElementById("batch-filter-form")?.reset();
+  await switchTab(activeTab);
+});
 
 /* ========================================================
    8. RENDER TIMELINE & MẪU
