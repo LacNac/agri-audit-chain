@@ -24,7 +24,28 @@ def get_all_batches(db=Depends(get_db), user=Depends(get_current_user)):
         farmer_id = user["id"]
     else:
         farmer_id = None
-    return [BatchOut(**item) for item in list_batches(db, farmer_id=farmer_id)]
+    batches = list_batches(db, farmer_id=farmer_id)
+    approved_ids = [
+        batch["id"] for batch in batches if batch.get("status") == "AUDITED"
+    ]
+    if approved_ids:
+        placeholders = ", ".join("?" for _ in approved_ids)
+        approval_rows = db.execute(
+            f"""
+            SELECT entity_id, created_at
+            FROM audit_trails
+            WHERE entity_type = 'batch'
+              AND action IN ('APPROVE_BATCH', 'APPROVE')
+              AND entity_id IN ({placeholders})
+            ORDER BY id
+            """,
+            approved_ids,
+        ).fetchall()
+        approval_dates = {entity_id: created_at for entity_id, created_at in approval_rows}
+        for batch in batches:
+            if batch.get("status") == "AUDITED":
+                batch["audit_date"] = approval_dates.get(batch["id"])
+    return [BatchOut(**item) for item in batches]
 
 
 @router.get("/{batch_id}/report-file")

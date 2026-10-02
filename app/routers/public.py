@@ -15,7 +15,8 @@ UPLOADS_DIRS = (
 def _trace_batch(batch_code: str, db):
     batch_row = db.execute(
         """
-        SELECT b.id, b.batch_code, b.product_name, b.origin, b.production_date, b.status, b.farmer_id,
+         SELECT b.id, b.batch_code, b.product_name, b.origin, b.production_date, b.status, b.farmer_id,
+             b.quantity, b.unit,
                u.full_name AS farmer_name
         FROM batches b
         LEFT JOIN users u ON u.id = b.farmer_id
@@ -26,9 +27,32 @@ def _trace_batch(batch_code: str, db):
     if not batch_row:
         raise HTTPException(status_code=404, detail="Batch không tồn tại")
 
-    batch_id, resolved_batch_code, product_name, origin, production_date, audit_status, farmer_id, farmer_name = batch_row
+    batch_id, resolved_batch_code, product_name, origin, production_date, audit_status, farmer_id, quantity, unit, farmer_name = batch_row
     if audit_status != "AUDITED":
         raise HTTPException(status_code=403, detail="Batch chưa được kiểm định công khai")
+
+    approval_event = db.execute(
+        """
+        SELECT created_at
+        FROM audit_trails
+        WHERE entity_type = 'batch'
+          AND entity_id = ?
+          AND action IN ('APPROVE_BATCH', 'APPROVE')
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (batch_id,),
+    ).fetchone()
+    latest_batch_event = db.execute(
+        """
+        SELECT created_at
+        FROM audit_trails
+        WHERE entity_type = 'batch' AND entity_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (batch_id,),
+    ).fetchone()
     report_rows = db.execute(
         """
         SELECT lr.result, lr.file_hash, lr.report_code, lr.file_name
@@ -76,8 +100,12 @@ def _trace_batch(batch_code: str, db):
         "product_name": product_name,
         "origin": origin,
         "farmer": farmer_name or ("Farmer ID " + str(farmer_id) if farmer_id is not None else None),
+        "quantity": quantity,
+        "unit": unit,
         "production_date": production_date,
         "audit_status": audit_status,
+        "audit_date": approval_event[0] if approval_event else None,
+        "last_updated": latest_batch_event[0] if latest_batch_event else None,
         "laboratory_result_summary": result_summary,
         "reports": reports,
         "verification": verification,
