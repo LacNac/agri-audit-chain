@@ -91,18 +91,52 @@ def get_auditor_batch(batch_id: int, db=Depends(get_db), user=Depends(require_pe
 
 
 @router.get("/queue")
-def get_audit_queue(db=Depends(get_db), user=Depends(require_permission("AUDIT_VIEW"))):
+def get_audit_queue(
+    batch_code: str | None = None,
+    product_name: str | None = None,
+    inspection_sent_date: date | None = None,
+    farmer_name: str | None = None,
+    db=Depends(get_db),
+    user=Depends(require_permission("AUDIT_VIEW")),
+):
+    submission_date_query = """
+        SELECT submission.created_at
+        FROM audit_trails submission
+        WHERE submission.entity_type = 'batch'
+          AND submission.entity_id = b.id
+          AND submission.action IN ('SUBMIT_BATCH', 'RESUBMIT_BATCH')
+        ORDER BY submission.id DESC
+        LIMIT 1
+    """
+    conditions = ["b.status IN ('UNVERIFIED', 'REJECTED')"]
+    parameters = []
+    for column, value in (
+        ("b.batch_code", batch_code),
+        ("b.product_name", product_name),
+        ("b.producer_name", farmer_name),
+    ):
+        value = (value or "").strip()
+        if value:
+            escaped_value = value.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+            conditions.append(f"LOWER(COALESCE({column}, '')) LIKE LOWER(?) ESCAPE '!'")
+            parameters.append(f"%{escaped_value}%")
+    if inspection_sent_date:
+        conditions.append(f"DATE(({submission_date_query})) = ?")
+        parameters.append(inspection_sent_date.isoformat())
+
     batches = db.execute(
-        """
+        f"""
         SELECT b.id, b.batch_code, b.product_name, b.product_type, b.producer_name,
                b.origin, b.quantity, b.unit, b.production_date, b.expiry_date,
                b.status, b.created_at,
+               ({submission_date_query}) AS inspection_sent_date,
                (SELECT COUNT(*) FROM samples s WHERE s.batch_id = b.id) AS sample_count,
                (SELECT COUNT(*) FROM lab_reports lr WHERE lr.batch_id = b.id) AS report_count
         FROM batches b
-        WHERE b.status IN ('UNVERIFIED', 'REJECTED')
+        WHERE {' AND '.join(conditions)}
         ORDER BY CASE b.status WHEN 'REJECTED' THEN 0 ELSE 1 END, b.id DESC
-        """
+        """,
+        parameters,
     ).fetchall()
 
     queue = []
@@ -111,7 +145,7 @@ def get_audit_queue(db=Depends(get_db), user=Depends(require_permission("AUDIT_V
             [
                 "id", "batch_code", "product_name", "product_type", "producer_name",
                 "origin", "quantity", "unit", "production_date", "expiry_date",
-                "status", "created_at", "sample_count", "report_count",
+                "status", "created_at", "inspection_sent_date", "sample_count", "report_count",
             ],
             row,
         ))

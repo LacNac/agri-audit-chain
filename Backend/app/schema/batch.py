@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
@@ -55,6 +55,7 @@ class BatchOut(BaseModel):
     farmer_id: Optional[int] = None
     note: Optional[str] = None
     reason: Optional[str] = None
+    audit_date: Optional[datetime] = None
 
 
 class BatchStatusUpdate(BaseModel):

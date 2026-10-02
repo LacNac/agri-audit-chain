@@ -1,10 +1,13 @@
 import sqlite3
+from datetime import date
 
 import pytest
 from fastapi import HTTPException
 
 from app.core.security import hash_password, decode_access_token
 from app.routers.users import get_current_user_profile, list_users
+from app.routers.batches import get_all_batches
+from app.routers.auditor import get_audit_queue
 from app.services.auth_service import register_user_with_business, login_user
 from app.services.batch_service import create_batch, update_batch, delete_batch
 from app.services.sample_service import create_sample, get_sample_by_id, list_samples_by_batch
@@ -202,6 +205,78 @@ def test_batch_update_and_delete_rules_follow_status_flow():
         delete_batch(db, 1, farmer_id=2)
 
 
+def test_batch_list_returns_real_approval_timestamp_or_none():
+    db = sqlite3.connect(":memory:")
+    db.execute(
+        "CREATE TABLE batches (id INTEGER PRIMARY KEY, batch_code TEXT, product_name TEXT, product_type TEXT, producer_name TEXT, origin TEXT, quantity REAL, unit TEXT, production_date DATE, expiry_date DATE, status TEXT, created_at DATETIME, farmer_id INTEGER, note TEXT, reason TEXT)"
+    )
+    db.execute(
+        "CREATE TABLE audit_trails (id INTEGER PRIMARY KEY, entity_type TEXT, entity_id INTEGER, action TEXT, created_at DATETIME)"
+    )
+    db.executemany(
+        "INSERT INTO batches (id, batch_code, product_name, origin, quantity, unit, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            (1, "BATCH-001", "Rice", "Nam Dinh", 100, "kg", "AUDITED", "2026-10-01 08:00:00"),
+            (2, "BATCH-002", "Tea", "Thai Nguyen", 50, "kg", "AUDITED", "2026-10-01 08:30:00"),
+        ],
+    )
+    db.execute(
+        "INSERT INTO audit_trails (id, entity_type, entity_id, action, created_at) VALUES (?, ?, ?, ?, ?)",
+        (1, "batch", 1, "APPROVE_BATCH", "2026-10-02 09:30:00"),
+    )
+
+    batches = get_all_batches(db=db, user={"role": "AUDITOR"})
+    batches_by_id = {batch.id: batch for batch in batches}
+
+    assert batches_by_id[1].audit_date.isoformat(sep=" ") == "2026-10-02 09:30:00"
+    assert batches_by_id[2].audit_date is None
+
+
+def test_auditor_queue_filters_batches_and_submission_date():
+    db = sqlite3.connect(":memory:")
+    db.execute(
+        "CREATE TABLE batches (id INTEGER PRIMARY KEY, batch_code TEXT, product_name TEXT, product_type TEXT, producer_name TEXT, origin TEXT, quantity REAL, unit TEXT, production_date DATE, expiry_date DATE, status TEXT, created_at DATETIME)"
+    )
+    db.execute(
+        "CREATE TABLE audit_trails (id INTEGER PRIMARY KEY, entity_type TEXT, entity_id INTEGER, action TEXT, created_at DATETIME, old_value TEXT, new_value TEXT)"
+    )
+    db.execute("CREATE TABLE samples (id INTEGER PRIMARY KEY, batch_id INTEGER)")
+    db.execute("CREATE TABLE lab_reports (id INTEGER PRIMARY KEY, batch_id INTEGER)")
+    db.executemany(
+        "INSERT INTO batches (id, batch_code, product_name, producer_name, origin, quantity, unit, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            (1, "BATCH-001", "Robusta Coffee", "Nguyen Van A", "Dak Lak", 100, "kg", "UNVERIFIED", "2026-10-01 08:00:00"),
+            (2, "BATCH-002", "Arabica Coffee", "Tran Van B", "Lam Dong", 50, "kg", "UNVERIFIED", "2026-10-02 08:00:00"),
+        ],
+    )
+    db.executemany(
+        "INSERT INTO audit_trails (id, entity_type, entity_id, action, created_at) VALUES (?, 'batch', ?, 'SUBMIT_BATCH', ?)",
+        [(1, 1, "2026-10-02 09:30:00"), (2, 2, "2026-10-03 09:30:00")],
+    )
+
+    def result_ids(**filters):
+        return [
+            batch["id"]
+            for batch in get_audit_queue(
+                **filters,
+                db=db,
+                user={"role": "AUDITOR"},
+            )
+        ]
+
+    assert result_ids(batch_code="002") == [2]
+    assert result_ids(product_name="arabica") == [2]
+    assert result_ids(inspection_sent_date=date(2026, 10, 2)) == [1]
+    assert result_ids(farmer_name="nguyen") == [1]
+    assert result_ids(
+        batch_code="001",
+        product_name="robusta",
+        inspection_sent_date=date(2026, 10, 2),
+        farmer_name="nguyen",
+    ) == [1]
+    assert result_ids(batch_code="not-found") == []
+
+
 def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_integrity_proof():
     db = sqlite3.connect(":memory:")
     db.execute(
@@ -325,6 +400,17 @@ def test_qr_traceability_requires_audited_batch_and_public_summary_is_redacted()
     db.execute(
         "CREATE TABLE trace_records (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id INTEGER NOT NULL, trace_id TEXT NOT NULL UNIQUE, public_url TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
     )
+    db.execute(
+        "CREATE TABLE audit_trails (id INTEGER PRIMARY KEY, user_id INTEGER, entity_type TEXT, entity_id INTEGER, action TEXT, old_value TEXT, new_value TEXT, created_at DATETIME)"
+    )
+    db.executemany(
+        "INSERT INTO audit_trails (id, entity_type, entity_id, action, created_at) VALUES (?, 'batch', 1, ?, ?)",
+        [
+            (1, "CREATE_BATCH", "2026-10-01 08:00:00"),
+            (2, "SUBMIT_BATCH", "2026-10-01 09:00:00"),
+            (3, "APPROVE_BATCH", "2026-10-02 09:30:00"),
+        ],
+    )
 
     with pytest.raises(HTTPException, match="Chỉ Batch đã AUDITED mới được tạo QR"):
         create_qr_record(db, batch_id=1, user_id=2)
@@ -338,7 +424,17 @@ def test_qr_traceability_requires_audited_batch_and_public_summary_is_redacted()
     assert public["product_name"] == "Rice"
     assert public["origin"] == "Nam Dinh"
     assert public["farmer"] == "Farmer A"
+    assert public["quantity"] == 100
+    assert public["unit"] == "kg"
     assert public["audit_status"] == "AUDITED"
+    assert public["audit_date"] == "2026-10-02 09:30:00"
+    assert public["last_updated"] == "2026-10-02 09:30:00"
+    db.execute(
+        "DELETE FROM audit_trails WHERE entity_id = 1 AND action = 'APPROVE_BATCH'"
+    )
+    public_without_approval_event = trace_batch("BATCH-TRACE-001", db)
+    assert public_without_approval_event["audit_date"] is None
+    assert public_without_approval_event["last_updated"] == "2026-10-01 09:00:00"
     assert "password" not in str(public)
     assert "token" not in str(public)
     assert "audit_log" not in str(public)
