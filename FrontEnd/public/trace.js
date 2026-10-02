@@ -27,56 +27,18 @@ function normalizeStatus(status) {
   return { text: "Chưa kiểm định", cls: "status-pending" };
 }
 
-function buildFallbackData() {
-  return {
-    product_name: "Xoài Cát Hòa Lộc",
-    batch_code: "AGT-2026-0042",
-    trace_id: "TRC-9F21-AGT",
-    audit_status: "AUDITED",
-    summary: "Xoài chín cây, thu hoạch thủ công, không dùng thuốc chín ép.",
-    farmer: "Nông trại Ba Thức, Cái Bè",
-    origin: "Cái Bè, Tiền Giang",
-    production_date: "15/09/2026",
-    image: "../assets/fruit.svg",
-    weight: "180 kg",
-    journey: [
-      {
-        title: "Lô hàng được tạo",
-        date: "15/09/2026",
-        desc: "Nông dân khai báo lô hàng sau thu hoạch.",
-      },
-      {
-        title: "Mẫu gửi kiểm nghiệm",
-        date: "16/09/2026",
-        desc: "Mẫu đại diện được gửi đến phòng thí nghiệm.",
-      },
-      {
-        title: "Kiểm định viên phê duyệt",
-        date: "19/09/2026",
-        desc: "Hồ sơ được xác minh và chuyển sang trạng thái đã kiểm định.",
-      },
-      {
-        title: "Mã QR được kích hoạt",
-        date: "19/09/2026",
-        desc: "Lô hàng sẵn sàng để truy xuất công khai.",
-      },
-    ],
-    auditor_name: "Trung tâm Kiểm định Nông sản An Giang",
-    audit_date: "19/09/2026",
-    report_hash: "3f9c1a...e02b8d",
-    reports: [{ name: "Phiếu kiểm nghiệm vi sinh.pdf", url: "#" }],
-    qr_image: "",
-    last_updated: "19/09/2026",
-    laboratory_result_summary: {
-      report_count: 1,
-      latest_report_code: "LAB-2026-0342",
-      latest_result: "Đạt tiêu chuẩn an toàn thực phẩm",
-    },
-    verification: {
-      sha256: "3f9c1a4e0c1b7a8f3d17b1f694c7e45d0bc1f9d1d4d8a5a7c2cf4f6d7f7a2a9",
-      verified: true,
-    },
-  };
+function formatDateTime(value) {
+  const text = String(value || "");
+  const match = text.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/
+  );
+  if (match) {
+    const [, year, month, day, hours, minutes] = match;
+    return `${day}/${month}/${year}${hours ? ` ${hours}:${minutes}` : ""}`;
+  }
+  return /^\d{2}\/\d{2}\/\d{4}(?: \d{2}:\d{2})?$/.test(text)
+    ? text
+    : "—";
 }
 
 function bindTabs() {
@@ -121,12 +83,25 @@ async function loadReportPdf(data) {
 }
 
 function renderTrace(data) {
+  if (!data || !Object.keys(data).length) {
+    showError("Không tìm thấy hồ sơ truy xuất");
+    return;
+  }
   document.getElementById("loading").classList.add("hidden");
   const card = document.getElementById("trace-card");
-  const info = data && Object.keys(data).length ? data : buildFallbackData();
+  const info = data;
   const summary = info.laboratory_result_summary || {};
   const verification = info.verification || {};
   const status = normalizeStatus(info.audit_status);
+  const auditDate =
+    String(info.audit_status || "").toUpperCase() === "AUDITED"
+      ? formatDateTime(info.audit_date)
+      : "—";
+  const lastUpdated = formatDateTime(info.last_updated);
+  const batchWeight =
+    info.quantity != null
+      ? `${info.quantity}${info.unit ? ` ${info.unit}` : ""}`
+      : info.weight || "—";
   const journey =
     Array.isArray(info.journey) && info.journey.length
       ? info.journey
@@ -138,7 +113,7 @@ function renderTrace(data) {
         },
         {
           title: "Kiểm định viên phê duyệt",
-          date: info.audit_date || "—",
+          date: auditDate,
           desc: "Kết quả kiểm định đã xác nhận chất lượng lô hàng.",
         },
       ];
@@ -173,7 +148,7 @@ function renderTrace(data) {
         </div>
         <div>
           <p class="fact-label">Khối lượng lô</p>
-          <p class="fact-value">${escapeHtml(info.weight || "—")}</p>
+          <p class="fact-value">${escapeHtml(batchWeight)}</p>
         </div>
       </div>
     </section>
@@ -211,7 +186,7 @@ function renderTrace(data) {
         </div>
         <div class="audit-item">
           <p class="audit-label">Ngày phê duyệt</p>
-          <p class="audit-value">${escapeHtml(info.audit_date || "—")}</p>
+          <p class="audit-value">${escapeHtml(auditDate)}</p>
         </div>
         <div class="audit-item audit-hash">
           <p class="audit-label">Mã băm SHA-256 báo cáo</p>
@@ -257,7 +232,7 @@ function renderTrace(data) {
       <div class="qr-meta">
         <p class="qr-heading">Mã QR lô hàng</p>
         <p>Mã lô: <strong>${escapeHtml(info.batch_code || "—")}</strong></p>
-        <p>Cập nhật lần cuối: <span>${escapeHtml(info.last_updated || info.audit_date || "—")}</span></p>
+        <p>Cập nhật lần cuối: <span>${escapeHtml(lastUpdated)}</span></p>
       </div>
     </section>
   `;
@@ -283,26 +258,20 @@ async function loadTrace() {
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      const fallback = buildFallbackData();
-      if (
-        lookup.toUpperCase().includes("AGT") ||
-        lookup.toUpperCase().includes("TRACE")
-      ) {
-        renderTrace(fallback);
-        return;
-      }
       throw new Error(data?.detail || "Không tìm thấy hồ sơ truy xuất");
     }
 
-    const traceData = data || buildFallbackData();
-    renderTrace(traceData);
+    if (!data || typeof data !== "object") {
+      throw new Error("Không tìm thấy hồ sơ truy xuất");
+    }
+    renderTrace(data);
     try {
-      if (await loadReportPdf(traceData)) renderTrace(traceData);
+      if (await loadReportPdf(data)) renderTrace(data);
     } catch (error) {
       console.warn("Không thể tải file PDF public:", error.message);
     }
   } catch (error) {
-    renderTrace(buildFallbackData());
+    showError(error.message || "Không thể tải hồ sơ truy xuất");
   }
 }
 

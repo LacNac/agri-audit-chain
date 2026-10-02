@@ -672,7 +672,37 @@ async function openDetailModal(id) {
   render();
 
   const batch = state.batches.find((item) => item.id === id);
-  if (!batch || batch.status !== "approved") return;
+  if (!batch) return;
+
+  const session = getCurrentSession();
+  try {
+    const response = await fetch(
+      `${API_BASE}/batches/${batch.batchId}/samples`,
+      { headers: { Authorization: `Bearer ${session.access_token}` } },
+    );
+    if (!response.ok) throw new Error("Không thể tải sample của lô hàng");
+    const samples = await response.json();
+    const sample = Array.isArray(samples) ? samples[0] : null;
+    batch.sample = sample
+      ? {
+        id: sample.sample_code || sample.sample_id || String(sample.id),
+        desc: [
+          sample.sampling_date &&
+          `Lấy mẫu ngày ${new Date(`${sample.sampling_date}T00:00:00`).toLocaleDateString("vi-VN")}`,
+          sample.sample_quantity != null &&
+          `Khối lượng ${sample.sample_quantity} ${sample.sample_unit || ""}`.trim(),
+          sample.sampling_location && `Địa điểm ${sample.sampling_location}`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      }
+      : { id: "—", desc: "Chưa gửi mẫu kiểm định" };
+    if (state.modal?.type === "detail" && state.modal.id === id) render();
+  } catch (error) {
+    console.error("Không thể tải sample của lô hàng:", error);
+  }
+
+  if (batch.status !== "approved") return;
 
   try {
     if (!batch.trace) {
