@@ -155,7 +155,6 @@ function renderTrace(data) {
 
     <nav class="tabs" aria-label="Thông tin lô hàng">
       <button class="tab-btn active" data-tab="journey">Hành trình lô hàng</button>
-      <button class="tab-btn" data-tab="audit">Kiểm định &amp; bằng chứng</button>
       <button class="tab-btn" data-tab="report">Phiếu kiểm nghiệm</button>
     </nav>
 
