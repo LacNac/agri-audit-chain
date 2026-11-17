@@ -97,6 +97,17 @@ def get_batch_by_id(db: sqlite3.Connection, batch_id: int):
     return dict(zip(columns, row))
 
 
+def get_batch_by_code(db: sqlite3.Connection, batch_code: str):
+    row = db.execute(
+        "SELECT * FROM batches WHERE batch_code = ?",
+        (batch_code,),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Batch không tồn tại")
+    columns = [col[1] for col in db.execute("PRAGMA table_info(batches)").fetchall()]
+    return dict(zip(columns, row))
+
+
 def update_batch(db: sqlite3.Connection, batch_id: int, payload: dict[str, Any], farmer_id: int):
     batch = get_batch_by_id(db, batch_id)
 

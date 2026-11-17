@@ -100,6 +100,24 @@ def ensure_batch_not_in_transit(batch_code: str) -> None:
         )
 
 
+def serialize_batch_for_cold_chain(batch: dict) -> dict:
+    return {
+        "agri_batch_id": batch["id"],
+        "batch_code": batch["batch_code"],
+        "product_name": batch["product_name"],
+        "product_type": batch.get("product_type"),
+        "farmer_name": batch.get("producer_name"),
+        "origin": batch.get("origin"),
+        "destination": batch.get("destination"),
+        "quantity": batch.get("quantity"),
+        "unit": batch.get("unit"),
+        "status": batch.get("status"),
+        "reason": batch.get("reason"),
+        "return_goods": bool(batch.get("return_goods")),
+        "return_requested": bool(batch.get("return_requested")),
+    }
+
+
 def enqueue_batch_sync(db, batch_id: int) -> None:
     if isinstance(db, sqlite3.Connection):
         db.execute(
@@ -133,21 +151,7 @@ def enqueue_batch_sync(db, batch_id: int) -> None:
         raise RuntimeError(f"Cannot synchronize missing batch {batch_id}")
 
     batch = dict(zip(columns, row))
-    payload = {
-        "agri_batch_id": batch["id"],
-        "batch_code": batch["batch_code"],
-        "product_name": batch["product_name"],
-        "product_type": batch.get("product_type"),
-        "farmer_name": batch.get("producer_name"),
-        "origin": batch.get("origin"),
-        "destination": batch.get("destination"),
-        "quantity": batch.get("quantity"),
-        "unit": batch.get("unit"),
-        "status": batch.get("status"),
-        "reason": batch.get("reason"),
-        "return_goods": bool(batch.get("return_goods")),
-        "return_requested": bool(batch.get("return_requested")),
-    }
+    payload = serialize_batch_for_cold_chain(batch)
     db.execute(
         "INSERT INTO cold_chain_sync_outbox (payload) VALUES (?)",
         (json.dumps(payload, ensure_ascii=False),),
