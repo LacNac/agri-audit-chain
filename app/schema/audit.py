@@ -29,5 +29,6 @@ class LabReportOut(BaseModel):
 
 class AuditDecision(BaseModel):
     reason: str = Field(..., min_length=1)
+    return_goods: Optional[bool] = False
 
     _trim_reason = field_validator("reason", mode="before")(_required_text)

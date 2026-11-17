@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..dependencies.auth import get_current_user, get_db
 from ..dependencies.rbac import require_roles
+from ..services.blockchain_service import get_audit_anchor, validate_blockchain_config
 from ..services.audit_trail_service import list_audit_trails
 
 router = APIRouter(prefix="/audit-trails", tags=["audit-trails"])
@@ -33,3 +34,16 @@ def search_audit_trails(
 @router.get("/{entity_id}")
 def get_audit_trail(entity_id: int, db=Depends(get_db), user=Depends(require_roles("ADMIN", "AUDITOR"))):
     return list_audit_trails(db, entity_id, user)
+
+
+@router.get("/{entity_id}/blockchain")
+def get_audit_blockchain_anchor(
+    entity_id: int,
+    db=Depends(get_db),
+    user=Depends(require_roles("ADMIN", "AUDITOR")),
+):
+    return {
+        "audit_id": entity_id,
+        "enabled": validate_blockchain_config(),
+        "anchor": get_audit_anchor(db, entity_id),
+    }

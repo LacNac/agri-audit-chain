@@ -1,9 +1,8 @@
 import hashlib
 import json
-import sqlite3
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent / "db.db"
+from .postgres import connect_app_database
 
 
 def report_hash(report_code: str) -> str:
@@ -35,8 +34,7 @@ def reset_seed_data(conn):
 
 
 def seed_test_data():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON")
+    conn = connect_app_database()
     try:
         farmers = conn.execute("SELECT id, full_name FROM users WHERE role = 'FARMER' ORDER BY id").fetchall()
         auditors = conn.execute("SELECT id, full_name FROM users WHERE role = 'AUDITOR' ORDER BY id").fetchall()
@@ -174,7 +172,9 @@ def seed_test_data():
 
         conn.commit()
         print("ĐÃ SEED TEST DATA NHẤT QUÁN")
-        for row in conn.execute("SELECT batch_code, status, farmer_id FROM batches ORDER BY batch_code"):
+        for row in conn.execute(
+            "SELECT batch_code, status, farmer_id FROM batches ORDER BY batch_code"
+        ).fetchall():
             print(f"{row[0]} | {row[1]} | farmer_id={row[2]}")
     finally:
         conn.close()

@@ -54,10 +54,10 @@ def test_register_farmer_only_sets_farmer_role_and_business_link():
     request = RegisterRequest(
         full_name="Nguyen Van A",
         phone="0901234567",
-        email="farmer@example.com",
+        email="farmer@gmail.com",
         password="Secret@123",
         business_name="Nong Trai A",
-        business_type="Crop Farm",
+        business_type="Hộ kinh doanh cá thể",
         product_type="Rice",
         tax_code="1234567890",
     )
@@ -157,7 +157,7 @@ def test_list_users_only_allows_admin_and_returns_summary():
 def test_create_batch_uses_token_farmer_and_generates_code():
     db = sqlite3.connect(":memory:")
     db.execute(
-        "CREATE TABLE batches (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_code TEXT NOT NULL UNIQUE, product_name TEXT NOT NULL, product_type TEXT, producer_name TEXT, origin TEXT, quantity REAL, unit TEXT, production_date DATE, expiry_date DATE, status TEXT NOT NULL DEFAULT 'UNVERIFIED', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, farmer_id INTEGER, note TEXT)"
+        "CREATE TABLE batches (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_code TEXT NOT NULL UNIQUE, product_name TEXT NOT NULL, product_type TEXT, producer_name TEXT, origin TEXT, destination TEXT, quantity REAL, unit TEXT, production_date DATE, expiry_date DATE, status TEXT NOT NULL DEFAULT 'UNVERIFIED', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, farmer_id INTEGER, note TEXT)"
     )
 
     payload = {
@@ -183,7 +183,10 @@ def test_create_batch_uses_token_farmer_and_generates_code():
 def test_batch_update_and_delete_rules_follow_status_flow():
     db = sqlite3.connect(":memory:")
     db.execute(
-        "CREATE TABLE batches (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_code TEXT NOT NULL UNIQUE, product_name TEXT NOT NULL, product_type TEXT, producer_name TEXT, origin TEXT, quantity REAL, unit TEXT, production_date DATE, expiry_date DATE, status TEXT NOT NULL DEFAULT 'UNVERIFIED', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, farmer_id INTEGER, note TEXT)"
+        "CREATE TABLE batches (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_code TEXT NOT NULL UNIQUE, product_name TEXT NOT NULL, product_type TEXT, producer_name TEXT, origin TEXT, destination TEXT, quantity REAL, unit TEXT, production_date DATE, expiry_date DATE, status TEXT NOT NULL DEFAULT 'UNVERIFIED', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, farmer_id INTEGER, note TEXT)"
+    )
+    db.execute(
+        "CREATE TABLE notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_user_id INTEGER, recipient_role TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, batch_id INTEGER, notification_type TEXT NOT NULL, is_read INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
     )
     db.execute(
         "INSERT INTO batches (batch_code, product_name, product_type, producer_name, origin, quantity, unit, production_date, status, farmer_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -277,10 +280,16 @@ def test_auditor_queue_filters_batches_and_submission_date():
     assert result_ids(batch_code="not-found") == []
 
 
-def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_integrity_proof():
+def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_integrity_proof(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "app.services.audit_service.ensure_batch_not_in_transit",
+        lambda batch_code: None,
+    )
     db = sqlite3.connect(":memory:")
     db.execute(
-        "CREATE TABLE batches (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_code TEXT NOT NULL UNIQUE, product_name TEXT NOT NULL, product_type TEXT, producer_name TEXT, origin TEXT, quantity REAL, unit TEXT, production_date DATE, expiry_date DATE, status TEXT NOT NULL DEFAULT 'UNVERIFIED', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, farmer_id INTEGER, note TEXT)"
+        "CREATE TABLE batches (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_code TEXT NOT NULL UNIQUE, product_name TEXT NOT NULL, product_type TEXT, producer_name TEXT, origin TEXT, destination TEXT, quantity REAL, unit TEXT, production_date DATE, expiry_date DATE, status TEXT NOT NULL DEFAULT 'UNVERIFIED', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, farmer_id INTEGER, note TEXT)"
     )
     db.execute(
         "INSERT INTO batches (batch_code, product_name, product_type, producer_name, origin, quantity, unit, production_date, status, farmer_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -298,6 +307,12 @@ def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_i
     )
     db.execute(
         "CREATE TABLE audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id INTEGER, user_id INTEGER, action TEXT NOT NULL, previous_status TEXT, new_status TEXT, reason TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+    )
+    db.execute(
+        "CREATE TABLE trace_records (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id INTEGER NOT NULL, trace_id TEXT NOT NULL, public_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+    )
+    db.execute(
+        "CREATE TABLE notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_user_id INTEGER, recipient_role TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, batch_id INTEGER, notification_type TEXT NOT NULL, is_read INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
     )
 
     pdf_bytes = b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"

@@ -1,4 +1,5 @@
 import sqlite3
+import psycopg2
 from fastapi import HTTPException
 from ..core.security import ALLOWED_ROLES, create_access_token, hash_password, normalize_role, verify_password
 from ..schema.auth import RegisterRequest, LoginRequest
@@ -41,7 +42,7 @@ class AuthManager:
             db.commit()
             return user_id, business_id
 
-        except sqlite3.IntegrityError as e:
+        except (sqlite3.IntegrityError, psycopg2.IntegrityError) as e:
             db.rollback()
             raise HTTPException(status_code=400, detail=f"Lỗi ràng buộc dữ liệu: {e}")
         except HTTPException:

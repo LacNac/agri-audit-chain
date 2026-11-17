@@ -4,7 +4,15 @@ from fastapi.responses import FileResponse
 from ..dependencies.auth import get_current_user, get_db
 from ..dependencies.rbac import require_roles
 from ..schema.batch import BatchCreate, BatchOut, BatchStatusUpdate, BatchUpdate
-from ..services.batch_service import create_batch, delete_batch, get_batch_by_id, list_batches, submit_batch, update_batch
+from ..services.batch_service import (
+    create_batch,
+    delete_batch,
+    get_batch_by_id,
+    list_batches,
+    process_expired_rejected_batches,
+    submit_batch,
+    update_batch,
+)
 from ..services.qr_service import create_qr_record
 
 router = APIRouter(prefix="/batches", tags=["batches"])
@@ -125,6 +133,12 @@ def create_batch_qr(batch_id: int, db=Depends(get_db), user=Depends(require_role
     if batch["farmer_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Bạn không có quyền tạo QR cho batch này")
     return create_qr_record(db, batch_id=batch_id, user_id=user["id"])
+
+
+@router.post("/process-expired")
+def trigger_process_expired_batches(db=Depends(get_db)):
+    processed = process_expired_rejected_batches(db)
+    return {"processed_count": len(processed), "processed_batches": processed}
 
 
 @router.patch("/{batch_id}/status")

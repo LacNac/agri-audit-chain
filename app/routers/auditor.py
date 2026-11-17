@@ -121,7 +121,7 @@ def get_audit_queue(
             conditions.append(f"LOWER(COALESCE({column}, '')) LIKE LOWER(?) ESCAPE '!'")
             parameters.append(f"%{escaped_value}%")
     if inspection_sent_date:
-        conditions.append(f"DATE(({submission_date_query})) = ?")
+        conditions.append(f"SUBSTR(CAST(({submission_date_query}) AS TEXT), 1, 10) = ?")
         parameters.append(inspection_sent_date.isoformat())
 
     batches = db.execute(
@@ -282,4 +282,10 @@ def approve(batch_id: int, payload: AuditDecision, db=Depends(get_db), user=Depe
 
 @router.post("/batches/{batch_id}/reject")
 def reject(batch_id: int, payload: AuditDecision, db=Depends(get_db), user=Depends(require_permission("AUDIT_REJECT"))):
-    return reject_batch(db, batch_id, user_id=user["id"], reason=payload.reason or "Không đạt tiêu chuẩn")
+    return reject_batch(
+        db,
+        batch_id,
+        user_id=user["id"],
+        reason=payload.reason or "Không đạt tiêu chuẩn",
+        return_goods=bool(payload.return_goods),
+    )
