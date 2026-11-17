@@ -344,6 +344,10 @@ body {
   background-color: #bae6fd;
   color: #075985;
 }
+.status-tag.in-transit {
+  background-color: #bfdbfe;
+  color: #1d4ed8;
+}
 .status-tag.approved {
   background-color: #86efac;
   color: #14532d;

@@ -21,6 +21,8 @@ let activeTab = "pending";
 let currentBatch = null;
 let currentAuditorName = "Auditor";
 let editingReportId = null;
+let COLD_CHAIN_VEHICLES = [];
+let coldChainVehiclesError = null;
 
 async function loadAuditorIdentity() {
   try {
@@ -223,6 +225,7 @@ async function switchTab(tab) {
     sampleForm.style.display = "none";
 
     await fetchBatchesFromDB();
+    await fetchColdChainVehicles();
 
     let titleText = "Danh sách chờ duyệt";
     let filterStatus = "UNVERIFIED";
@@ -277,6 +280,7 @@ async function searchPendingBatches() {
   });
 
   await fetchBatchesFromDB(filters);
+  await fetchColdChainVehicles();
   renderBatchCount("UNVERIFIED");
   renderBatchTable("UNVERIFIED");
 }
@@ -304,6 +308,7 @@ function renderBatchTable(statusFilter) {
       <th>Sản phẩm</th>
       <th>Ngày ${activeTab === "approved" ? "duyệt" : "tạo hồ sơ"}</th>
       <th>Nông dân</th>
+      <th>Trạng thái vận chuyển</th>
     </tr>
   `;
 
@@ -312,7 +317,7 @@ function renderBatchTable(statusFilter) {
   );
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#9ca3af; padding:32px;">Không tìm thấy lô hàng phù hợp</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#9ca3af; padding:32px;">Không tìm thấy lô hàng phù hợp</td></tr>`;
     return;
   }
 
@@ -324,6 +329,12 @@ function renderBatchTable(statusFilter) {
         ? formatAuditDate(b.audit_date)
         : b.created_at || b.createdDate || "—";
     const farmer = b.producer_name || b.farmer_name || b.farmer || "—";
+    const vehicle = findTransportVehicle(b);
+    const transportStatus = coldChainVehiclesError
+      ? '<span class="status-tag waiting-result">Chưa xác định</span>'
+      : isVehicleInTransit(vehicle)
+        ? '<span class="status-tag in-transit">Đang vận chuyển</span>'
+        : vehicle?.shipment_status || "—";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -331,6 +342,7 @@ function renderBatchTable(statusFilter) {
       <td>${name}</td>
       <td>${date}</td>
       <td>${farmer}</td>
+      <td>${transportStatus}</td>
     `;
     tr.addEventListener("click", () => openBatchDetail(b.id || code));
     tbody.appendChild(tr);
@@ -365,6 +377,7 @@ async function openBatchDetail(batchIdOrCode) {
   }
 
   if (!currentBatch) return;
+  await fetchColdChainVehicles();
 
   const card = document.getElementById("detail-card-content");
   const overlay = document.getElementById("detail-overlay");
@@ -387,6 +400,8 @@ async function openBatchDetail(batchIdOrCode) {
   const created = currentBatch.created_at || currentBatch.createdDate || "—";
   const origin = currentBatch.origin || "Việt Nam";
   const status = (currentBatch.status || "").toUpperCase();
+  const transportVehicle = findTransportVehicle(currentBatch);
+  const isInTransit = isVehicleInTransit(transportVehicle);
   const latestReport = currentBatch.reports?.[0] || currentBatch.report || null;
   const reportResult = (latestReport?.result || "").toUpperCase();
   editingReportId = null;
@@ -396,10 +411,21 @@ async function openBatchDetail(batchIdOrCode) {
     statusBadge = '<span class="status-badge green">Đã kiểm định</span>';
   if (status === "REJECTED")
     statusBadge = '<span class="status-badge red">Bị từ chối</span>';
+  if (isInTransit)
+    statusBadge = '<span class="status-badge blue">Đang vận chuyển</span>';
 
   const samplesList = currentBatch.samples || [];
   let sampleSection = "";
-  if (samplesList.length === 0) {
+  if (
+    (isInTransit || coldChainVehiclesError) &&
+    (status === "UNVERIFIED" || status === "PENDING")
+  ) {
+    sampleSection = `
+      <div class="status-banner banner-blue">
+        Lô hàng đang vận chuyển; tạm khóa thao tác tạo mẫu và kiểm định.
+      </div>
+    `;
+  } else if (samplesList.length === 0) {
     sampleSection = `
       <div class="link-row">
         <span>📎 Sample</span>
@@ -416,8 +442,41 @@ async function openBatchDetail(batchIdOrCode) {
     `;
   }
 
+  const coldChainSection = `
+    <section class="cold-chain-panel" style="margin:16px 0; padding:14px; border:1px solid #dbeafe; border-radius:10px; background:#f8fbff;">
+      <h4 style="margin:0 0 10px;">Theo dõi kho lạnh / vận chuyển</h4>
+      <p style="margin:0 0 12px; color:#64748b; font-size:12px;">Dữ liệu lấy trực tiếp từ Cold Chain Telemetry System.</p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px;">
+        <label style="font-size:12px;">Kho lạnh
+          <select id="cold-chain-warehouse" style="display:block; width:100%; margin-top:5px; padding:8px;">
+            <option value="">Đang tải danh sách kho...</option>
+          </select>
+        </label>
+        <label style="font-size:12px;">Xe vận chuyển
+          <select id="cold-chain-vehicle" style="display:block; width:100%; margin-top:5px; padding:8px;">
+            <option value="">Đang tải danh sách xe...</option>
+          </select>
+        </label>
+      </div>
+      <p id="cold-chain-status" role="status" style="margin:10px 0 0; color:#64748b; font-size:12px;">Đang kết nối Cold Chain API...</p>
+      <div id="cold-chain-details" style="margin-top:8px; font-size:12px;"></div>
+    </section>
+  `;
+
   let dynamicBody = "";
-  if (status === "UNVERIFIED" || status === "PENDING") {
+  if (isInTransit && (status === "UNVERIFIED" || status === "PENDING")) {
+    dynamicBody = `
+      <div class="status-banner banner-blue">
+        Lô hàng đang được vận chuyển. Không thể tải báo cáo, phê duyệt hoặc từ chối kiểm định cho đến khi chuyến đi kết thúc.
+      </div>
+    `;
+  } else if (coldChainVehiclesError && (status === "UNVERIFIED" || status === "PENDING")) {
+    dynamicBody = `
+      <div class="status-banner banner-yellow">
+        Không thể xác minh trạng thái vận chuyển. Tạm thời không thể thực hiện kiểm định.
+      </div>
+    `;
+  } else if (status === "UNVERIFIED" || status === "PENDING") {
     dynamicBody = `
       <div class="link-row">
         <span>📄 Báo cáo kiểm nghiệm: <strong id="report-name">${latestReport ? latestReport.file_name || latestReport.fileName : "chưa có"}</strong></span>
@@ -484,6 +543,16 @@ async function openBatchDetail(batchIdOrCode) {
       <h4 class="section-label">Lí do từ chối</h4>
       <textarea id="txt-reject-reason" class="reason-box" placeholder="Nhập lí do trước khi từ chối..."></textarea>
 
+      <div style="margin: 10px 0; padding: 10px 14px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px;">
+        <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #9f1239; cursor: pointer;">
+          <input type="checkbox" id="chk-return-goods" style="width: 18px; height: 18px; accent-color: #e11d48;" />
+          <span>Yêu cầu trả hàng (Tích chọn nếu hàng hỏng / lỗi chất lượng cần trả về nông dân)</span>
+        </label>
+        <p style="margin: 4px 0 0 26px; font-size: 11.5px; color: #64748b;">
+          * Nếu không tích: Lô hàng chỉ sai thông tin, Nông dân có 24h để sửa lại thông tin trước khi hệ thống tự động yêu cầu trả hàng.
+        </p>
+      </div>
+
       <div class="decision-row">
         <button type="button" class="btn-approve" id="btn-action-approve" ${reportResult === "PASS" ? "" : "disabled"}>APPROVE</button>
         <button type="button" class="btn-reject" id="btn-action-reject">REJECT</button>
@@ -542,8 +611,10 @@ async function openBatchDetail(batchIdOrCode) {
       <div class="fact"><p class="fact-label">Khối lượng</p><p class="fact-value">${weight}</p></div>
       <div class="fact"><p class="fact-label">Ngày tạo</p><p class="fact-value">${created}</p></div>
       <div class="fact"><p class="fact-label">Nguồn gốc</p><p class="fact-value">${origin}</p></div>
+      <div class="fact"><p class="fact-label">Điểm đến</p><p class="fact-value">${currentBatch.destination || "Chưa cập nhật"}</p></div>
     </div>
 
+    ${coldChainSection}
     <h4 class="section-label">Sample liên kết</h4>
     ${sampleSection}
     ${dynamicBody}
@@ -551,6 +622,201 @@ async function openBatchDetail(batchIdOrCode) {
 
   overlay.hidden = false;
   bindDetailEvents();
+  loadColdChainOptions();
+}
+
+async function coldChainRequest(path) {
+  const response = await fetch(`${API_BASE}/cold-chain/${path}`, {
+    headers: getAuthHeaders(),
+  });
+  const payload = await response.json();
+  if (!response.ok)
+    throw new Error(payload.detail || "Không thể tải dữ liệu Cold Chain.");
+  return payload;
+}
+
+async function fetchColdChainVehicles() {
+  try {
+    const payload = await coldChainRequest("vehicles");
+    if (!Array.isArray(payload.data))
+      throw new Error("Cold Chain API không trả về danh sách phương tiện.");
+    COLD_CHAIN_VEHICLES = payload.data;
+    coldChainVehiclesError = null;
+    return true;
+  } catch (error) {
+    coldChainVehiclesError = error.message;
+    console.warn("Không thể tải trạng thái vận chuyển:", error.message);
+    return false;
+  }
+}
+
+function findTransportVehicle(batch) {
+  const batchCode = String(batch?.batch_code || batch?.code || "")
+    .trim()
+    .toLowerCase();
+  if (!batchCode) return null;
+  return COLD_CHAIN_VEHICLES.find(
+    (vehicle) =>
+      String(vehicle.active_batch_code || "")
+        .trim()
+        .toLowerCase() === batchCode,
+  ) || null;
+}
+
+function isVehicleInTransit(vehicle) {
+  if (!vehicle) return false;
+  const status = String(vehicle.shipment_status || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  return [
+    "INTRANSIT",
+    "INPROGRESS",
+    "ONGOING",
+    "SHIPPING",
+    "DELIVERING",
+    "ONTHEROAD",
+    "PICKEDUP",
+  ].includes(status);
+}
+
+function setColdChainMessage(message, isError = false) {
+  const status = document.getElementById("cold-chain-status");
+  if (!status) return;
+  status.textContent = message;
+  status.style.color = isError ? "#b91c1c" : "#64748b";
+}
+
+function appendColdChainDetail(label, value) {
+  const container = document.getElementById("cold-chain-details");
+  if (!container) return;
+  const row = document.createElement("p");
+  row.style.margin = "4px 0";
+  const strong = document.createElement("strong");
+  strong.textContent = `${label}: `;
+  row.append(strong, document.createTextNode(value || "—"));
+  container.appendChild(row);
+}
+
+async function loadColdChainOptions() {
+  const warehouseSelect = document.getElementById("cold-chain-warehouse");
+  const vehicleSelect = document.getElementById("cold-chain-vehicle");
+  if (!warehouseSelect || !vehicleSelect) return;
+
+  try {
+    if (coldChainVehiclesError || !COLD_CHAIN_VEHICLES.length)
+      await fetchColdChainVehicles();
+    const warehousePayload = await coldChainRequest("warehouses");
+    const warehouses = warehousePayload.data || [];
+    const vehicles = COLD_CHAIN_VEHICLES;
+
+    warehouseSelect.replaceChildren(new Option("Chọn kho lạnh...", ""));
+    warehouses.forEach((warehouse) => {
+      warehouseSelect.add(new Option(
+        `${warehouse.warehouse_name} (#${warehouse.id})`,
+        warehouse.id,
+      ));
+    });
+
+    vehicleSelect.replaceChildren(new Option("Chọn xe vận chuyển...", ""));
+    vehicles.forEach((vehicle) => {
+      vehicleSelect.add(new Option(
+        `${vehicle.license_plate} (#${vehicle.id})${vehicle.active_batch_code ? ` · ${vehicle.active_batch_code}` : ""}`,
+        vehicle.id,
+      ));
+    });
+    const batchVehicle = findTransportVehicle(currentBatch);
+    if (batchVehicle) {
+      vehicleSelect.value = batchVehicle.id;
+      await loadColdChainDetail("vehicles", batchVehicle.id);
+    }
+
+    warehouseSelect.addEventListener("change", () => {
+      if (warehouseSelect.value) {
+        loadColdChainDetail("warehouses", warehouseSelect.value);
+      }
+    });
+    vehicleSelect.addEventListener("change", () => {
+      if (vehicleSelect.value) {
+        loadColdChainDetail("vehicles", vehicleSelect.value);
+      }
+    });
+    if (coldChainVehiclesError) {
+      setColdChainMessage(coldChainVehiclesError, true);
+    } else {
+      setColdChainMessage(`Đã kết nối: ${warehouses.length} kho, ${vehicles.length} xe.`);
+    }
+  } catch (error) {
+    setColdChainMessage(error.message, true);
+  }
+}
+
+async function loadColdChainDetail(resource, id) {
+  const details = document.getElementById("cold-chain-details");
+  if (!details) return;
+  details.replaceChildren();
+  setColdChainMessage("Đang tải telemetry từ Cold Chain API...");
+
+  try {
+    const payload = await coldChainRequest(`${resource}/${encodeURIComponent(id)}`);
+    const item = payload.data;
+    if (!item) throw new Error("Cold Chain API không trả về thông tin chi tiết.");
+
+    if (resource === "warehouses") {
+      appendColdChainDetail("Kho", item.warehouse_name);
+      appendColdChainDetail("Trạng thái", item.status);
+      (item.devices || []).forEach((device) => {
+        const reading = [
+          device.temperature != null && `${device.temperature}°C`,
+          device.humidity != null && `${device.humidity}% RH`,
+        ].filter(Boolean).join(" · ");
+        appendColdChainDetail(`Thiết bị #${device.id}`, reading || "Chưa có telemetry");
+      });
+      if (!item.devices?.length) appendColdChainDetail("Cảm biến", "Chưa có thiết bị");
+    } else {
+      const listedVehicle = COLD_CHAIN_VEHICLES.find(
+        (vehicle) => String(vehicle.id) === String(id),
+      );
+      const shipment = item.currentShipment || listedVehicle || item;
+      const shipmentStatus =
+        shipment.shipment_status ||
+        item.shipment_status ||
+        item.currentShipment?.status;
+      appendColdChainDetail("Xe", item.license_plate);
+      appendColdChainDetail("Kho trực thuộc", item.warehouse_name);
+      appendColdChainDetail("Trạng thái", item.status);
+      appendColdChainDetail(
+        "Trạng thái chuyến đi",
+        isVehicleInTransit({ shipment_status: shipmentStatus })
+          ? "Đang vận chuyển"
+          : shipmentStatus,
+      );
+      appendColdChainDetail(
+        "Batch đang vận chuyển",
+        shipment.active_batch_code || shipment.batch_code,
+      );
+      appendColdChainDetail(
+        "Điểm lấy hàng",
+        shipment.shipment_pickup_address || shipment.pickup_address,
+      );
+      appendColdChainDetail(
+        "Điểm giao hàng",
+        shipment.shipment_destination || shipment.destination,
+      );
+      const reading = item.latestReading;
+      appendColdChainDetail(
+        "Nhiệt độ gần nhất",
+        reading?.temperature != null ? `${reading.temperature}°C` : "Chưa có telemetry",
+      );
+      appendColdChainDetail(
+        "Độ ẩm gần nhất",
+        reading?.humidity != null ? `${reading.humidity}% RH` : "—",
+      );
+      appendColdChainDetail("Thời điểm ghi nhận", reading?.created_at);
+    }
+    setColdChainMessage("Đã tải thông tin từ Cold Chain API.");
+  } catch (error) {
+    setColdChainMessage(error.message, true);
+  }
 }
 
 /* ========================================================
@@ -727,6 +993,7 @@ function bindDetailEvents() {
     ?.addEventListener("click", async () => {
       const reason = document.getElementById("txt-reject-reason").value.trim();
       if (!reason) return alert("Vui lòng nhập lý do từ chối.");
+      const return_goods = document.getElementById("chk-return-goods")?.checked || false;
 
       const batchId =
         currentBatch.id || currentBatch.code || currentBatch.batch_code;
@@ -736,13 +1003,16 @@ function bindDetailEvents() {
           {
             method: "POST",
             headers: getAuthHeaders(),
-            body: JSON.stringify({ reason }),
+            body: JSON.stringify({ reason, return_goods }),
           },
         );
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Từ chối thất bại.");
 
-        alert(`Đã cập nhật trạng thái REJECTED cho lô hàng vào Database!`);
+        const noticeMsg = return_goods
+          ? "Đã cập nhật trạng thái REJECTED (Có yêu cầu trả hàng) và gửi thông báo đến Nông dân & Kho lạnh!"
+          : "Đã cập nhật trạng thái REJECTED (Chờ nông dân sửa trong 24h) và gửi thông báo!";
+        alert(noticeMsg);
         closeDetail();
         await switchTab(activeTab);
       } catch (err) {

@@ -61,7 +61,7 @@ const REQUIRED_PROFILE_FIELDS = [
 ];
 
 const state = {
-  page: "overview", // overview | batches | profile
+  page: "overview", // overview | batches | notifications | profile
   filter: "all", // all | pending | approved | rejected
   search: "",
   modal: null, // {type:'detail', id} | {type:'create'} | {type:'editProfile'}
@@ -73,6 +73,7 @@ const state = {
     category: "",
     harvestDate: "",
     origin: "",
+    destination: "",
     quantity: "",
     unit: "kg",
     note: "",
@@ -138,6 +139,7 @@ const state = {
       report: "BATCH_2026_01199.pdf",
     },
   ],
+  notifications: [],
   profile: {
     fullName: "Nguyễn Văn A",
     dob: "12/01/1978",
@@ -261,12 +263,16 @@ function mapBatch(batch) {
     unit: batch.unit || "kg",
     status: statusMap[String(batch.status || "").toUpperCase()] || "pending",
     origin: batch.origin,
+    destination: batch.destination || "",
     note: batch.note || "N/A",
     sample: { id: "—", desc: "Chưa gửi mẫu kiểm định" },
     trace: batch.trace || null,
     report: batch.report || "",
     qrImageUrl: null,
     reportPdfUrl: null,
+    returnGoods: Boolean(batch.return_goods),
+    rejectedAt: batch.rejected_at || null,
+    returnRequested: Boolean(batch.return_requested),
     rejectReason:
       batch.reason ||
       batch.reject_reason ||
@@ -305,12 +311,17 @@ async function initFarmer() {
   };
   const headers = { Authorization: `Bearer ${session.access_token}` };
   try {
-    const [profileResponse, batchesResponse] = await Promise.all([
+    const [profileResponse, batchesResponse, notificationsResponse] = await Promise.all([
       fetch(`${API_BASE}/users/me`, { headers }),
       fetch(`${API_BASE}/batches`, { headers }),
+      fetch(`${API_BASE}/notifications?limit=50`, { headers }),
     ]);
 
-    if (profileResponse.status === 401 || batchesResponse.status === 401) {
+    if (
+      profileResponse.status === 401 ||
+      batchesResponse.status === 401 ||
+      notificationsResponse.status === 401
+    ) {
       clearCurrentSession();
       window.location.href = "../login.html";
       return;
@@ -335,7 +346,16 @@ async function initFarmer() {
     }
     if (batchesResponse.ok)
       state.batches = (await batchesResponse.json()).map(mapBatch);
+    if (notificationsResponse.ok) {
+      state.notifications = await notificationsResponse.json();
+    } else {
+      console.error("Không thể tải thông báo:", notificationsResponse.status);
+    }
     render();
+    if (!notificationsResponse.ok) {
+      showToast(`Không thể tải thông báo (HTTP ${notificationsResponse.status})`);
+    }
+    window.setInterval(() => loadFarmerNotifications(true), 30000);
   } catch (error) {
     console.error("Không thể tải dữ liệu farmer:", error);
     render();
@@ -421,6 +441,7 @@ function render() {
   let pageHtml = "";
   if (state.page === "overview") pageHtml = renderOverviewPage();
   else if (state.page === "batches") pageHtml = renderBatchesPage();
+  else if (state.page === "notifications") pageHtml = renderNotificationsPage();
   else if (state.page === "profile") pageHtml = renderProfilePage();
 
   app.innerHTML = `
@@ -465,6 +486,7 @@ function renderSidebar() {
     <div class="nav">
       <button class="nav-item ${state.page === "overview" ? "active" : ""}" onclick="navigate('overview')">${ICONS.overview} Tổng quan</button>
       <button class="nav-item ${state.page === "batches" ? "active" : ""}" onclick="navigate('batches')">${ICONS.batches} Lô hàng của tôi</button>
+      <button class="nav-item ${state.page === "notifications" ? "active" : ""}" onclick="navigate('notifications')">${ICONS.file} Thông báo <span class="notification-count" id="notification-count">${unreadNotificationCount()}</span></button>
     </div>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-footer">
@@ -481,6 +503,99 @@ function renderSidebar() {
       </div>
     </div>
   </div>`;
+}
+
+function unreadNotificationCount() {
+  return state.notifications.filter((item) => !item.is_read).length;
+}
+
+function renderNotificationsPage() {
+  const notifications = state.notifications;
+  return `
+    <div class="page-header-row">
+      <h1 class="page-title">Thông báo</h1>
+      ${unreadNotificationCount() ? `<button class="btn btn-secondary" onclick="markAllFarmerNotificationsRead()">Đánh dấu tất cả đã đọc</button>` : ""}
+    </div>
+    <div class="notification-list">
+      ${notifications.length ? notifications.map((item) => `
+        <article class="notification-card ${item.is_read ? "read" : "unread"}">
+          <div class="notification-heading">
+            <strong>${esc(item.title)}</strong>
+            ${item.is_read ? "" : '<span class="notification-unread-label">Mới</span>'}
+          </div>
+          <p>${esc(item.message)}</p>
+          <div class="notification-footer">
+            <time>${esc(item.created_at || "")}</time>
+            <button class="btn btn-secondary" onclick="openFarmerNotification(${Number(item.id)})">Xem thông báo</button>
+          </div>
+        </article>`).join("") : '<div class="panel">Bạn chưa có thông báo nào.</div>'}
+    </div>
+  `;
+}
+
+async function loadFarmerNotifications(silent = false) {
+  const session = getCurrentSession();
+  if (!session?.access_token) return;
+  try {
+    const response = await fetch(`${API_BASE}/notifications?limit=50`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!response.ok) throw new Error(`Tải thông báo thất bại (HTTP ${response.status})`);
+    const incoming = await response.json();
+    const existingIds = new Set(state.notifications.map((item) => item.id));
+    const newest = incoming.find((item) => !existingIds.has(item.id) && !item.is_read);
+    state.notifications = incoming;
+    const count = document.getElementById("notification-count");
+    if (count) count.textContent = unreadNotificationCount();
+    if (newest && silent) showToast(newest.title);
+    if (state.page === "notifications") render();
+  } catch (error) {
+    console.error("Không thể tải thông báo:", error);
+    if (!silent) showToast(error.message);
+  }
+}
+
+async function openFarmerNotification(notificationId) {
+  const notification = state.notifications.find((item) => item.id === notificationId);
+  if (!notification) return;
+  const session = getCurrentSession();
+  try {
+    if (!notification.is_read) {
+      const response = await fetch(`${API_BASE}/notifications/${notificationId}/read`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!response.ok) throw new Error("Không thể đánh dấu thông báo đã đọc");
+      notification.is_read = true;
+    }
+    if (notification.batch_id) {
+      const batch = state.batches.find((item) => item.batchId === notification.batch_id);
+      if (batch) {
+        state.page = "batches";
+        render();
+        openDetailModal(batch.id);
+        return;
+      }
+    }
+    render();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function markAllFarmerNotificationsRead() {
+  const session = getCurrentSession();
+  try {
+    const response = await fetch(`${API_BASE}/notifications/mark-all-read`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!response.ok) throw new Error("Không thể đánh dấu thông báo đã đọc");
+    state.notifications = state.notifications.map((item) => ({ ...item, is_read: true }));
+    render();
+  } catch (error) {
+    showToast(error.message);
+  }
 }
 
 /* ============================ RENDER: OVERVIEW ============================ */
@@ -749,6 +864,7 @@ function renderDetailModal(id) {
       <div class="detail-grid">
         <div><div class="detail-block-label">Sản phẩm</div><div class="detail-block-value">${esc(b.product)}</div></div>
         <div><div class="detail-block-label">Nguồn gốc</div><div class="detail-block-value">${esc(b.origin)}</div></div>
+        <div><div class="detail-block-label">Điểm đến</div><div class="detail-block-value">${esc(b.destination || "Chưa cập nhật")}</div></div>
         <div><div class="detail-block-label">Ngày thu hoạch</div><div class="detail-block-value">${esc(b.harvestDate)}</div></div>
         <div><div class="detail-block-label">Sản lượng</div><div class="detail-block-value">${esc(b.quantity)}</div></div>
       </div>
@@ -795,10 +911,29 @@ function renderDetailModal(id) {
         <div class="reject-title">AUDITOR TỪ CHỐI LÔ HÀNG</div>
         <div class="reject-text">${esc((b.rejectReason || "Chưa có lý do từ chối được ghi nhận.").replace(/^AUDITOR TỪ CHỐI LÔ HÀNG:\s*/, ""))}</div>
       </div>
+
+      ${b.returnGoods || b.returnRequested
+        ? `
+        <div style="background:#fee2e2; border:1px solid #f87171; border-radius:8px; padding:12px 14px; margin-bottom:16px; color:#991b1b;">
+          <div style="font-weight:700; font-size:14px; margin-bottom:4px;">🚨 YÊU CẦU TRẢ HÀNG ĐÃ ĐƯỢC KÍCH HOẠT</div>
+          <p style="margin:0; font-size:13px; line-height:1.5;">Auditor đã tích chọn ô Trả hàng hoặc lô hàng đã quá thời hạn 24 giờ mà không được cập nhật. Công ty kho lạnh sẽ tiến hành hoàn trả hàng về cho nông dân. Lô hàng này không thể chỉnh sửa.</p>
+        </div>
+        `
+        : `
+        <div style="background:#fef3c7; border:1px solid #fcd34d; border-radius:8px; padding:12px 14px; margin-bottom:16px; color:#92400e;">
+          <div style="font-weight:700; font-size:14px; margin-bottom:4px;">⏱️ CẦN CẬP NHẬT LẠI THÔNG TIN SẢN PHẨM (TRONG 24H)</div>
+          <p style="margin:0; font-size:13px; line-height:1.5;">Ô Trả hàng không được chọn do lỗi sai thông tin giấy tờ/sản phẩm. Bạn có 24 giờ để cập nhật lại thông tin và gửi lại kiểm định. Sau 24h nếu không cập nhật, hệ thống sẽ tự động yêu cầu kho lạnh trả hàng.</p>
+        </div>
+        `
+      }
+
       <div class="section-label">Biên bản kiểm định</div>
       ${b.reportPdfUrl ? `<div style="width:100%;max-height:62vh;overflow-y:auto;overflow-x:hidden;border:1px solid var(--border);border-radius:10px;background:#f5f5f5;"><object data="${esc(b.reportPdfUrl)}" type="application/pdf" style="display:block;width:100%;min-height:760px;border:0;"><a href="${esc(b.reportPdfUrl)}" target="_blank" rel="noopener">Mở file PDF</a></object></div>` : `<div class="file-chip">${ICONS.file} ${esc(b.report || "Chưa có biên bản")}</div>`}
       <div class="modal-actions">
-        <button class="btn btn-primary" onclick="openEditBatch('${esc(b.id)}');stop(event)">Sửa thông tin và gửi kiểm định lại</button>
+        ${b.returnGoods || b.returnRequested
+          ? `<button class="btn btn-secondary" disabled style="opacity:0.6; cursor:not-allowed;">Không thể sửa (Đã yêu cầu trả hàng)</button>`
+          : `<button class="btn btn-primary" onclick="openEditBatch('${esc(b.id)}');stop(event)">Sửa thông tin và gửi kiểm định lại</button>`
+        }
       </div>
       `
       : ``
@@ -810,10 +945,15 @@ function renderDetailModal(id) {
 function openEditBatch(id) {
   const batch = state.batches.find((item) => item.id === id);
   if (!batch) return;
+  if (batch.returnGoods || batch.returnRequested) {
+    showToast("Lô hàng đã được yêu cầu trả hàng về kho lạnh, không thể chỉnh sửa!");
+    return;
+  }
   state.editBatchForm = {
     productName: batch.product || "",
     productType: batch.productType || "",
     origin: batch.origin || "",
+    destination: batch.destination || "",
     quantity: String(batch.quantityValue ?? ""),
     unit: batch.unit || "kg",
     productionDate: batch.productionDate || "",
@@ -856,6 +996,7 @@ async function submitEditBatch() {
         product_name: form.productName.trim(),
         product_type: form.productType.trim(),
         origin: form.origin.trim(),
+        destination: form.destination.trim(),
         quantity: Number(form.quantity),
         unit: form.unit,
         production_date: form.productionDate || null,
@@ -906,6 +1047,10 @@ function renderEditBatchModal() {
           <input value="${esc(form.origin)}" oninput="onEditBatchField('origin', this.value)">
           ${error("origin")}
         </div>
+        <div class="field">
+          <label>Điểm đến</label>
+          <input value="${esc(form.destination)}" placeholder="Nơi giao hàng" oninput="onEditBatchField('destination', this.value)">
+        </div>
         <div class="field ${errors.quantity ? "error" : ""}">
           <label>Số lượng <span class="req">*</span></label>
           <input type="number" min="0" value="${esc(form.quantity)}" oninput="onEditBatchField('quantity', this.value)">
@@ -943,6 +1088,7 @@ function openCreateModal() {
     category: "",
     harvestDate: "",
     origin: "",
+    destination: "",
     quantity: "",
     unit: "kg",
     note: "",
@@ -998,6 +1144,11 @@ function renderCreateModal() {
           </select>
           ${err.origin ? `<span class="field-error-msg">${err.origin}</span>` : ``}
         </div>
+        <div class="field">
+          <label>Điểm đến giao hàng <span class="req">*</span></label>
+          <input value="${esc(f.destination)}" placeholder="Nhập địa chỉ/điểm nhận hàng" oninput="onCreateField('destination', this.value)">
+          ${err.destination ? `<span class="field-error-msg">${err.destination}</span>` : ``}
+        </div>
         <div class="${errCls("quantity")}">
           <label>Số lượng <span class="req">*</span></label>
           <input type="number" min="0" value="${esc(f.quantity)}" placeholder="0" oninput="onCreateField('quantity', this.value)">
@@ -1016,7 +1167,7 @@ function renderCreateModal() {
           <textarea placeholder="Ghi chú thêm về lô hàng (nếu có)" oninput="onCreateField('note', this.value)">${esc(f.note)}</textarea>
         </div>
       </div>
-      <div class="form-note">*Batch Code sẽ do hệ thống tự sinh và trạng thái mặc định là <b>CHỜ KIỂM ĐỊNH</b>. Sau khi tạo, thông tin lô hàng sẽ bị khóa, bạn sẽ không thể chỉnh sửa lại.</div>
+      <div class="form-note">*Batch Code do hệ thống tự sinh. Điểm đến được chia sẻ với công ty kho lạnh để giao hàng sau khi kiểm định thành công.</div>
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
         <button class="btn btn-primary" onclick="submitCreateBatch()">Tạo Lô hàng</button>
@@ -1031,6 +1182,7 @@ async function submitCreateBatch() {
   if (!f.category) errors.category = "Vui lòng chọn phân loại";
   if (!f.harvestDate) errors.harvestDate = "Vui lòng chọn ngày thu hoạch";
   if (!f.origin) errors.origin = "Vui lòng chọn nguồn gốc";
+  if (!f.destination.trim()) errors.destination = "Vui lòng nhập điểm đến";
   if (!f.quantity || Number(f.quantity) <= 0)
     errors.quantity = "Vui lòng nhập số lượng hợp lệ";
   state.createErrors = errors;
@@ -1051,6 +1203,7 @@ async function submitCreateBatch() {
         product_name: f.productName.trim(),
         product_type: f.category,
         origin: f.origin,
+        destination: f.destination.trim(),
         quantity: Number(f.quantity),
         unit: f.unit,
         production_date: f.harvestDate,
