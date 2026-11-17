@@ -1,17 +1,14 @@
 
-import sqlite3
-import os
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ..core.security import ALLOWED_ROLES, decode_access_token, normalize_role
+from ..database.postgres import connect_app_database
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "database", "db.db")
 bearer_scheme = HTTPBearer(auto_error=False)
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.execute("PRAGMA foreign_keys = ON")
+    conn = connect_app_database()
     try:
         yield conn
     finally:

@@ -10,7 +10,7 @@ from fastapi import HTTPException
 DEFAULT_PEPPER = "agri-audit-chain-v1"
 JWT_SECRET = "agri-audit-chain-jwt-v1"
 JWT_TTL_SECONDS = 3600
-ALLOWED_ROLES = {"ADMIN", "FARMER", "AUDITOR", "PUBLIC"}
+ALLOWED_ROLES = {"ADMIN", "FARMER", "AUDITOR", "PUBLIC", "COLD_CHAIN"}
 
 
 def normalize_role(role: str | None) -> str:

@@ -1,4 +1,5 @@
 import sqlite3
+import psycopg2
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -85,7 +86,7 @@ def create_user(data: UserCreate, db=Depends(get_db), user=Depends(require_roles
             (data.username, hash_password(data.password), data.full_name, data.email, data.phone, role),
         )
         db.commit()
-    except sqlite3.IntegrityError:
+    except (sqlite3.IntegrityError, psycopg2.IntegrityError):
         db.rollback()
         raise HTTPException(status_code=409, detail="Username hoặc email đã tồn tại")
     return get_user(cursor.lastrowid, db, user)
@@ -106,7 +107,7 @@ def update_user(user_id: int, data: UserUpdate, db=Depends(get_db), user=Depends
     try:
         db.execute(f"UPDATE users SET {assignments} WHERE id = ?", [*updates.values(), user_id])
         db.commit()
-    except sqlite3.IntegrityError:
+    except (sqlite3.IntegrityError, psycopg2.IntegrityError):
         db.rollback()
         raise HTTPException(status_code=409, detail="Email đã tồn tại")
     return get_user(user_id, db, user)
@@ -132,7 +133,7 @@ def create_auditor(data: AuditorCreate, db=Depends(get_db), user=Depends(require
             (username, hash_password(data.password), data.full_name.strip(), data.email.strip(), data.phone or ""),
         )
         db.commit()
-    except sqlite3.IntegrityError:
+    except (sqlite3.IntegrityError, psycopg2.IntegrityError):
         db.rollback()
         raise HTTPException(status_code=409, detail="Email hoặc tên đăng nhập đã tồn tại")
 

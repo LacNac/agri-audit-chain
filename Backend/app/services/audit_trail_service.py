@@ -4,22 +4,31 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from .blockchain_service import enqueue_audit_anchor
 
-def record_audit_trail(db: sqlite3.Connection, user_id: int | None, action: str, entity_type: str, entity_id: int, old_value: Any = None, new_value: Any = None):
+
+def _ensure_audit_trail_table(db):
+    create_sqlite_table = isinstance(db, sqlite3.Connection)
+    id_column = "INTEGER PRIMARY KEY AUTOINCREMENT" if create_sqlite_table else "SERIAL PRIMARY KEY"
+    timestamp_type = "DATETIME" if create_sqlite_table else "TIMESTAMP WITHOUT TIME ZONE"
     db.execute(
-        """
+        f"""
         CREATE TABLE IF NOT EXISTS audit_trails (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_column},
             user_id INTEGER,
             action TEXT NOT NULL,
             entity_type TEXT NOT NULL,
             entity_id INTEGER NOT NULL,
             old_value TEXT,
             new_value TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at {timestamp_type} DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
+
+
+def record_audit_trail(db: sqlite3.Connection, user_id: int | None, action: str, entity_type: str, entity_id: int, old_value: Any = None, new_value: Any = None):
+    _ensure_audit_trail_table(db)
 
     def normalize(value: Any):
         if value is None:
@@ -28,7 +37,7 @@ def record_audit_trail(db: sqlite3.Connection, user_id: int | None, action: str,
             return value
         return json.dumps(value, ensure_ascii=False, default=str)
 
-    db.execute(
+    cursor = db.execute(
         """
         INSERT INTO audit_trails (user_id, action, entity_type, entity_id, old_value, new_value)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -42,25 +51,14 @@ def record_audit_trail(db: sqlite3.Connection, user_id: int | None, action: str,
             normalize(new_value),
         ),
     )
+    audit_id = cursor.lastrowid
+    enqueue_audit_anchor(db, audit_id)
     db.commit()
     return {"success": True}
 
 
 def list_audit_trails(db: sqlite3.Connection, entity_id: int, user: dict[str, Any]):
-    db.execute(
-        """
-        CREATE TABLE IF NOT EXISTS audit_trails (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            action TEXT NOT NULL,
-            entity_type TEXT NOT NULL,
-            entity_id INTEGER NOT NULL,
-            old_value TEXT,
-            new_value TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
+    _ensure_audit_trail_table(db)
 
     role = (user or {}).get("role", "").upper()
     if role not in {"ADMIN", "AUDITOR"}:
