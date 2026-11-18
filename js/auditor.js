@@ -686,7 +686,12 @@ function findTransportVehicle(batch) {
   if (!batchCode) return null;
   return COLD_CHAIN_VEHICLES.find(
     (vehicle) =>
-      String(vehicle.active_batch_code || "")
+      String(
+        vehicle.active_batch_code ||
+          vehicle.currentShipment?.external_batch_code ||
+          vehicle.currentShipment?.batch_code ||
+          "",
+      )
         .trim()
         .toLowerCase() === batchCode,
   ) || null;
@@ -720,6 +725,10 @@ function isVehicleInTransit(vehicle) {
   return COLD_CHAIN_IN_TRANSIT_STATUSES.has(getLogisticsStatus(vehicle));
 }
 
+function getTransportVehicleName(vehicle) {
+  return vehicle?.license_plate || (vehicle?.id ? `#${vehicle.id}` : "Chưa rõ biển số");
+}
+
 function getTransportBlockedMessage(vehicle) {
   if (getLogisticsStatus(vehicle) === "PICKED_UP") {
     return "Hàng đã về kho và đang chờ bàn giao kiểm định; chưa thể tạo mẫu hoặc kiểm định.";
@@ -742,12 +751,22 @@ function renderTransportStatus(vehicle) {
     return '<span class="status-tag waiting-result">Không tải được</span>';
   }
   if (!vehicle) {
-    return '<span class="status-tag transport-status">Chưa điều phối</span>';
+    return '<span class="status-tag transport-status">Chưa lấy hàng</span>';
   }
   const className = isVehicleInTransit(vehicle) ? "in-transit" : "transport-status";
-  return `<span class="status-tag ${className}">${escapeHtml(
-    getLogisticsStatusLabel(getLogisticsStatus(vehicle)),
-  )}</span>`;
+  const vehicleName = getTransportVehicleName(vehicle);
+  const destination =
+    vehicle.shipment_destination ||
+    vehicle.currentShipment?.destination_address ||
+    vehicle.currentShipment?.destination;
+  return `
+    <span class="status-tag ${className}">${escapeHtml(
+      getLogisticsStatusLabel(getLogisticsStatus(vehicle)),
+    )}</span>
+    <small class="transport-vehicle-info">
+      Xe: ${escapeHtml(vehicleName)}${destination ? ` · Điểm giao: ${escapeHtml(destination)}` : ""}
+    </small>
+  `;
 }
 
 function updateTransportGuard() {
@@ -786,10 +805,10 @@ function updateTransportGuard() {
     statusMessage.textContent = coldChainVehiclesError
       ? "Không thể xác minh trạng thái vận chuyển; tạm khóa các thao tác kiểm định."
       : isVehicleInTransit(vehicle)
-        ? getTransportBlockedMessage(vehicle)
+        ? `Xe: ${getTransportVehicleName(vehicle)} · ${getTransportBlockedMessage(vehicle)}`
         : vehicle
-          ? `Trạng thái vận chuyển: ${getLogisticsStatusLabel(getLogisticsStatus(vehicle))}.`
-          : "Batch hiện chưa được gán cho xe vận chuyển.";
+          ? `Xe: ${getTransportVehicleName(vehicle)} · Trạng thái vận chuyển: ${getLogisticsStatusLabel(getLogisticsStatus(vehicle))}.`
+          : "Chưa lấy hàng";
   }
 
   const approveButton = document.getElementById("btn-action-approve");
