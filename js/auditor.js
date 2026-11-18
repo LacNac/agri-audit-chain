@@ -1,13 +1,11 @@
 /* ========================================================
    1. CẤU HÌNH API & XÁC THỰC (JWT AUTHENTICATION)
    ======================================================== */
-const API_BASE = "https://agri-audit-chain-backend.onrender.com";
-const COLD_CHAIN_API_BASE =
-  "https://cold-chain-telemetry-system-1.onrender.com/api";
+const API_BASE = "http://127.0.0.1:8000";
 const COLD_CHAIN_LOGISTICS_LABELS = {
-  PICKUP_REQUESTED: "Chờ điều xe lấy hàng",
+  PICKUP_REQUESTED: "Chưa lấy hàng",
   PICKUP_ASSIGNED: "Đang lấy hàng",
-  PICKED_UP: "Đã về kho · chờ bàn giao kiểm định",
+  PICKED_UP: "Đã lấy hàng · chờ bàn giao kiểm định",
   AT_INSPECTION: "Đã bàn giao kiểm định",
   DELIVERY_READY: "Chờ giao hàng",
   RETURN_READY: "Chờ hoàn hàng",
@@ -16,8 +14,6 @@ const COLD_CHAIN_LOGISTICS_LABELS = {
   DELIVERED: "Đã giao hàng",
   RETURNED: "Đã hoàn hàng",
   CANCELLED: "Đã hủy",
-  IN_TRANSIT: "Đang vận chuyển",
-  IN_PROGRESS: "Đang vận chuyển",
 };
 const COLD_CHAIN_IN_TRANSIT_STATUSES = new Set([
   "PICKUP_ASSIGNED",
@@ -46,9 +42,9 @@ let activeTab = "pending";
 let currentBatch = null;
 let currentAuditorName = "Auditor";
 let editingReportId = null;
-let COLD_CHAIN_VEHICLES = [];
-let coldChainVehiclesError = null;
-let transportStatusRefreshInProgress = false;
+let batchLoadError = null;
+let COLD_CHAIN_AGRI_BATCHES = [];
+let coldChainBatchesError = null;
 
 async function loadAuditorIdentity() {
   try {
@@ -86,10 +82,16 @@ async function fetchBatchesFromDB(filters = null) {
       method: "GET",
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error("Không thể tải danh sách lô hàng từ server.");
     const data = await res.json();
+    if (!res.ok)
+      throw new Error(
+        data.detail || `Không thể tải danh sách lô hàng (HTTP ${res.status}).`,
+      );
     BATCHES = Array.isArray(data) ? data : data.items || [];
+    batchLoadError = null;
   } catch (err) {
+    BATCHES = [];
+    batchLoadError = err.message;
     console.warn("Lỗi kết nối API batches:", err.message);
   }
 }
@@ -251,7 +253,7 @@ async function switchTab(tab) {
     sampleForm.style.display = "none";
 
     await fetchBatchesFromDB();
-    await fetchColdChainVehicles();
+    await fetchColdChainAgriBatches();
 
     let titleText = "Danh sách chờ duyệt";
     let filterStatus = "UNVERIFIED";
@@ -306,7 +308,7 @@ async function searchPendingBatches() {
   });
 
   await fetchBatchesFromDB(filters);
-  await fetchColdChainVehicles();
+  await fetchColdChainAgriBatches();
   renderBatchCount("UNVERIFIED");
   renderBatchTable("UNVERIFIED");
 }
@@ -343,7 +345,10 @@ function renderBatchTable(statusFilter) {
   );
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#9ca3af; padding:32px;">Không tìm thấy lô hàng phù hợp</td></tr>`;
+    const emptyMessage = batchLoadError
+      ? `Không tải được lô hàng: ${escapeHtml(batchLoadError)}`
+      : "Không tìm thấy lô hàng phù hợp";
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#9ca3af; padding:32px;">${emptyMessage}</td></tr>`;
     return;
   }
 
@@ -355,8 +360,8 @@ function renderBatchTable(statusFilter) {
         ? formatAuditDate(b.audit_date)
         : b.created_at || b.createdDate || "—";
     const farmer = b.producer_name || b.farmer_name || b.farmer || "—";
-    const vehicle = findTransportVehicle(b);
-    const transportStatus = renderTransportStatus(vehicle);
+    const transportBatch = findTransportBatch(b);
+    const transportStatus = renderTransportStatus(transportBatch);
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -399,7 +404,7 @@ async function openBatchDetail(batchIdOrCode) {
   }
 
   if (!currentBatch) return;
-  await fetchColdChainVehicles();
+  await fetchColdChainAgriBatches();
 
   const card = document.getElementById("detail-card-content");
   const overlay = document.getElementById("detail-overlay");
@@ -422,8 +427,8 @@ async function openBatchDetail(batchIdOrCode) {
   const created = currentBatch.created_at || currentBatch.createdDate || "—";
   const origin = currentBatch.origin || "Việt Nam";
   const status = (currentBatch.status || "").toUpperCase();
-  const transportVehicle = findTransportVehicle(currentBatch);
-  const isInTransit = isVehicleInTransit(transportVehicle);
+  const transportBatch = findTransportBatch(currentBatch);
+  const isInTransit = isBatchInTransit(transportBatch);
   const latestReport = currentBatch.reports?.[0] || currentBatch.report || null;
   const reportResult = (latestReport?.result || "").toUpperCase();
   editingReportId = null;
@@ -433,25 +438,24 @@ async function openBatchDetail(batchIdOrCode) {
     statusBadge = '<span class="status-badge green">Đã kiểm định</span>';
   if (status === "REJECTED")
     statusBadge = '<span class="status-badge red">Bị từ chối</span>';
-  if (transportVehicle) {
+  if (hasAssignedTransport(transportBatch))
     statusBadge = `<span class="status-badge blue">${escapeHtml(
-      getLogisticsStatusLabel(getLogisticsStatus(transportVehicle)),
+      getTransportStatusLabel(transportBatch),
     )}</span>`;
-  } else if (coldChainVehiclesError) {
+  else if (coldChainBatchesError)
     statusBadge = '<span class="status-badge blue">Chưa xác định vận chuyển</span>';
-  }
 
   const samplesList = currentBatch.samples || [];
   let sampleSection = "";
   if (
-    (isInTransit || coldChainVehiclesError) &&
+    (isInTransit || coldChainBatchesError) &&
     (status === "UNVERIFIED" || status === "PENDING")
   ) {
     sampleSection = `
       <div class="status-banner banner-blue">
-        ${isInTransit
-        ? getTransportBlockedMessage(transportVehicle)
-        : "Không xác minh được trạng thái vận chuyển; tạm khóa thao tác tạo mẫu và kiểm định."}
+        ${coldChainBatchesError
+        ? "Không thể xác minh trạng thái vận chuyển"
+        : getTransportStatusLabel(transportBatch)}; tạm khóa thao tác tạo mẫu và kiểm định.
       </div>
     `;
   } else if (samplesList.length === 0) {
@@ -471,25 +475,14 @@ async function openBatchDetail(batchIdOrCode) {
     `;
   }
 
+  const transportStatusText = coldChainBatchesError
+    ? "Không thể xác minh trạng thái vận chuyển."
+    : getTransportStatusLabel(transportBatch);
   const coldChainSection = `
     <section class="cold-chain-panel" style="margin:16px 0; padding:14px; border:1px solid #dbeafe; border-radius:10px; background:#f8fbff;">
-      <h4 style="margin:0 0 10px;">Theo dõi kho lạnh / vận chuyển</h4>
-      <p style="margin:0 0 12px; color:#64748b; font-size:12px;">Dữ liệu lấy trực tiếp từ Cold Chain Telemetry System.</p>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px;">
-        <label style="font-size:12px;">Kho lạnh
-          <select id="cold-chain-warehouse" style="display:block; width:100%; margin-top:5px; padding:8px;">
-            <option value="">Đang tải danh sách kho...</option>
-          </select>
-        </label>
-        <label style="font-size:12px;">Xe vận chuyển
-          <select id="cold-chain-vehicle" style="display:block; width:100%; margin-top:5px; padding:8px;">
-            <option value="">Đang tải danh sách xe...</option>
-          </select>
-        </label>
-      </div>
-      <p id="cold-chain-status" role="status" style="margin:10px 0 0; color:#64748b; font-size:12px;">Đang kết nối Cold Chain API...</p>
-      <p id="transport-live-status" role="status" style="margin:6px 0 0; color:#1d4ed8; font-size:12px;"></p>
-      <div id="cold-chain-details" style="margin-top:8px; font-size:12px;"></div>
+      <h4 style="margin:0 0 10px;">Trạng thái vận chuyển</h4>
+      <p id="cold-chain-status" role="status" style="margin:0; color:#1d4ed8; font-size:13px;">${escapeHtml(transportStatusText)}</p>
+      <div id="cold-chain-details" style="margin-top:8px; font-size:12px;">${renderTransportDetails(transportBatch)}</div>
     </section>
   `;
 
@@ -497,10 +490,10 @@ async function openBatchDetail(batchIdOrCode) {
   if (isInTransit && (status === "UNVERIFIED" || status === "PENDING")) {
     dynamicBody = `
       <div class="status-banner banner-blue">
-        ${getTransportBlockedMessage(transportVehicle)}
+        Lô hàng đang được vận chuyển. Không thể tải báo cáo, phê duyệt hoặc từ chối kiểm định cho đến khi chuyến đi kết thúc.
       </div>
     `;
-  } else if (coldChainVehiclesError && (status === "UNVERIFIED" || status === "PENDING")) {
+  } else if (coldChainBatchesError && (status === "UNVERIFIED" || status === "PENDING")) {
     dynamicBody = `
       <div class="status-banner banner-yellow">
         Không thể xác minh trạng thái vận chuyển. Tạm thời không thể thực hiện kiểm định.
@@ -652,88 +645,78 @@ async function openBatchDetail(batchIdOrCode) {
 
   overlay.hidden = false;
   bindDetailEvents();
-  updateTransportGuard();
-  loadColdChainOptions();
 }
 
 async function coldChainRequest(path) {
-  const response = await fetch(`${COLD_CHAIN_API_BASE}/${path}`);
+  const response = await fetch(`${API_BASE}/cold-chain/${path}`, {
+    headers: getAuthHeaders(),
+  });
   const payload = await response.json();
   if (!response.ok)
     throw new Error(payload.detail || "Không thể tải dữ liệu Cold Chain.");
   return payload;
 }
 
-async function fetchColdChainVehicles() {
+async function fetchColdChainAgriBatches() {
   try {
-    const payload = await coldChainRequest("vehicles");
+    const payload = await coldChainRequest("agri-batches");
     if (!Array.isArray(payload.data))
-      throw new Error("Cold Chain API không trả về danh sách phương tiện.");
-    COLD_CHAIN_VEHICLES = payload.data;
-    coldChainVehiclesError = null;
+      throw new Error("Cold Chain API không trả về danh sách lô hàng.");
+    COLD_CHAIN_AGRI_BATCHES = payload.data;
+    coldChainBatchesError = null;
     return true;
   } catch (error) {
-    coldChainVehiclesError = error.message;
-    console.warn("Không thể tải trạng thái vận chuyển:", error.message);
+    coldChainBatchesError = error.message;
+    console.warn("Không thể tải lô hàng Cold Chain:", error.message);
     return false;
   }
 }
 
-function findTransportVehicle(batch) {
+function findTransportBatch(batch) {
   const batchCode = String(batch?.batch_code || batch?.code || "")
     .trim()
-    .toLowerCase();
+    .toUpperCase();
   if (!batchCode) return null;
-  return COLD_CHAIN_VEHICLES.find(
-    (vehicle) =>
+  return COLD_CHAIN_AGRI_BATCHES.find(
+    (transportBatch) =>
       String(
-        vehicle.active_batch_code ||
-          vehicle.currentShipment?.external_batch_code ||
-          vehicle.currentShipment?.batch_code ||
-          "",
+        transportBatch.external_batch_code ||
+        transportBatch.batch_code ||
+        transportBatch.code ||
+        "",
       )
         .trim()
-        .toLowerCase() === batchCode,
+        .toUpperCase() === batchCode,
   ) || null;
 }
 
-function getLogisticsStatus(vehicle) {
-  return String(
-    vehicle?.currentShipment?.logistics_status ||
-    vehicle?.currentShipment?.shipment_status ||
-    vehicle?.shipment_status ||
-    "",
-  )
+function getLogisticsStatus(transportBatch) {
+  return String(transportBatch?.logistics_status || "")
     .trim()
     .toUpperCase()
     .replace(/[\s-]+/g, "_");
 }
 
-function getLogisticsStatusLabel(status) {
-  const normalizedStatus = String(status || "")
-    .trim()
-    .toUpperCase()
-    .replace(/[\s-]+/g, "_");
+function hasAssignedTransport(transportBatch) {
+  return transportBatch?.vehicle_id !== null &&
+    transportBatch?.vehicle_id !== undefined &&
+    String(transportBatch.vehicle_id).trim() !== "";
+}
+
+function getTransportStatusLabel(transportBatch) {
+  if (!hasAssignedTransport(transportBatch)) return "Chưa lấy hàng";
+  const status = getLogisticsStatus(transportBatch);
   return (
-    COLD_CHAIN_LOGISTICS_LABELS[normalizedStatus] ||
-    normalizedStatus ||
-    "Chưa có chuyến vận chuyển"
+    COLD_CHAIN_LOGISTICS_LABELS[status] ||
+    status ||
+    "Đã điều phối xe vận chuyển"
   );
 }
 
-function isVehicleInTransit(vehicle) {
-  return COLD_CHAIN_IN_TRANSIT_STATUSES.has(getLogisticsStatus(vehicle));
-}
-
-function getTransportVehicleName(vehicle) {
-  return vehicle?.license_plate || (vehicle?.id ? `#${vehicle.id}` : "Chưa rõ biển số");
-}
-
-function getTransportBlockedMessage(vehicle) {
-  if (getLogisticsStatus(vehicle) === "PICKED_UP") {
-    return "Hàng đã về kho và đang chờ bàn giao kiểm định; chưa thể tạo mẫu hoặc kiểm định.";
-  }
-  return `${getLogisticsStatusLabel(getLogisticsStatus(vehicle))}; chưa thể tạo mẫu hoặc kiểm định khi xe đang vận chuyển.`;
+function isBatchInTransit(transportBatch) {
+  return COLD_CHAIN_IN_TRANSIT_STATUSES.has(
+    getLogisticsStatus(transportBatch),
+  );
 }
 
 function escapeHtml(value) {
@@ -746,233 +729,29 @@ function escapeHtml(value) {
   })[character]);
 }
 
-function renderTransportStatus(vehicle) {
-  if (coldChainVehiclesError) {
+function renderTransportStatus(transportBatch) {
+  if (coldChainBatchesError) {
     return '<span class="status-tag waiting-result">Không tải được</span>';
   }
-  if (!vehicle) {
-    return '<span class="status-tag transport-status">Chưa lấy hàng</span>';
-  }
-  const className = isVehicleInTransit(vehicle) ? "in-transit" : "transport-status";
-  const vehicleName = getTransportVehicleName(vehicle);
-  const destination =
-    vehicle.shipment_destination ||
-    vehicle.currentShipment?.destination_address ||
-    vehicle.currentShipment?.destination;
-  return `
-    <span class="status-tag ${className}">${escapeHtml(
-      getLogisticsStatusLabel(getLogisticsStatus(vehicle)),
-    )}</span>
-    <small class="transport-vehicle-info">
-      Xe: ${escapeHtml(vehicleName)}${destination ? ` · Điểm giao: ${escapeHtml(destination)}` : ""}
-    </small>
-  `;
+  const status = getTransportStatusLabel(transportBatch);
+  const className = isBatchInTransit(transportBatch)
+    ? "in-transit"
+    : "transport-status";
+  return `<span class="status-tag ${className}">${escapeHtml(status)}</span>`;
 }
 
-function updateTransportGuard() {
-  if (!currentBatch) return;
-  const overlay = document.getElementById("detail-overlay");
-  if (!overlay || overlay.hidden) return;
-
-  const vehicle = findTransportVehicle(currentBatch);
-  const isBlocked = Boolean(coldChainVehiclesError || isVehicleInTransit(vehicle));
-  const detailBadge = overlay.querySelector(".detail-header .status-badge");
-  if (detailBadge) {
-    if (vehicle) {
-      detailBadge.className = "status-badge blue";
-      detailBadge.textContent = getLogisticsStatusLabel(getLogisticsStatus(vehicle));
-    } else if (coldChainVehiclesError) {
-      detailBadge.className = "status-badge blue";
-      detailBadge.textContent = "Chưa xác định vận chuyển";
-    } else {
-      const batchStatus = String(currentBatch.status || "").toUpperCase();
-      detailBadge.className =
-        batchStatus === "AUDITED"
-          ? "status-badge green"
-          : batchStatus === "REJECTED"
-            ? "status-badge red"
-            : "status-badge amber";
-      detailBadge.textContent =
-        batchStatus === "AUDITED"
-          ? "Đã kiểm định"
-          : batchStatus === "REJECTED"
-            ? "Bị từ chối"
-            : "Chờ kiểm định";
-    }
-  }
-  const statusMessage = document.getElementById("transport-live-status");
-  if (statusMessage) {
-    statusMessage.textContent = coldChainVehiclesError
-      ? "Không thể xác minh trạng thái vận chuyển; tạm khóa các thao tác kiểm định."
-      : isVehicleInTransit(vehicle)
-        ? `Xe: ${getTransportVehicleName(vehicle)} · ${getTransportBlockedMessage(vehicle)}`
-        : vehicle
-          ? `Xe: ${getTransportVehicleName(vehicle)} · Trạng thái vận chuyển: ${getLogisticsStatusLabel(getLogisticsStatus(vehicle))}.`
-          : "Chưa lấy hàng";
-  }
-
-  const approveButton = document.getElementById("btn-action-approve");
-  const reportResult = String(
-    currentBatch.reports?.[0]?.result || currentBatch.report?.result || "",
-  ).toUpperCase();
-  if (approveButton) approveButton.disabled = isBlocked || reportResult !== "PASS";
-
-  [
-    "btn-action-reject",
-    "btn-hash-upload",
-    "btn-edit-report",
-    "btn-open-create-sample",
-  ].forEach((id) => {
-    const button = document.getElementById(id);
-    if (button) button.disabled = isBlocked;
-  });
-  const createSampleSubmit = document.querySelector(
-    "#create-sample-form button[type='submit']",
-  );
-  if (createSampleSubmit) createSampleSubmit.disabled = isBlocked;
-}
-
-function setColdChainMessage(message, isError = false) {
-  const status = document.getElementById("cold-chain-status");
-  if (!status) return;
-  status.textContent = message;
-  status.style.color = isError ? "#b91c1c" : "#64748b";
-}
-
-function appendColdChainDetail(label, value) {
-  const container = document.getElementById("cold-chain-details");
-  if (!container) return;
-  const row = document.createElement("p");
-  row.style.margin = "4px 0";
-  const strong = document.createElement("strong");
-  strong.textContent = `${label}: `;
-  row.append(strong, document.createTextNode(value || "—"));
-  container.appendChild(row);
-}
-
-async function loadColdChainOptions() {
-  const warehouseSelect = document.getElementById("cold-chain-warehouse");
-  const vehicleSelect = document.getElementById("cold-chain-vehicle");
-  if (!warehouseSelect || !vehicleSelect) return;
-
-  try {
-    if (coldChainVehiclesError || !COLD_CHAIN_VEHICLES.length)
-      await fetchColdChainVehicles();
-    const warehousePayload = await coldChainRequest("warehouses");
-    const warehouses = warehousePayload.data || [];
-    const vehicles = COLD_CHAIN_VEHICLES;
-
-    warehouseSelect.replaceChildren(new Option("Chọn kho lạnh...", ""));
-    warehouses.forEach((warehouse) => {
-      warehouseSelect.add(new Option(
-        `${warehouse.warehouse_name} (#${warehouse.id})`,
-        warehouse.id,
-      ));
-    });
-
-    vehicleSelect.replaceChildren(new Option("Chọn xe vận chuyển...", ""));
-    vehicles.forEach((vehicle) => {
-      vehicleSelect.add(new Option(
-        `${vehicle.license_plate} (#${vehicle.id})${vehicle.active_batch_code ? ` · ${vehicle.active_batch_code}` : ""}`,
-        vehicle.id,
-      ));
-    });
-    const batchVehicle = findTransportVehicle(currentBatch);
-    if (batchVehicle) {
-      vehicleSelect.value = batchVehicle.id;
-      await loadColdChainDetail("vehicles", batchVehicle.id);
-    }
-
-    warehouseSelect.addEventListener("change", () => {
-      if (warehouseSelect.value) {
-        loadColdChainDetail("warehouses", warehouseSelect.value);
-      }
-    });
-    vehicleSelect.addEventListener("change", () => {
-      if (vehicleSelect.value) {
-        loadColdChainDetail("vehicles", vehicleSelect.value);
-      }
-    });
-    if (coldChainVehiclesError) {
-      setColdChainMessage(coldChainVehiclesError, true);
-    } else {
-      setColdChainMessage(`Đã kết nối: ${warehouses.length} kho, ${vehicles.length} xe.`);
-    }
-  } catch (error) {
-    setColdChainMessage(error.message, true);
-  }
-}
-
-async function loadColdChainDetail(resource, id) {
-  const details = document.getElementById("cold-chain-details");
-  if (!details) return;
-  details.replaceChildren();
-  setColdChainMessage("Đang tải telemetry từ Cold Chain API...");
-
-  try {
-    const payload = await coldChainRequest(`${resource}/${encodeURIComponent(id)}`);
-    const item = payload.data;
-    if (!item) throw new Error("Cold Chain API không trả về thông tin chi tiết.");
-
-    if (resource === "warehouses") {
-      appendColdChainDetail("Kho", item.warehouse_name);
-      appendColdChainDetail("Trạng thái", item.status);
-      (item.devices || []).forEach((device) => {
-        const reading = [
-          device.temperature != null && `${device.temperature}°C`,
-          device.humidity != null && `${device.humidity}% RH`,
-        ].filter(Boolean).join(" · ");
-        appendColdChainDetail(`Thiết bị #${device.id}`, reading || "Chưa có telemetry");
-      });
-      if (!item.devices?.length) appendColdChainDetail("Cảm biến", "Chưa có thiết bị");
-    } else {
-      const listedVehicle = COLD_CHAIN_VEHICLES.find(
-        (vehicle) => String(vehicle.id) === String(id),
-      );
-      const shipment = item.currentShipment || listedVehicle || item;
-      const shipmentStatus = getLogisticsStatus({
-        ...listedVehicle,
-        ...item,
-        currentShipment: shipment,
-      });
-      appendColdChainDetail("Xe", item.license_plate);
-      appendColdChainDetail("Kho trực thuộc", item.warehouse_name);
-      appendColdChainDetail("Trạng thái", item.status);
-      appendColdChainDetail(
-        "Trạng thái chuyến đi",
-        getLogisticsStatusLabel(shipmentStatus),
-      );
-      appendColdChainDetail(
-        "Batch đang vận chuyển",
-        shipment.active_batch_code ||
-        shipment.external_batch_code ||
-        shipment.batch_code,
-      );
-      appendColdChainDetail(
-        "Điểm lấy hàng",
-        shipment.shipment_pickup_address || shipment.pickup_address,
-      );
-      appendColdChainDetail(
-        "Điểm giao hàng",
-        shipment.shipment_destination ||
-        shipment.destination_address ||
-        shipment.destination,
-      );
-      const reading = item.latestReading;
-      appendColdChainDetail(
-        "Nhiệt độ gần nhất",
-        reading?.temperature != null ? `${reading.temperature}°C` : "Chưa có telemetry",
-      );
-      appendColdChainDetail(
-        "Độ ẩm gần nhất",
-        reading?.humidity != null ? `${reading.humidity}% RH` : "—",
-      );
-      appendColdChainDetail("Thời điểm ghi nhận", reading?.created_at);
-    }
-    setColdChainMessage("Đã tải thông tin từ Cold Chain API.");
-  } catch (error) {
-    setColdChainMessage(error.message, true);
-  }
+function renderTransportDetails(transportBatch) {
+  if (!transportBatch) return "";
+  const details = [
+    ["Điểm lấy hàng", transportBatch.pickup_address],
+    ["Điểm giao hàng", transportBatch.consumption_address],
+  ].filter(([, value]) => value);
+  return details
+    .map(
+      ([label, value]) =>
+        `<p style="margin:4px 0;"><strong>${label}:</strong> ${escapeHtml(value)}</p>`,
+    )
+    .join("");
 }
 
 /* ========================================================
@@ -1272,33 +1051,6 @@ document.getElementById("btn-refresh")?.addEventListener("click", async () => {
   document.getElementById("batch-filter-form")?.reset();
   await switchTab(activeTab);
 });
-
-async function refreshTransportStatusView() {
-  if (
-    transportStatusRefreshInProgress ||
-    document.visibilityState === "hidden" ||
-    !["pending", "approved", "rejected"].includes(activeTab)
-  ) {
-    return;
-  }
-
-  transportStatusRefreshInProgress = true;
-  try {
-    await fetchColdChainVehicles();
-    const statusFilter =
-      activeTab === "approved"
-        ? "AUDITED"
-        : activeTab === "rejected"
-          ? "REJECTED"
-          : "UNVERIFIED";
-    renderBatchTable(statusFilter);
-    updateTransportGuard();
-  } finally {
-    transportStatusRefreshInProgress = false;
-  }
-}
-
-window.setInterval(refreshTransportStatusView, 10000);
 
 /* ========================================================
    8. RENDER TIMELINE & MẪU

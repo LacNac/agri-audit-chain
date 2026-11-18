@@ -352,12 +352,6 @@ body {
   background-color: #e5e7eb;
   color: #374151;
 }
-.transport-vehicle-info {
-  display: block;
-  margin-top: 5px;
-  color: #4b5563;
-  font-size: 11px;
-}
 .status-tag.approved {
   background-color: #86efac;
   color: #14532d;
