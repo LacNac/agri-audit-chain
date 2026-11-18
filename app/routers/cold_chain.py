@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, Query
 
 from ..dependencies.rbac import require_permission
-from ..services.cold_chain_service import get_cold_chain_data
+from ..services.cold_chain_service import (
+    get_cold_chain_agri_batches,
+    get_cold_chain_data,
+)
 
 router = APIRouter(
     prefix="/cold-chain",
@@ -13,6 +16,11 @@ router = APIRouter(
 @router.get("/health")
 def cold_chain_health():
     return get_cold_chain_data("health")
+
+
+@router.get("/agri-batches")
+def list_cold_chain_agri_batches(status: str | None = None):
+    return get_cold_chain_agri_batches(status)
 
 
 @router.get("/warehouses")

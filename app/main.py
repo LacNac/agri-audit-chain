@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database.init_db import initialize_database
 from .database.postgres import connect_app_database
-from .routers import audit_trails, auth, admin, auditor, batches, cold_chain, integration, notifications, public, qr, samples, users
+from .routers import audit_trails, auth, admin, auditor, batches, cold_chain, notifications, public, qr, samples, users
 from .services.blockchain_service import process_blockchain_outbox, validate_blockchain_config
 from .services.batch_service import process_expired_rejected_batches
 from .services.cold_chain_service import process_cold_chain_outbox
@@ -18,7 +18,6 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(admin.router)
 app.include_router(auditor.router)
 app.include_router(batches.router)
-app.include_router(integration.router)
 app.include_router(cold_chain.router)
 app.include_router(samples.router)
 app.include_router(audit_trails.router)
@@ -54,7 +53,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://agri-audit-chain.onrender.com",
-        "http://127.0.0.1:5500/"
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
     ],
     allow_credentials=True,
     allow_methods=["*"],
