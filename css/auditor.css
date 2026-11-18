@@ -348,6 +348,10 @@ body {
   background-color: #bfdbfe;
   color: #1d4ed8;
 }
+.status-tag.transport-status {
+  background-color: #e5e7eb;
+  color: #374151;
+}
 .status-tag.approved {
   background-color: #86efac;
   color: #14532d;
