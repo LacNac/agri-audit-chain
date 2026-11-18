@@ -1,7 +1,7 @@
 /* ========================================================
    1. CẤU HÌNH API & XÁC THỰC (JWT AUTHENTICATION)
    ======================================================== */
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "https://agri-audit-chain-backend.onrender.com";
 const COLD_CHAIN_LOGISTICS_LABELS = {
   PICKUP_REQUESTED: "Chưa lấy hàng",
   PICKUP_ASSIGNED: "Đang lấy hàng",

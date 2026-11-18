@@ -14,17 +14,13 @@ pip install fastapi uvicorn sqlalchemy python-dotenv
 
 uvicorn app.main:app --reload
 
-Nếu thành công sẽ thấy:
+Frontend hiện gọi backend đã deploy trên Render. Mở tài liệu API tại:
 
-Uvicorn running on <http://127.0.0.1:8000>
+<https://agri-audit-chain-backend.onrender.com/docs>
 
-Mở:
+Health endpoint:
 
-<http://127.0.0.1:8000/docs>
-
-và:
-
-<http://127.0.0.1:8000/api/v1/health>
+<https://agri-audit-chain-backend.onrender.com/api/v1/health>
 
 Kết quả health:
 
