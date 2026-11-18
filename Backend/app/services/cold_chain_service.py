@@ -2,6 +2,8 @@ import json
 import logging
 import os
 import sqlite3
+import threading
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
@@ -11,9 +13,13 @@ from fastapi import HTTPException
 logger = logging.getLogger(__name__)
 _missing_secret_warned = False
 COLD_CHAIN_API_DEFAULT_URL = "https://cold-chain-telemetry-system-1.onrender.com/api"
+_cold_chain_staff_token = None
+_cold_chain_staff_token_expires_at = 0.0
+_cold_chain_staff_token_lock = threading.Lock()
+COLD_CHAIN_STAFF_TOKEN_CACHE_SECONDS = 300
 
 
-def get_cold_chain_data(endpoint: str, params: dict | None = None):
+def _get_cold_chain_base_url() -> str:
     base_url = os.getenv(
         "COLD_CHAIN_API_BASE_URL",
         COLD_CHAIN_API_DEFAULT_URL,
@@ -24,13 +30,23 @@ def get_cold_chain_data(endpoint: str, params: dict | None = None):
             status_code=503,
             detail="COLD_CHAIN_API_BASE_URL phải là URL HTTP hoặc HTTPS hợp lệ",
         )
+    return base_url
+
+
+def get_cold_chain_data(
+    endpoint: str,
+    params: dict | None = None,
+    headers: dict | None = None,
+):
+    base_url = _get_cold_chain_base_url()
 
     query = urlencode({key: value for key, value in (params or {}).items() if value is not None})
     url = f"{base_url}/{endpoint.lstrip('/')}"
     if query:
         url = f"{url}?{query}"
 
-    request = Request(url, headers={"Accept": "application/json"}, method="GET")
+    request_headers = {"Accept": "application/json", **(headers or {})}
+    request = Request(url, headers=request_headers, method="GET")
     try:
         with urlopen(request, timeout=5) as response:
             return json.loads(response.read().decode("utf-8"))
@@ -51,42 +67,116 @@ def get_cold_chain_data(endpoint: str, params: dict | None = None):
         ) from error
 
 
+def _get_cold_chain_staff_token() -> str:
+    global _cold_chain_staff_token, _cold_chain_staff_token_expires_at
+
+    username = os.getenv("COLD_CHAIN_API_USERNAME", "").strip()
+    password = os.getenv("COLD_CHAIN_API_PASSWORD", "")
+    if not username or not password:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Cần cấu hình COLD_CHAIN_API_USERNAME và "
+                "COLD_CHAIN_API_PASSWORD cho tài khoản STAFF của Cold Chain"
+            ),
+        )
+
+    with _cold_chain_staff_token_lock:
+        if (
+            _cold_chain_staff_token
+            and time.monotonic() < _cold_chain_staff_token_expires_at
+        ):
+            return _cold_chain_staff_token
+
+        request = Request(
+            f"{_get_cold_chain_base_url()}/auth/login",
+            data=json.dumps(
+                {"username": username, "password": password}
+            ).encode("utf-8"),
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except HTTPError as error:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Không thể xác thực tài khoản STAFF Cold Chain (HTTP {error.code})",
+            ) from error
+        except (URLError, TimeoutError, OSError) as error:
+            raise HTTPException(
+                status_code=503,
+                detail="Không thể kết nối Cold Chain API để xác thực tài khoản dịch vụ",
+            ) from error
+        except (json.JSONDecodeError, UnicodeDecodeError) as error:
+            raise HTTPException(
+                status_code=502,
+                detail="Cold Chain API trả về dữ liệu xác thực không hợp lệ",
+            ) from error
+
+        data = payload.get("data") if isinstance(payload, dict) else None
+        token = data.get("token") if isinstance(data, dict) else None
+        if not isinstance(token, str) or not token:
+            raise HTTPException(
+                status_code=502,
+                detail="Cold Chain API không cấp token cho tài khoản STAFF",
+            )
+
+        _cold_chain_staff_token = token
+        _cold_chain_staff_token_expires_at = (
+            time.monotonic() + COLD_CHAIN_STAFF_TOKEN_CACHE_SECONDS
+        )
+        return token
+
+
+def get_cold_chain_agri_batches(status: str | None = None):
+    token = _get_cold_chain_staff_token()
+    return get_cold_chain_data(
+        "agri-batches",
+        {"status": status},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+
 def is_batch_in_transit(batch_code: str) -> bool:
-    payload = get_cold_chain_data("vehicles")
+    payload = get_cold_chain_agri_batches()
     if isinstance(payload, dict) and payload.get("success") is False:
         raise HTTPException(
             status_code=502,
             detail="Cold Chain API không thể cung cấp trạng thái vận chuyển",
         )
-    vehicles = payload.get("data") if isinstance(payload, dict) else None
-    if not isinstance(vehicles, list):
+    batches = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(batches, list):
         raise HTTPException(
             status_code=502,
-            detail="Cold Chain API trả về danh sách phương tiện không hợp lệ",
+            detail="Cold Chain API trả về danh sách lô hàng không hợp lệ",
         )
 
     normalized_batch_code = str(batch_code or "").strip().casefold()
     transit_statuses = {
-        "INTRANSIT",
-        "INPROGRESS",
-        "ONGOING",
-        "SHIPPING",
-        "DELIVERING",
-        "ONTHEROAD",
-        "PICKEDUP",
+        "PICKUP_ASSIGNED",
+        "PICKED_UP",
+        "OUT_FOR_DELIVERY",
+        "OUT_FOR_RETURN",
+        "IN_TRANSIT",
+        "IN_PROGRESS",
     }
-    for vehicle in vehicles:
-        if not isinstance(vehicle, dict):
+    for batch in batches:
+        if not isinstance(batch, dict):
             continue
-        vehicle_batch_code = str(vehicle.get("active_batch_code") or "").strip().casefold()
-        shipment_status = "".join(
-            character
-            for character in str(vehicle.get("shipment_status") or "").upper()
-            if character.isalnum()
-        )
+        external_batch_code = str(
+            batch.get("external_batch_code") or batch.get("batch_code") or ""
+        ).strip().casefold()
+        logistics_status = str(batch.get("logistics_status") or "").strip().upper()
+        logistics_status = "_".join(logistics_status.replace("-", " ").split())
         if (
-            vehicle_batch_code == normalized_batch_code
-            and shipment_status in transit_statuses
+            external_batch_code == normalized_batch_code
+            and batch.get("vehicle_id") is not None
+            and logistics_status in transit_statuses
         ):
             return True
     return False

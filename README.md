@@ -60,11 +60,13 @@ Trong cùng terminal đã đặt `AGRI_DATABASE_URL`, chạy:
 
 ```powershell
 $env:COLD_CHAIN_API_BASE_URL = "https://cold-chain-telemetry-system-1.onrender.com/api"
+$env:COLD_CHAIN_API_USERNAME = "<Cold Chain STAFF username>"
+$env:COLD_CHAIN_API_PASSWORD = "<Cold Chain STAFF password>"
 $env:COLD_CHAIN_INTEGRATION_SECRET = "<same-random-secret-as-AGRI_INTEGRATION_SECRET>"
 uvicorn app.main:app --reload
 ```
 
-`AGRI_DATABASE_URL` phải trỏ đến database AgriTrace; ứng dụng chủ động từ chối khởi động nếu phát hiện các bảng nghiệp vụ Cold Chain. `COLD_CHAIN_API_BASE_URL` trỏ đến API server Cold Chain (mặc định là endpoint trên Render ở trên; nếu chạy Cold Chain cục bộ, đổi thành `http://127.0.0.1:3000/api`). Đặt cùng secret trong biến `AGRI_INTEGRATION_SECRET` của Cold Chain và `COLD_CHAIN_INTEGRATION_SECRET` của AgriTrace để đồng bộ Batch/trạng thái và timeline; các sự kiện chưa gửi được sẽ được retry nền. AgriTrace mặc định chạy tại <http://127.0.0.1:8000>; tài liệu API tại <http://127.0.0.1:8000/docs>. Schema, vai trò và quyền được khởi tạo khi backend chạy. File báo cáo PDF vẫn lưu tại `Backend/app/uploads/`.
+`AGRI_DATABASE_URL` phải trỏ đến database AgriTrace; ứng dụng chủ động từ chối khởi động nếu phát hiện các bảng nghiệp vụ Cold Chain. `COLD_CHAIN_API_BASE_URL` trỏ đến API server Cold Chain (mặc định là endpoint trên Render ở trên; nếu chạy Cold Chain cục bộ, đổi thành `http://127.0.0.1:3000/api`). `COLD_CHAIN_API_USERNAME` và `COLD_CHAIN_API_PASSWORD` là tài khoản dịch vụ có vai trò STAFF của Cold Chain; backend dùng chúng để đăng nhập và gọi `GET /api/agri-batches`, không gửi thông tin này xuống frontend. Cấu hình hai biến này trong môi trường chạy backend AgriTrace (bao gồm Render) để trang Auditor đọc được lô và trạng thái vận chuyển. Đặt cùng secret trong biến `AGRI_INTEGRATION_SECRET` của Cold Chain và `COLD_CHAIN_INTEGRATION_SECRET` của AgriTrace để đồng bộ Batch/trạng thái và timeline; các sự kiện chưa gửi được sẽ được retry nền. AgriTrace mặc định chạy tại <http://127.0.0.1:8000>; tài liệu API tại <http://127.0.0.1:8000/docs>. Schema, vai trò và quyền được khởi tạo khi backend chạy. File báo cáo PDF vẫn lưu tại `Backend/app/uploads/`.
 
 Nếu không dùng dữ liệu SQLite cũ, có thể bỏ qua lệnh migration; khi `AGRI_DATABASE_URL` được đặt, backend tạo schema và tài khoản demo trong database PostgreSQL mới. Nếu không đặt biến này, backend dùng SQLite hiện có ở chế độ phát triển và in cảnh báo; nó không tự tạo hay chuyển schema SQLite.
 
@@ -183,4 +185,4 @@ python -m pytest tests -q
 - Cấu hình CORS hiện cho phép frontend tại `http://127.0.0.1:5500` và `http://localhost:5500`.
 - Backend có sẵn thông tin demo và các hằng số xác thực phục vụ phát triển. Trước khi đưa vào môi trường thật, cần thay cấu hình bí mật, thay mật khẩu demo và rà soát lại cấu hình bảo mật.
 - Không xóa hoặc chia sẻ database/file báo cáo nếu cần giữ lại dữ liệu đã tạo.
-- Cấu hình riêng `AGRI_DATABASE_URL` và `COLD_CHAIN_API_BASE_URL`; không đưa thông tin xác thực database vào mã nguồn hoặc chia sẻ file cấu hình có mật khẩu.
+- Cấu hình riêng `AGRI_DATABASE_URL`, `COLD_CHAIN_API_BASE_URL`, `COLD_CHAIN_API_USERNAME` và `COLD_CHAIN_API_PASSWORD`; không đưa thông tin xác thực database hoặc Cold Chain vào mã nguồn hay frontend.

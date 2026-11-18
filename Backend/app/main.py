@@ -52,6 +52,7 @@ async def startup_event():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://agri-audit-chain.onrender.com",
         "http://127.0.0.1:5500",
         "http://localhost:5500",
     ],
