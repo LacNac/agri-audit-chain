@@ -170,7 +170,8 @@ def _submit_hash(event_hash: str, config: dict[str, str]):
         transaction, config["AGRI_BLOCKCHAIN_PRIVATE_KEY"]
     )
     tx_hash = web3.eth.send_raw_transaction(signed.raw_transaction)
-    return tx_hash.hex()
+    tx_hex = tx_hash.hex()
+    return f"0x{tx_hex.removeprefix('0x')}"
 
 
 def _get_transaction_receipt(transaction_hash: str, config: dict[str, str]):
@@ -184,6 +185,8 @@ def _get_transaction_receipt(transaction_hash: str, config: dict[str, str]):
     )
     if not web3.is_connected():
         raise ConnectionError("Could not connect to the configured blockchain RPC.")
+    if not transaction_hash.startswith("0x"):
+        transaction_hash = f"0x{transaction_hash}"
     try:
         receipt = web3.eth.get_transaction_receipt(transaction_hash)
     except TransactionNotFound:
