@@ -353,7 +353,7 @@ def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_i
 
     db.execute("UPDATE lab_reports SET result = 'FAIL' WHERE id = ?", (result["id"],))
     with pytest.raises(HTTPException, match="Chỉ được approve"):
-        approve_batch(db, 1, user_id=7, reason="Approved")
+        approve_batch(db, 1, user_id=7, reason="Approved", destination="Hanoi Market")
     db.execute("UPDATE lab_reports SET result = 'PASS' WHERE id = ?", (result["id"],))
 
     db.execute(
@@ -362,7 +362,7 @@ def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_i
     )
 
     with pytest.raises(HTTPException, match="Batch chưa đủ thông tin để kiểm định"):
-        approve_batch(db, 1, user_id=7, reason="Approved")
+        approve_batch(db, 1, user_id=7, reason="Approved", destination="Hanoi Market")
 
     db.execute("DELETE FROM lab_reports WHERE report_code = ?", ("REPORT-FAIL",))
     db.commit()
@@ -370,11 +370,24 @@ def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_i
         "UPDATE samples SET status = 'READY' WHERE id = 1"
     )
 
-    approved = approve_batch(db, 1, user_id=7, reason="Approved")
+    approved = approve_batch(
+        db,
+        1,
+        user_id=7,
+        reason="Approved",
+        destination="Hanoi Market",
+    )
     assert approved["status"] == "AUDITED"
+    assert approved["destination"] == "Hanoi Market"
+    assert db.execute("SELECT destination FROM batches WHERE id = 1").fetchone()[0] == "Hanoi Market"
 
     with pytest.raises(HTTPException, match="Cần nhập lý do từ chối"):
         __import__("app.services.audit_service", fromlist=["reject_batch"]).reject_batch(db, 1, user_id=7, reason="   ")
+
+
+def test_approve_requires_destination():
+    with pytest.raises(HTTPException, match="Vui lòng nhập điểm đến"):
+        approve_batch(sqlite3.connect(":memory:"), 1, user_id=7, destination=" ")
 
 
 def test_audit_trail_logs_actions_and_restricts_view_to_admin_or_auditor():

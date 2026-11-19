@@ -32,3 +32,11 @@ class AuditDecision(BaseModel):
     return_goods: Optional[bool] = False
 
     _trim_reason = field_validator("reason", mode="before")(_required_text)
+
+
+class ApproveDecision(BaseModel):
+    reason: str = Field(..., min_length=1)
+    destination: str = Field(..., min_length=2, max_length=300)
+
+    _trim_reason = field_validator("reason", mode="before")(_required_text)
+    _trim_destination = field_validator("destination", mode="before")(_required_text)

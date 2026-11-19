@@ -319,7 +319,19 @@ def get_latest_batch_report_result(db: sqlite3.Connection, batch_id: int) -> str
     return result
 
 
-def approve_batch(db: sqlite3.Connection, batch_id: int, user_id: int, reason: str | None = None):
+def approve_batch(
+    db: sqlite3.Connection,
+    batch_id: int,
+    user_id: int,
+    destination: str,
+    reason: str | None = None,
+):
+    destination = (destination or "").strip()
+    if not destination:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập điểm đến")
+    if len(destination) < 2 or len(destination) > 300:
+        raise HTTPException(status_code=400, detail="Điểm đến phải có từ 2 đến 300 ký tự")
+
     row = db.execute(
         "SELECT id, status, batch_code FROM batches WHERE id = ?", (batch_id,)
     ).fetchone()
@@ -336,8 +348,8 @@ def approve_batch(db: sqlite3.Connection, batch_id: int, user_id: int, reason: s
         raise HTTPException(status_code=400, detail="Chỉ được approve batch khi lab report có trạng thái PASS")
 
     batch_cols = {col[1] for col in db.execute("PRAGMA table_info(batches)").fetchall()}
-    assignments = ["status = 'AUDITED'"]
-    params = []
+    assignments = ["status = 'AUDITED'", "destination = ?"]
+    params = [destination]
     if "reason" in batch_cols:
         assignments.append("reason = ?")
         params.append(reason or "Auditor approved")
@@ -385,11 +397,20 @@ def approve_batch(db: sqlite3.Connection, batch_id: int, user_id: int, reason: s
         entity_type="batch",
         entity_id=batch_id_db,
         old_value={"status": current_status},
-        new_value={"status": "AUDITED", "reason": reason or "Auditor approved"},
+        new_value={
+            "status": "AUDITED",
+            "reason": reason or "Auditor approved",
+            "destination": destination,
+        },
     )
     enqueue_batch_sync(db, batch_id_db)
     process_cold_chain_outbox(db)
-    return {"batch_id": batch_id_db, "status": "AUDITED", "qr": qr_record}
+    return {
+        "batch_id": batch_id_db,
+        "status": "AUDITED",
+        "destination": destination,
+        "qr": qr_record,
+    }
 
 
 def reject_batch(db: sqlite3.Connection, batch_id: int, user_id: int, reason: str, return_goods: bool = False):

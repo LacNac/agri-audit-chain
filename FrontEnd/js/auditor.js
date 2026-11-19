@@ -576,6 +576,10 @@ async function openBatchDetail(batchIdOrCode) {
         </p>
       </div>
 
+      <div class="form-field" style="margin:10px 0;">
+        <label for="approve-destination">Điểm đến sau kiểm định <span aria-hidden="true">*</span></label>
+        <input type="text" id="approve-destination" maxlength="300" required placeholder="Nhập địa chỉ hoặc nơi nhận hàng" />
+      </div>
       <div class="decision-row">
         <button type="button" class="btn-approve" id="btn-action-approve" ${reportResult === "PASS" ? "" : "disabled"}>APPROVE</button>
         <button type="button" class="btn-reject" id="btn-action-reject">REJECT</button>
@@ -634,7 +638,7 @@ async function openBatchDetail(batchIdOrCode) {
       <div class="fact"><p class="fact-label">Khối lượng</p><p class="fact-value">${weight}</p></div>
       <div class="fact"><p class="fact-label">Ngày tạo</p><p class="fact-value">${created}</p></div>
       <div class="fact"><p class="fact-label">Nguồn gốc</p><p class="fact-value">${origin}</p></div>
-      <div class="fact"><p class="fact-label">Điểm đến</p><p class="fact-value">${currentBatch.destination || "Chưa cập nhật"}</p></div>
+      <div class="fact"><p class="fact-label">Điểm đến hiện tại</p><p class="fact-value">${escapeHtml(currentBatch.destination || "Chưa cập nhật")}</p></div>
     </div>
 
     ${coldChainSection}
@@ -900,13 +904,24 @@ function bindDetailEvents() {
     ?.addEventListener("click", async () => {
       const batchId =
         currentBatch.id || currentBatch.code || currentBatch.batch_code;
+      const destination = document
+        .getElementById("approve-destination")
+        ?.value.trim();
+      if (!destination) {
+        alert("Vui lòng nhập điểm đến trước khi phê duyệt.");
+        document.getElementById("approve-destination")?.focus();
+        return;
+      }
       try {
         const res = await fetch(
           `${API_BASE}/auditor/batches/${batchId}/approve`,
           {
             method: "POST",
             headers: getAuthHeaders(),
-            body: JSON.stringify({ reason: "Auditor approved" }),
+            body: JSON.stringify({
+              reason: "Auditor approved",
+              destination,
+            }),
           },
         );
         const data = await res.json();
