@@ -7,10 +7,6 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from dotenv import load_dotenv
-
-load_dotenv(ROOT_DIR / ".env")
-
 from app.database.postgres import connect_app_database
 from app.services.blockchain_service import (
     enqueue_audit_anchor,
@@ -26,7 +22,7 @@ def run_sync():
     print("=" * 60)
 
     if not validate_blockchain_config():
-        print("❌ LỖI: Chưa cấu hình đủ 3 biến môi trường trong file .env:")
+        print("❌ LỖI: Chưa cấu hình đủ 3 biến môi trường:")
         print("   - AGRI_BLOCKCHAIN_RPC_URL")
         print("   - AGRI_BLOCKCHAIN_CONTRACT_ADDRESS")
         print("   - AGRI_BLOCKCHAIN_PRIVATE_KEY")
