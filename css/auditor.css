@@ -670,6 +670,15 @@ body {
   font-size: 13px;
   background: #fff;
 }
+.approval-destination {
+  margin: 16px 0;
+}
+.approval-destination small {
+  display: block;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 11.5px;
+}
 .file-picker {
   display: flex;
   align-items: center;

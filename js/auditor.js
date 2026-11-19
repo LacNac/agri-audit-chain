@@ -576,6 +576,20 @@ async function openBatchDetail(batchIdOrCode) {
         </p>
       </div>
 
+      <div class="form-field approval-destination">
+        <label for="approve-destination">Địa điểm đến sau kiểm định <span aria-hidden="true">*</span></label>
+        <input
+          type="text"
+          id="approve-destination"
+          value="${escapeHtml(currentBatch.destination || "")}"
+          placeholder="Nhập địa chỉ/điểm nhận hàng"
+          minlength="2"
+          maxlength="300"
+          required
+        />
+        <small>Địa điểm này sẽ được lưu cùng lô hàng khi phê duyệt.</small>
+      </div>
+
       <div class="decision-row">
         <button type="button" class="btn-approve" id="btn-action-approve" ${reportResult === "PASS" ? "" : "disabled"}>APPROVE</button>
         <button type="button" class="btn-reject" id="btn-action-reject">REJECT</button>
@@ -900,13 +914,25 @@ function bindDetailEvents() {
     ?.addEventListener("click", async () => {
       const batchId =
         currentBatch.id || currentBatch.code || currentBatch.batch_code;
+      const destinationInput = document.getElementById("approve-destination");
+      const destination = destinationInput?.value.trim() || "";
+
+      if (destination.length < 2 || destination.length > 300) {
+        alert("Vui lòng nhập địa điểm đến từ 2 đến 300 ký tự.");
+        destinationInput?.focus();
+        return;
+      }
+
       try {
         const res = await fetch(
           `${API_BASE}/auditor/batches/${batchId}/approve`,
           {
             method: "POST",
             headers: getAuthHeaders(),
-            body: JSON.stringify({ reason: "Auditor approved" }),
+            body: JSON.stringify({
+              reason: "Auditor approved",
+              destination,
+            }),
           },
         );
         const data = await res.json();
