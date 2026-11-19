@@ -1,8 +1,11 @@
 import asyncio
 import logging
+import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +20,11 @@ initialize_database()
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(admin.router)
@@ -56,9 +64,12 @@ async def startup_event():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://agri-audit-chain.onrender.com",
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ALLOWED_ORIGINS",
+            "https://agri-audit-chain.onrender.com,http://127.0.0.1:5500,http://localhost:5500",
+        ).split(",")
+        if origin.strip()
     ],
     allow_credentials=True,
     allow_methods=["*"],
