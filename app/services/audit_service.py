@@ -319,14 +319,20 @@ def get_latest_batch_report_result(db: sqlite3.Connection, batch_id: int) -> str
     return result
 
 
-def approve_batch(db: sqlite3.Connection, batch_id: int, user_id: int, reason: str | None = None):
+def approve_batch(
+    db: sqlite3.Connection,
+    batch_id: int,
+    user_id: int,
+    reason: str | None = None,
+    destination: str | None = None,
+):
     row = db.execute(
-        "SELECT id, status, batch_code FROM batches WHERE id = ?", (batch_id,)
+        "SELECT id, status, batch_code, destination FROM batches WHERE id = ?", (batch_id,)
     ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Batch không tồn tại")
 
-    batch_id_db, current_status, batch_code = row
+    batch_id_db, current_status, batch_code, current_destination = row
     if current_status not in {"UNVERIFIED", "REJECTED"}:
         raise HTTPException(status_code=400, detail="Batch không ở trạng thái có thể phê duyệt")
     ensure_batch_not_in_transit(batch_code)
@@ -341,6 +347,10 @@ def approve_batch(db: sqlite3.Connection, batch_id: int, user_id: int, reason: s
     if "reason" in batch_cols:
         assignments.append("reason = ?")
         params.append(reason or "Auditor approved")
+    destination = destination.strip() if destination is not None else None
+    if destination:
+        assignments.append("destination = ?")
+        params.append(destination)
     if "return_goods" in batch_cols:
         assignments.append("return_goods = 0")
     if "return_requested" in batch_cols:
@@ -384,12 +394,21 @@ def approve_batch(db: sqlite3.Connection, batch_id: int, user_id: int, reason: s
         action="APPROVE_BATCH",
         entity_type="batch",
         entity_id=batch_id_db,
-        old_value={"status": current_status},
-        new_value={"status": "AUDITED", "reason": reason or "Auditor approved"},
+        old_value={"status": current_status, "destination": current_destination},
+        new_value={
+            "status": "AUDITED",
+            "reason": reason or "Auditor approved",
+            "destination": destination or current_destination,
+        },
     )
     enqueue_batch_sync(db, batch_id_db)
     process_cold_chain_outbox(db)
-    return {"batch_id": batch_id_db, "status": "AUDITED", "qr": qr_record}
+    return {
+        "batch_id": batch_id_db,
+        "status": "AUDITED",
+        "destination": destination or current_destination,
+        "qr": qr_record,
+    }
 
 
 def reject_batch(db: sqlite3.Connection, batch_id: int, user_id: int, reason: str, return_goods: bool = False):

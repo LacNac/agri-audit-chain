@@ -10,6 +10,10 @@ def _required_text(value: str) -> str:
     return value
 
 
+def _optional_text(value: str | None) -> str | None:
+    return _required_text(value) if value is not None else None
+
+
 class LabReportOut(BaseModel):
     id: int
     report_code: str
@@ -32,3 +36,11 @@ class AuditDecision(BaseModel):
     return_goods: Optional[bool] = False
 
     _trim_reason = field_validator("reason", mode="before")(_required_text)
+
+
+class AuditApproval(BaseModel):
+    reason: str = Field(..., min_length=1)
+    destination: Optional[str] = Field(default=None, min_length=2, max_length=300)
+
+    _trim_reason = field_validator("reason", mode="before")(_required_text)
+    _trim_destination = field_validator("destination", mode="before")(_optional_text)

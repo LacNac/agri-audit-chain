@@ -370,8 +370,16 @@ def test_lab_report_creates_hash_from_uploaded_pdf_and_blocks_approval_without_i
         "UPDATE samples SET status = 'READY' WHERE id = 1"
     )
 
-    approved = approve_batch(db, 1, user_id=7, reason="Approved")
+    approved = approve_batch(
+        db,
+        1,
+        user_id=7,
+        reason="Approved",
+        destination="  Hanoi Market  ",
+    )
     assert approved["status"] == "AUDITED"
+    assert approved["destination"] == "Hanoi Market"
+    assert db.execute("SELECT destination FROM batches WHERE id = 1").fetchone()[0] == "Hanoi Market"
 
     with pytest.raises(HTTPException, match="Cần nhập lý do từ chối"):
         __import__("app.services.audit_service", fromlist=["reject_batch"]).reject_batch(db, 1, user_id=7, reason="   ")

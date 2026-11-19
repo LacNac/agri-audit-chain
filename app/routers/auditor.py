@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from ..dependencies.auth import get_db
 from ..dependencies.rbac import require_permission
-from ..schema.audit import AuditDecision, LabReportOut
+from ..schema.audit import AuditApproval, AuditDecision, LabReportOut
 from ..services.audit_service import approve_batch, create_report, get_report, list_reports_by_batch, reject_batch, verify_report_integrity
 from ..services.audit_service import approve_batch, create_report, get_report, list_reports_by_batch, reject_batch, update_report, verify_report_integrity
 
@@ -276,8 +276,14 @@ def read_report_integrity(report_id: int, db=Depends(get_db), user=Depends(requi
 
 
 @router.post("/batches/{batch_id}/approve")
-def approve(batch_id: int, payload: AuditDecision, db=Depends(get_db), user=Depends(require_permission("AUDIT_APPROVE"))):
-    return approve_batch(db, batch_id, user_id=user["id"], reason=payload.reason)
+def approve(batch_id: int, payload: AuditApproval, db=Depends(get_db), user=Depends(require_permission("AUDIT_APPROVE"))):
+    return approve_batch(
+        db,
+        batch_id,
+        user_id=user["id"],
+        reason=payload.reason,
+        destination=payload.destination,
+    )
 
 
 @router.post("/batches/{batch_id}/reject")
